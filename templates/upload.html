@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Participants</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        input[type="file"] {
+            padding: 12px;
+            border: 1px solid #d1d1d6;
+            border-radius: 8px;
+            background-color: #f5f5f7;
+            font-size: 16px;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="file"]:focus {
+            border-color: #007aff;
+            outline: none;
+            background-color: #ffffff;
+        }
+
+        button {
+            padding: 12px;
+            background-color: #007aff;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #005fcb;
+        }
+
+        button:focus {
+            outline: 2px solid #005fcb;
+        }
+    </style>
+    <script>
+        async function uploadFile(event) {
+            event.preventDefault();
+            const formData = new FormData(event.target);
+            const response = await fetch(event.target.action, {
+                method: "POST",
+                body: formData
+            });
+            const result = await response.json();
+            if (result.status === "success") {
+                alert("Participants uploaded successfully!");
+                window.opener.location.reload(); // Refresh the parent page
+                window.close(); // Close the popup
+            } else {
+                alert(result.message);
+            }
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Participants</h1>
+        <form action="/upload_participants/{{ event_id }}" method="post" enctype="multipart/form-data" onsubmit="uploadFile(event)">
+            <input type="file" name="file" required>
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+</body>
+</html>
