@@ -12,22 +12,6 @@
         <div class="error-message">{{ error }}</div>
         {% endif %}
         
-        <div class="upload-info">
-            <h3>업로드 가이드</h3>
-            <ul>
-                <li>CSV 또는 Excel 파일(.xlsx)만 업로드 가능합니다.</li>
-                <li>필수 컬럼: <strong>name (kor)</strong> 또는 <strong>first name</strong></li>
-                <li>지원하는 컬럼들:</li>
-                <ul>
-                    <li>registration, division, role, country</li>
-                    <li>name (kor), affiliation (kor), department (kor)</li>
-                    <li>first name, family name, affiliation (eng), department (eng)</li>
-                    <li>accept or decline, email, phone, position, license #</li>
-                    <li>remark (user), remark (admin)</li>
-                </ul>
-            </ul>
-        </div>
-        
         <form action="" method="post" enctype="multipart/form-data" onsubmit="uploadFile(event)">
             <div class="file-input-container">
                 <input type="file" name="file" accept=".csv,.xlsx" required>

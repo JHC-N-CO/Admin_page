@@ -22,7 +22,7 @@ body {
     background: #fff;
     border-radius: 18px;
     box-shadow: 0 4px 24px 0 rgba(50,64,82,0.08);
-    max-width: 600px;
+    max-width: 500px;
     width: 100%;
     padding: 40px 32px 32px 32px;
     box-sizing: border-box;
@@ -38,48 +38,12 @@ h1 {
     letter-spacing: -1px;
 }
 
-h3 {
-    font-size: 1.3rem;
-    font-weight: 600;
-    margin-bottom: 16px;
-    color: var(--main-blue);
-    text-align: left;
-}
-
 h4 {
     font-size: 1.1rem;
     font-weight: 600;
     margin-bottom: 12px;
     color: var(--main-blue);
     text-align: left;
-}
-
-.upload-info {
-    background: #f8f9fa;
-    border-radius: 12px;
-    padding: 20px;
-    margin-bottom: 24px;
-    text-align: left;
-}
-
-.upload-info ul {
-    margin: 0;
-    padding-left: 20px;
-}
-
-.upload-info li {
-    margin-bottom: 8px;
-    line-height: 1.5;
-}
-
-.upload-info ul ul {
-    margin-top: 8px;
-    margin-bottom: 8px;
-}
-
-.upload-info strong {
-    color: var(--main-blue);
-    font-weight: 600;
 }
 
 form {
