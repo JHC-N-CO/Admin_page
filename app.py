@@ -1394,6 +1394,28 @@ def get_participants_for_qr(event_id):
         'event_name': safe_event_name
     })
 
+@app.route('/generate_qr_image/<int:code>/<path:event_name>')
+def generate_qr_image(code, event_name):
+    """QR 코드 이미지 생성 및 반환"""
+    try:
+        # QR 코드 생성
+        qr = qrcode.make(str(code))
+        
+        # 이미지를 바이트 스트림으로 변환
+        img_io = BytesIO()
+        qr.save(img_io, 'PNG')
+        img_io.seek(0)
+        
+        return send_file(
+            img_io,
+            mimetype='image/png',
+            as_attachment=True,
+            download_name=f'{code}.png'
+        )
+    except Exception as e:
+        logging.error(f"QR generation failed for {code}: {str(e)}")
+        return "QR generation failed", 500
+
 @app.route('/download_qr_participants_excel/<int:event_id>', methods=['POST'])
 def download_qr_participants_excel(event_id):
     """QR 코드가 포함된 참가자 엑셀 다운로드 (기존 방식 - 호환성 유지)"""
