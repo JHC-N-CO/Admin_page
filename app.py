@@ -38,17 +38,31 @@ logging.basicConfig(level=logging.DEBUG)
 # QR 코드 저장 폴더 설정 (다운로드 폴더로 변경됨)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def generate_qr(number, event_id=None):
-    """QR 코드 생성 및 다운로드 폴더에 저장"""
+def generate_qr(number, event_id=None, event_name=None):
+    """QR 코드 생성 및 사용자 PC 다운로드 폴더에 저장"""
     try:
         qr = qrcode.make(str(number))
         qr_filename = f"{number}.png"
         
-        # Docker 볼륨 마운트된 다운로드 폴더 사용
-        download_base = "/app/downloads"
+        # 환경에 따른 다운로드 폴더 설정
+        if os.path.exists("/app/downloads"):  # Docker 환경 (서버)
+            download_base = "/app/downloads"
+        else:  # 로컬 환경
+            # macOS, Windows, Linux 사용자 다운로드 폴더 자동 감지
+            home_dir = os.path.expanduser("~")
+            if os.name == 'nt':  # Windows
+                download_base = os.path.join(home_dir, "Downloads")
+            elif os.name == 'posix':  # macOS/Linux
+                download_base = os.path.join(home_dir, "Downloads")
+            else:
+                download_base = os.path.join(home_dir, "Downloads")
         
-        # QR Codes 폴더 경로 설정
-        if event_id:
+        # QR Codes 폴더 경로 설정 (행사명 사용)
+        if event_name:
+            # 파일명에 사용할 수 없는 문자 제거
+            safe_event_name = "".join(c for c in event_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            download_folder = os.path.join(download_base, "QR Codes", safe_event_name)
+        elif event_id:
             download_folder = os.path.join(download_base, "QR Codes", str(event_id))
         else:
             download_folder = os.path.join(download_base, "QR Codes")
@@ -61,7 +75,13 @@ def generate_qr(number, event_id=None):
         qr.save(qr_path)
         
         # 상대 경로 반환 (인디자인 병합용)
-        relative_path = f"QR Codes/{event_id}/{qr_filename}" if event_id else f"QR Codes/{qr_filename}"
+        if event_name:
+            safe_event_name = "".join(c for c in event_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+            relative_path = f"QR Codes/{safe_event_name}/{qr_filename}"
+        elif event_id:
+            relative_path = f"QR Codes/{event_id}/{qr_filename}"
+        else:
+            relative_path = f"QR Codes/{qr_filename}"
         
         logging.debug(f"QR code generated: {qr_path}")
         return relative_path
@@ -1351,10 +1371,13 @@ def download_qr_participants_excel(event_id):
     else:
         participants = Participant.query.filter_by(event_id=event_id).all()
     
+    # 행사명에서 안전한 폴더명 생성
+    safe_event_name = "".join(c for c in event.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    
     # QR 코드 생성
     for participant in participants:
         if participant.code:
-            generate_qr(participant.code, event.event_id)
+            generate_qr(participant.code, event.event_id, event.name)
     
     # 데이터 준비
     data = []
@@ -1362,7 +1385,7 @@ def download_qr_participants_excel(event_id):
         data.append({
             'Event ID': event.event_id,
             'Code': p.code,
-            'QR Code': f'QR Codes/{event.event_id}/{p.code}.png' if p.code else '',
+            'QR Code': f'QR Codes/{safe_event_name}/{p.code}.png' if p.code else '',
             'Name (KOR)': p.name_kor,
             'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
             'Affiliation': p.affiliation_kor or p.affiliation_eng,
