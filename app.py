@@ -1,5 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file
-import sqlite3
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -8,597 +7,1406 @@ import unicodedata
 import logging
 from datetime import datetime
 from io import BytesIO
-import pandas as pd  # Ensure pandas is imported
+import qrcode
+from urllib.parse import urlencode
+from urllib.parse import quote, unquote
+import uuid
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.image import MIMEImage
+import re
+from dateutil import parser
+from werkzeug.security import generate_password_hash, check_password_hash
 
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'pdf', 'png', 'jpg', 'jpeg', 'docx'}
+# SQLAlchemy 및 모델 import
+from flask_sqlalchemy import SQLAlchemy
+from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings
+from config import config
 
-# Email Configuration
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USERNAME'] = 'jhchoi1979@gmail.com'
-app.config['MAIL_PASSWORD'] = 'fmuislkvacigzlkw'
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
+app = Flask(__name__, static_folder='static')
 
-mail = Mail(app)
+# 환경 설정
+config_name = os.environ.get('FLASK_ENV', 'development')
+app.config.from_object(config[config_name])
 
+# SQLAlchemy 초기화
+db.init_app(app)
+
+# 로깅 설정
 logging.basicConfig(level=logging.DEBUG)
 
-def check_schema():
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    
-    cursor.execute("PRAGMA table_info(participants)")
-    schema = cursor.fetchall()
-    conn.close()
-    
-    for column in schema:
-        print(column)
+# QR 코드 저장 폴더 설정
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+QR_FOLDER = os.path.join(BASE_DIR, "qr_codes")
+os.makedirs(QR_FOLDER, exist_ok=True)
 
-check_schema()
+def generate_qr(number):
+    try:
+        qr = qrcode.make(str(number))
+        qr_filename = f"{number}.png"
+        qr_path = os.path.join(QR_FOLDER, qr_filename)
+        qr.save(qr_path)
+        logging.debug(f"QR code generated: {qr_path}")
+        return f"qr_codes/{qr_filename}"
+    except Exception as e:
+        logging.error(f"QR generation failed for {number}: {str(e)}")
+        raise
 
+# 업로드 폴더 설정
+app.config['UPLOAD_FOLDER'] = 'uploads'
+SUBFOLDERS = {
+    'cv': 'CV',
+    'photo': 'Photo',
+    'ppt': 'PPT',
+    'script': 'Script'
+}
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+for subfolder in SUBFOLDERS.values():
+    os.makedirs(os.path.join(app.config['UPLOAD_FOLDER'], subfolder), exist_ok=True)
+ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'pdf', 'png', 'jpg', 'jpeg', 'docx', 'ppt', 'pptx'}
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
-def add_checkin_checkout_columns():
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    
-    # Check existing columns
-    cursor.execute("PRAGMA table_info(participants)")
-    existing_columns = [column[1] for column in cursor.fetchall()]
-    
-    # Add columns if they don't already exist
-    if "check_in_time" not in existing_columns:
-        cursor.execute("ALTER TABLE participants ADD COLUMN check_in_time TEXT")
-    if "check_out_time" not in existing_columns:
-        cursor.execute("ALTER TABLE participants ADD COLUMN check_out_time TEXT")
-    
-    conn.commit()
-    conn.close()
-    print("Database schema checked and updated if necessary!")
+# 이미지 업로드를 위한 설정 추가
+app.config['IMAGE_UPLOAD_FOLDER'] = 'uploads/images'
+os.makedirs(app.config['IMAGE_UPLOAD_FOLDER'], exist_ok=True)
 
-add_checkin_checkout_columns()
+# Email Configuration
+mail = Mail(app)
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+def allowed_file(filename, allowed_extensions=ALLOWED_EXTENSIONS):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 def sanitize(value):
-    """Ensure all values are strings to avoid binary data issues."""
     return value if isinstance(value, str) else str(value)
 
 def clean_text(text):
-    # Normalize and ensure UTF-8 encoding
     return unicodedata.normalize("NFKD", text)
 
+def parse_birth_date(date_str):
+    """생년월일 문자열을 date 객체로 변환"""
+    if not date_str:
+        return None
+    
+    # 여러 형식 지원
+    formats = [
+        '%Y/%m/%d',  # 2025/07/08
+        '%Y-%m-%d',  # 2025-07-08
+        '%Y.%m.%d',  # 2025.07.08
+    ]
+    
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt).date()
+        except ValueError:
+            continue
+    
+    # 모든 형식이 실패하면 None 반환
+    return None
+
+def parse_event_date(date_str):
+    """이벤트 날짜 문자열을 date 객체로 변환 (YYYY/MM/DD 또는 YYYY-MM-DD 지원)"""
+    for fmt in ('%Y/%m/%d', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(date_str, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"날짜 형식이 올바르지 않습니다: {date_str}")
+
+def get_form_data(request):
+    """폼 데이터를 수집하여 딕셔너리로 반환"""
+    return {
+        'name_kor': request.form.get('name_kor') or request.args.get('name_kor', ''),
+        'email': request.form.get('email') or request.args.get('email', ''),
+        'terms_service': request.form.get('terms_service') or request.args.get('terms_service', ''),
+        'terms_privacy': request.form.get('terms_privacy') or request.args.get('terms_privacy', ''),
+        'username': request.form.get('username', ''),
+        'name_eng_first': request.form.get('name_eng_first', ''),
+        'name_eng_last': request.form.get('name_eng_last', ''),
+        'birth_date': request.form.get('birth_date', ''),
+        'gender': request.form.get('gender', ''),
+        'phone_prefix': request.form.get('phone_prefix', ''),
+        'phone_middle': request.form.get('phone_middle', ''),
+        'phone_end': request.form.get('phone_end', ''),
+        'mobile_prefix': request.form.get('mobile_prefix', ''),
+        'mobile_middle': request.form.get('mobile_middle', ''),
+        'mobile_end': request.form.get('mobile_end', ''),
+        'license_number': request.form.get('license_number', ''),
+        'workplace_name': request.form.get('workplace_name', ''),
+        'workplace_name_eng': request.form.get('workplace_name_eng', ''),
+        'workplace_type': request.form.get('workplace_type', ''),
+        'position': request.form.get('position', ''),
+        'specialty': request.form.get('specialty', ''),
+        'specialty_eng': request.form.get('specialty_eng', ''),
+        'address': request.form.get('address', ''),
+        'address_eng': request.form.get('address_eng', ''),
+        'workplace_phone_prefix': request.form.get('workplace_phone_prefix', ''),
+        'workplace_phone_middle': request.form.get('workplace_phone_middle', ''),
+        'workplace_phone_end': request.form.get('workplace_phone_end', ''),
+        'workplace_fax_prefix': request.form.get('workplace_fax_prefix', ''),
+        'workplace_fax_middle': request.form.get('workplace_fax_middle', ''),
+        'workplace_fax_end': request.form.get('workplace_fax_end', ''),
+        'mail_receipt_location': request.form.get('mail_receipt_location', ''),
+        'home_address': request.form.get('home_address', ''),
+        'alma_mater': request.form.get('alma_mater', ''),
+        'major': request.form.get('major', ''),
+        'graduation_year': request.form.get('graduation_year', ''),
+        'highest_degree': request.form.get('highest_degree', ''),
+        'residency_institution': request.form.get('residency_institution', ''),
+        'residency_hospital': request.form.get('residency_hospital', ''),
+        'specialist_year': request.form.get('specialist_year', ''),
+        'profile_public': request.form.get('profile_public', ''),
+        'sms_receipt': request.form.get('sms_receipt', ''),
+        'email_receipt': request.form.get('email_receipt', ''),
+        'mail_receipt': request.form.get('mail_receipt', '')
+    }
+
 def init_db():
-    # Initialize the database and create tables if they don't exist
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
+    """데이터베이스 초기화"""
+    with app.app_context():
+        db.create_all()
+        print("Database tables created!")
+
+def get_all_participants_with_attendance():
+    """모든 참가자 정보 조회 (출석 정보 포함)"""
+    participants = Participant.query.all()
+    return [{
+        'id': p.id, 'event_id': p.event_id, 'registration': p.registration or '', 
+        'division': p.division or '', 'role': p.role or '', 'country': p.country or '', 
+        'name_kor': p.name_kor or '', 'affiliation_kor': p.affiliation_kor or '', 
+        'department_kor': p.department_kor or '', 'first_name': p.first_name or '', 
+        'family_name': p.family_name or '', 'affiliation_eng': p.affiliation_eng or '', 
+        'department_eng': p.department_eng or '', 'accept_or_decline': p.accept_or_decline or '', 
+        'email': p.email or '', 'phone': p.phone or '', 'position': p.position or '', 
+        'license_number': str(p.license_number) if p.license_number else '', 
+        'cv': p.cv or '', 'photo': p.photo or '', 'ppt': p.ppt or '', 'script': p.script or '', 
+        'agree': p.agree or '', 'remark_user': str(p.remark_user) if p.remark_user else '', 
+        'remark_admin': str(p.remark_admin) if p.remark_admin else '', 
+        'check_in_time': p.check_in_time.isoformat() if p.check_in_time else '', 
+        'check_out_time': p.check_out_time.isoformat() if p.check_out_time else '', 
+        'decline_reason': p.decline_reason or ''
+    } for p in participants]
+
+def migrate_existing_events():
+    """기존 이벤트에 event_id 생성"""
+    events = Event.query.filter(Event.event_id.is_(None)).all()
+    for event in events:
+        event_date = event.start_date
+        base_event_id = event_date.strftime('%Y-%m')
+        existing_events = Event.query.filter(
+            Event.event_id.like(f"{base_event_id}%"),
+            Event.id != event.id
+        ).all()
+        
+        if not existing_events:
+            new_event_id = base_event_id
+        else:
+            suffixes = [e.event_id[len(base_event_id) + 1:] for e in existing_events if e.event_id.startswith(base_event_id + '-')]
+            if not suffixes:
+                new_event_id = f"{base_event_id}-A"
+            else:
+                last_suffix = sorted(suffixes)[-1]
+                next_suffix = chr(ord(last_suffix) + 1)
+                new_event_id = f"{base_event_id}-{next_suffix}"
+        
+        event.event_id = new_event_id
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        start_date TEXT NOT NULL,
-        end_date TEXT NOT NULL
-    )''')
+    db.session.commit()
 
-    cursor.execute('''CREATE TABLE IF NOT EXISTS participants (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        event_id INTEGER NOT NULL,
-        division TEXT,
-        role TEXT,
-        country TEXT,
-        name_kor TEXT,
-        affiliation_kor TEXT,
-        department_kor TEXT,
-        first_name TEXT,
-        family_name TEXT,
-        affiliation_eng TEXT,
-        department_eng TEXT,
-        accept_or_decline TEXT,
-        email TEXT,
-        phone TEXT,
-        position TEXT,
-        license_number TEXT,
-        cv TEXT,
-        photo TEXT,
-        ppt TEXT,
-        script TEXT,
-        agree TEXT,
-        remark_user TEXT,
-        remark_admin TEXT,
-        FOREIGN KEY (event_id) REFERENCES events (id)
-    )''')
+def migrate_participant_codes():
+    """참가자 코드 생성"""
+    events = Event.query.all()
+    for event in events:
+        participants = Participant.query.filter_by(event_id=event.id).order_by(Participant.id).all()
+        for code, participant in enumerate(participants, 1):
+            participant.code = code
     
-    cursor.execute('''CREATE TABLE IF NOT EXISTS participant_files (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        participant_id INTEGER NOT NULL,
-        filename TEXT NOT NULL,
-        filepath TEXT NOT NULL,
-        FOREIGN KEY (participant_id) REFERENCES participants (id)
-    )''')
+    db.session.commit()
 
-    conn.commit()
-    conn.close()
+# 데이터베이스 초기화
+with app.app_context():
+    init_db()
+    migrate_existing_events()
+    migrate_participant_codes()
 
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+@app.route('/')
+def index():
+    """루트 경로 - 이벤트 페이지로 리다이렉트"""
+    return redirect(url_for('admin_event_page'))
 
 @app.route('/compose_email')
 def compose_email():
     participant_ids = request.args.get('participants', '')
     return render_template('compose_email.html', participant_ids=participant_ids)
 
-@app.route('/')
-def admin_page():
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute('''SELECT e.id, e.name, e.start_date, e.end_date, COUNT(p.id) as participant_count
-                       FROM events e
-                       LEFT JOIN participants p ON e.id = p.event_id
-                       GROUP BY e.id''')
-    events = cursor.fetchall()
-    conn.close()
-    return render_template('admin.html', events=events)
+@app.route('/event')
+def admin_event_page():
+    """행사 관리 페이지"""
+    events = db.session.query(
+        Event.id, Event.name, Event.start_date, Event.end_date, Event.event_id,
+        db.func.count(Participant.id).label('participant_count')
+    ).outerjoin(Participant).group_by(
+        Event.id, Event.name, Event.start_date, Event.end_date, Event.event_id
+    ).all()
+    
+    return render_template('admin_event.html', events=events)
+
+@app.route('/members')
+def members_page():
+    """회원 목록 페이지"""
+    members = Member.query.order_by(Member.created_at.desc()).all()
+    return render_template('admin_members.html', members=members)
+
+# check_registration 라우트는 새로운 단계별 회원가입으로 대체됨
+# @app.route('/check_registration', methods=['GET', 'POST'])
+# def check_registration():
+#     """회원가입 여부 확인 페이지 (기존 방식)"""
+#     # 이 기능은 새로운 단계별 회원가입의 1단계로 통합되었습니다.
+#     return redirect(url_for('register_step1'))
+
+@app.route('/register/step1', methods=['GET', 'POST'])
+def register_step1():
+    """회원가입 1단계: 가입확인"""
+    if request.method == 'POST':
+        name_kor = request.form.get('name_kor')
+        email = request.form.get('email')
+        
+        if not name_kor or not email:
+            return render_template('register_step1.html', error='이름과 이메일을 모두 입력해주세요.')
+        
+        # 기존 회원 재확인
+        member = Member.query.filter(
+            (Member.name_kor == name_kor) & (Member.email == email)
+        ).first()
+        
+        if member:
+            return render_template('register_step1.html', error='이미 등록된 회원입니다.')
+        
+        # 2단계로 이동
+        return redirect(url_for('register_step2', name_kor=name_kor, email=email))
+    
+    # GET 요청 시 URL 파라미터에서 값 가져오기
+    name_kor = request.args.get('name_kor', '')
+    email = request.args.get('email', '')
+    
+    return render_template('register_step1.html', name_kor=name_kor, email=email)
+
+@app.route('/register/step2', methods=['GET', 'POST'])
+def register_step2():
+    """회원가입 2단계: 약관동의"""
+    if request.method == 'POST':
+        name_kor = request.form.get('name_kor')
+        email = request.form.get('email')
+        terms_service = request.form.get('terms_service')
+        terms_privacy = request.form.get('terms_privacy')
+        
+        if not terms_service or not terms_privacy:
+            return render_template('register_step2.html', 
+                                 error='모든 약관에 동의해주세요.',
+                                 name_kor=name_kor, email=email)
+        
+        # 3단계로 이동
+        return redirect(url_for('register_step3', 
+                               name_kor=name_kor, 
+                               email=email,
+                               terms_service=terms_service,
+                               terms_privacy=terms_privacy))
+    
+    # GET 요청 시 URL 파라미터에서 값 가져오기
+    name_kor = request.args.get('name_kor', '')
+    email = request.args.get('email', '')
+    
+    return render_template('register_step2.html', name_kor=name_kor, email=email)
+
+@app.route('/register/step3', methods=['GET', 'POST'])
+def register_step3():
+    """회원가입 3단계: 회원정보 입력"""
+    if request.method == 'POST':
+        # 폼 데이터 수집
+        form_data = get_form_data(request)
+        
+        try:
+            # 필수 필드 검증
+            required_fields = ['username', 'password', 'password_confirm', 'license_number']
+            for field in required_fields:
+                if not request.form.get(field):
+                    return render_template('register_step3.html', 
+                                         error=f'{field}을(를) 입력해주세요.',
+                                         **form_data)
+            
+            # 비밀번호 확인
+            if request.form.get('password') != request.form.get('password_confirm'):
+                return render_template('register_step3.html', 
+                                     error='비밀번호가 일치하지 않습니다.',
+                                     **form_data)
+            
+            # 중복 확인
+            existing_member = Member.query.filter(
+                (Member.username == request.form.get('username')) | 
+                (Member.email == request.form.get('email'))
+            ).first()
+            
+            if existing_member:
+                return render_template('register_step3.html', 
+                                     error='이미 등록된 아이디 또는 이메일입니다.',
+                                     **form_data)
+            
+            # 새 회원 생성
+            member = Member(
+                username=request.form.get('username'),
+                password_hash=generate_password_hash(request.form.get('password')),
+                email=request.form.get('email'),
+                name_kor=request.form.get('name_kor'),
+                name_eng=f"{request.form.get('name_eng_first', '')} {request.form.get('name_eng_last', '')}".strip(),
+                birth_date=parse_birth_date(request.form.get('birth_date')) if request.form.get('birth_date') else None,
+                gender=request.form.get('gender'),
+                phone=f"{request.form.get('phone_prefix', '')}-{request.form.get('phone_middle', '')}-{request.form.get('phone_end', '')}" if request.form.get('phone_prefix') else None,
+                mobile=f"{request.form.get('mobile_prefix', '')}-{request.form.get('mobile_middle', '')}-{request.form.get('mobile_end', '')}" if request.form.get('mobile_prefix') else None,
+                license_number=request.form.get('license_number'),
+                workplace_name=request.form.get('workplace_name'),
+                workplace_name_eng=request.form.get('workplace_name_eng'),
+                workplace_type=request.form.get('workplace_type'),
+                position=request.form.get('position'),
+                specialty=request.form.get('specialty'),
+                specialty_eng=request.form.get('specialty_eng'),
+                address=request.form.get('address'),
+                address_eng=request.form.get('address_eng'),
+                workplace_phone=f"{request.form.get('workplace_phone_prefix')}-{request.form.get('workplace_phone_middle')}-{request.form.get('workplace_phone_end')}" if request.form.get('workplace_phone_prefix') else None,
+                workplace_fax=f"{request.form.get('workplace_fax_prefix')}-{request.form.get('workplace_fax_middle')}-{request.form.get('workplace_fax_end')}" if request.form.get('workplace_fax_prefix') else None,
+                mail_receipt_location=request.form.get('mail_receipt_location'),
+                home_address=request.form.get('home_address'),
+                alma_mater=request.form.get('alma_mater'),
+                major=request.form.get('major'),
+                graduation_year=int(request.form.get('graduation_year')) if request.form.get('graduation_year') else None,
+                highest_degree=request.form.get('highest_degree'),
+                residency_institution=request.form.get('residency_institution'),
+                residency_hospital=request.form.get('residency_hospital'),
+                specialist_year=int(request.form.get('specialist_year')) if request.form.get('specialist_year') else None,
+                profile_public=request.form.get('profile_public') == 'true',
+                sms_receipt=request.form.get('sms_receipt') == 'true',
+                email_receipt=request.form.get('email_receipt') == 'true',
+                mail_receipt=request.form.get('mail_receipt') == 'true',
+                terms_agreed=True,
+                terms_agreed_at=datetime.utcnow()
+            )
+            
+            # 프로필 사진 업로드
+            if 'profile_photo' in request.files:
+                file = request.files['profile_photo']
+                if file and file.filename and allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['IMAGE_UPLOAD_FOLDER'], f"profile_{member.username}_{filename}")
+                    file.save(filepath)
+                    member.profile_photo = filepath
+            
+            db.session.add(member)
+            db.session.commit()
+            
+            # 4단계로 이동
+            return redirect(url_for('register_step4', success='회원가입이 완료되었습니다. 관리자 승인 후 로그인이 가능합니다.'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error during registration: {str(e)}")
+            return render_template('register_step3.html', 
+                                 error=f'회원가입 중 오류가 발생했습니다: {str(e)}',
+                                 **form_data)
+    
+    # GET 요청 시 URL 파라미터에서 값 가져오기
+    form_data = get_form_data(request)
+    return render_template('register_step3.html', **form_data)
+
+@app.route('/register/step4')
+def register_step4():
+    """회원가입 4단계: 가입완료"""
+    success = request.args.get('success', '')
+    return render_template('register_step4.html', success=success)
+
+@app.route('/api/check-username', methods=['POST'])
+def check_username():
+    """아이디 중복확인 API"""
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        
+        if not username:
+            return jsonify({'available': False, 'error': '아이디를 입력해주세요.'})
+        
+        # 아이디 형식 검사 (4~20자 영문소문자, 숫자)
+        import re
+        if not re.match(r'^[a-z0-9]{4,20}$', username):
+            return jsonify({'available': False, 'error': '아이디는 4~20자의 영문소문자와 숫자만 사용 가능합니다.'})
+        
+        # 데이터베이스에서 중복 확인
+        existing_member = Member.query.filter_by(username=username).first()
+        
+        if existing_member:
+            return jsonify({'available': False, 'message': '이미 사용 중인 아이디입니다.'})
+        else:
+            return jsonify({'available': True, 'message': '사용 가능한 아이디입니다.'})
+            
+    except Exception as e:
+        logging.error(f"Error checking username: {str(e)}")
+        return jsonify({'available': False, 'error': '중복확인 중 오류가 발생했습니다.'})
+
+@app.route('/api/check-license', methods=['POST'])
+def check_license():
+    """의사면허번호 중복확인 API"""
+    try:
+        data = request.get_json()
+        license_number = data.get('license_number', '').strip()
+        
+        if not license_number:
+            return jsonify({'available': False, 'error': '의사면허번호를 입력해주세요.'})
+        
+        # 데이터베이스에서 중복 확인
+        existing_member = Member.query.filter_by(license_number=license_number).first()
+        
+        if existing_member:
+            return jsonify({'available': False, 'message': '이미 등록된 의사면허번호입니다.'})
+        else:
+            return jsonify({'available': True, 'message': '사용 가능한 의사면허번호입니다.'})
+            
+    except Exception as e:
+        logging.error(f"Error checking license: {str(e)}")
+        return jsonify({'available': False, 'error': '중복확인 중 오류가 발생했습니다.'})
+
+# 기존 register 라우트는 새로운 단계별 회원가입으로 대체됨
+# @app.route('/register', methods=['GET', 'POST'])
+# def register():
+#     """회원가입 페이지 (기존 단일 페이지 방식)"""
+#     # 이 라우트는 새로운 단계별 회원가입으로 대체되었습니다.
+#     return redirect(url_for('register_step1'))
+
+
+
+@app.route('/members/delete', methods=['POST'])
+def delete_members():
+    """회원 삭제"""
+    selected_members = request.form.getlist('selected_members')
+    if selected_members:
+        member_ids = [int(member_id) for member_id in selected_members]
+        Member.query.filter(Member.id.in_(member_ids)).delete(synchronize_session=False)
+        db.session.commit()
+    return redirect(url_for('members_page'))
+
+@app.route('/members/edit/<int:member_id>', methods=['GET', 'POST'])
+def edit_member(member_id):
+    """회원 정보 수정"""
+    member = Member.query.get_or_404(member_id)
+    
+    if request.method == 'POST':
+        try:
+            # 폼 데이터로 회원 정보 업데이트
+            member.username = request.form.get('username')
+            member.email = request.form.get('email')
+            member.name_kor = request.form.get('name_kor')
+            member.name_eng = f"{request.form.get('name_eng_first', '')} {request.form.get('name_eng_last', '')}".strip()
+            member.birth_date = parse_birth_date(request.form.get('birth_date')) if request.form.get('birth_date') else None
+            member.gender = request.form.get('gender')
+            member.phone = f"{request.form.get('phone_prefix', '')}-{request.form.get('phone_middle', '')}-{request.form.get('phone_end', '')}" if request.form.get('phone_prefix') else None
+            member.mobile = f"{request.form.get('mobile_prefix', '')}-{request.form.get('mobile_middle', '')}-{request.form.get('mobile_end', '')}" if request.form.get('mobile_prefix') else None
+            member.license_number = request.form.get('license_number')
+            member.workplace_name = request.form.get('workplace_name')
+            member.workplace_name_eng = request.form.get('workplace_name_eng')
+            member.workplace_type = request.form.get('workplace_type')
+            member.position = request.form.get('position')
+            member.specialty = request.form.get('specialty')
+            member.specialty_eng = request.form.get('specialty_eng')
+            member.address = request.form.get('address')
+            member.address_eng = request.form.get('address_eng')
+            member.workplace_phone = f"{request.form.get('workplace_phone_prefix')}-{request.form.get('workplace_phone_middle')}-{request.form.get('workplace_phone_end')}" if request.form.get('workplace_phone_prefix') else None
+            member.workplace_fax = f"{request.form.get('workplace_fax_prefix')}-{request.form.get('workplace_fax_middle')}-{request.form.get('workplace_fax_end')}" if request.form.get('workplace_fax_prefix') else None
+            member.mail_receipt_location = request.form.get('mail_receipt_location')
+            member.home_address = request.form.get('home_address')
+            member.alma_mater = request.form.get('alma_mater')
+            member.major = request.form.get('major')
+            member.graduation_year = int(request.form.get('graduation_year')) if request.form.get('graduation_year') else None
+            member.highest_degree = request.form.get('highest_degree')
+            member.residency_institution = request.form.get('residency_institution')
+            member.residency_hospital = request.form.get('residency_hospital')
+            member.specialist_year = int(request.form.get('specialist_year')) if request.form.get('specialist_year') else None
+            member.profile_public = request.form.get('profile_public') == 'true'
+            member.sms_receipt = request.form.get('sms_receipt') == 'true'
+            member.email_receipt = request.form.get('email_receipt') == 'true'
+            member.mail_receipt = request.form.get('mail_receipt') == 'true'
+            
+            # 비밀번호 변경 (입력된 경우에만)
+            if request.form.get('password'):
+                if request.form.get('password') != request.form.get('password_confirm'):
+                    return render_template('edit_member.html', member=member, error='비밀번호가 일치하지 않습니다.')
+                member.password_hash = generate_password_hash(request.form.get('password'))
+            
+            # 프로필 사진 업로드
+            if 'profile_photo' in request.files:
+                file = request.files['profile_photo']
+                if file and allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['IMAGE_UPLOAD_FOLDER'], f"profile_{member.username}_{filename}")
+                    file.save(filepath)
+                    member.profile_photo = filepath
+            
+            db.session.commit()
+            return redirect(url_for('members_page'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating member: {str(e)}")
+            return render_template('edit_member.html', member=member, error=f'회원 정보 수정 중 오류가 발생했습니다: {str(e)}')
+    
+    # GET 요청 시 회원 정보를 폼에 미리 채움
+    return render_template('edit_member.html', member=member)
+
+@app.route('/members/export')
+def export_members():
+    """회원 목록 Excel 다운로드"""
+    members = Member.query.all()
+    
+    # DataFrame 생성
+    data = []
+    for member in members:
+        data.append({
+            '아이디': member.username,
+            '이름': member.name_kor,
+            '이름(영문)': member.name_eng,
+            '이메일': member.email,
+            '생년월일': member.birth_date.strftime('%Y-%m-%d') if member.birth_date else '',
+            '성별': member.gender,
+            '전화번호': member.phone,
+            '휴대전화': member.mobile,
+            '의사면허번호': member.license_number or '',
+            '근무처명': member.workplace_name,
+            '근무처명(영문)': member.workplace_name_eng,
+            '근무처구분': member.workplace_type,
+            '직위': member.position,
+            '진료과목': member.specialty,
+            '진료과목(영문)': member.specialty_eng,
+            '주소': member.address,
+            '주소(영문)': member.address_eng,
+            '근무처전화': member.workplace_phone,
+            '근무처FAX': member.workplace_fax,
+            '우편물수령장소': member.mail_receipt_location,
+            '자택주소': member.home_address,
+            '출신학교': member.alma_mater,
+            '전공과목': member.major,
+            '졸업년도': member.graduation_year,
+            '최종학위': member.highest_degree,
+            '레지던트(이수기관)': member.residency_institution,
+            '레지던트(수련병원)': member.residency_hospital,
+            '전문의취득년도': member.specialist_year,
+            '개인정보공개': '공개' if member.profile_public else '비공개',
+            'SMS수신': '받음' if member.sms_receipt else '받지않음',
+            '정보메일수신': '받음' if member.email_receipt else '받지않음',
+            '우편물수령': '받음' if member.mail_receipt else '받지않음',
+            '상태': '활성' if member.is_active else '비활성',
+            '가입일': member.created_at.strftime('%Y-%m-%d %H:%M:%S') if member.created_at else ''
+        })
+    
+    df = pd.DataFrame(data)
+    
+    # Excel 파일 생성
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='회원목록', index=False)
+    
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'회원목록_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    )
 
 @app.route('/create_event', methods=['POST'])
 def create_event():
+    """이벤트 생성"""
     name = request.form['name']
-    start_date = request.form['start_date']
-    end_date = request.form['end_date']
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute('INSERT INTO events (name, start_date, end_date) VALUES (?, ?, ?)', (name, start_date, end_date))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('admin_page'))
+    start_date = parse_event_date(request.form['start_date'])
+    end_date = parse_event_date(request.form['end_date'])
     
+    # event_id 생성
+    base_event_id = start_date.strftime('%Y-%m')
+    existing_events = Event.query.filter(Event.event_id.like(f"{base_event_id}%")).all()
+    
+    if not existing_events:
+        event_id = base_event_id
+    else:
+        suffixes = [e.event_id[len(base_event_id) + 1:] for e in existing_events if e.event_id.startswith(base_event_id + '-')]
+        if not suffixes:
+            event_id = f"{base_event_id}-A"
+        else:
+            last_suffix = sorted(suffixes)[-1]
+            next_suffix = chr(ord(last_suffix) + 1)
+            event_id = f"{base_event_id}-{next_suffix}"
+    
+    new_event = Event(name=name, start_date=start_date, end_date=end_date, event_id=event_id)
+    db.session.add(new_event)
+    db.session.commit()
+    
+    return redirect(url_for('admin_event_page'))
+
 @app.route('/get_files/<int:participant_id>', methods=['GET'])
 def get_files(participant_id):
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT id, filename FROM participant_files WHERE participant_id = ?', (participant_id,))
-    files = cursor.fetchall()
-    conn.close()
-    return jsonify({"status": "success", "files": files})
-    
+    """참가자 파일 목록 조회"""
+    files = ParticipantFile.query.filter_by(participant_id=participant_id).all()
+    return jsonify([{
+        'id': f.id,
+        'filename': f.filename,
+        'filepath': f.filepath,
+        'file_type': f.file_type,
+        'file_size': f.file_size
+    } for f in files])
+
 @app.route('/download_file/<int:file_id>', methods=['GET'])
 def download_file(file_id):
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT filepath, filename FROM participant_files WHERE id = ?', (file_id,))
-    file_data = cursor.fetchone()
-    conn.close()
-
-    if not file_data:
-        return jsonify({"status": "error", "message": "File not found"}), 404
-
-    filepath, filename = file_data
-    return send_file(filepath, as_attachment=True, download_name=filename)
-
+    """파일 다운로드"""
+    file_record = ParticipantFile.query.get_or_404(file_id)
+    try:
+        return send_file(file_record.filepath, as_attachment=True, download_name=file_record.filename)
+    except Exception as e:
+        logging.error(f"File download failed: {e}")
+        return "File not found", 404
 
 @app.route('/delete_events', methods=['POST'])
 def delete_events():
-    ids = request.form.getlist('selected_events')
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.executemany('DELETE FROM events WHERE id = ?', [(event_id,) for event_id in ids])
-    conn.commit()
-    conn.close()
-    return redirect(url_for('admin_page'))
+    """이벤트 삭제"""
+    selected_events = request.form.getlist('selected_events')
+    if selected_events:
+        # 문자열을 정수로 변환
+        event_ids = [int(event_id) for event_id in selected_events]
+        Event.query.filter(Event.id.in_(event_ids)).delete(synchronize_session=False)
+        db.session.commit()
+    return redirect(url_for('admin_event_page'))
 
 @app.route('/event/<int:event_id>')
 def participant_management(event_id):
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-
-    # Fetch event details
-    cursor.execute('SELECT * FROM events WHERE id = ?', (event_id,))
-    event = cursor.fetchone()
-
-    # Fetch participants with check-in and check-out times
-    cursor.execute('''
-        SELECT id, event_id, division, role, country, name_kor, affiliation_kor, department_kor, 
-               first_name, family_name, affiliation_eng, department_eng, accept_or_decline, 
-               email, phone, position, license_number, cv, photo, ppt, script, agree, 
-               remark_user, remark_admin, check_in_time, check_out_time
-        FROM participants
-        WHERE event_id = ?
-    ''', (event_id,))
-    participants = cursor.fetchall()
-    logging.debug("Participants fetched from the database:\n%s", participants)
-
-    # Fetch files for each participant
-    participant_files = {}
-    cursor.execute('SELECT participant_id, id, filename FROM participant_files')
-    for row in cursor.fetchall():
-        participant_id, file_id, filename = row
-        if participant_id not in participant_files:
-            participant_files[participant_id] = []
-        participant_files[participant_id].append((file_id, filename))
-
-    conn.close()
-
-    # Pass all variables to the template
-    return render_template(
-        'participants.html',
-        event=event,
-        participants=participants,
-        participant_files=participant_files
-    )
-
+    """참가자 관리 페이지"""
+    event = Event.query.get_or_404(event_id)
+    participants = Participant.query.filter_by(event_id=event_id).all()
+    
+    # 튜플 형태로 변환 (기존 템플릿 호환성)
+    event_tuple = (event.id, event.name, event.start_date, event.end_date, event.event_id)
+    participants_tuples = []
+    
+    for p in participants:
+        participants_tuples.append((
+            p.id, p.event_id, p.code, p.registration, p.division, p.role, p.country,
+            p.name_kor, p.affiliation_kor, p.department_kor, p.first_name, p.family_name,
+            p.affiliation_eng, p.department_eng, p.accept_or_decline, p.email, p.phone,
+            p.position, p.license_number, p.cv, p.photo, p.ppt, p.script, p.agree,
+            p.remark_user, p.remark_admin, p.check_in_time, p.check_out_time, p.decline_reason
+        ))
+    
+    return render_template('admin_participants.html', event=event_tuple, participants=participants_tuples)
 
 @app.route('/add_participant/<int:event_id>', methods=['GET', 'POST'])
 def add_participant(event_id):
+    """참가자 추가"""
+    event = Event.query.get_or_404(event_id)
+    
     if request.method == 'POST':
-        # Extract form data
-        form_data = {
-            "division": request.form.get('division', ''),
-            "role": request.form.get('role', ''),
-            "country": request.form.get('country', ''),
-            "name_kor": request.form.get('name_kor', ''),
-            "affiliation_kor": request.form.get('affiliation_kor', ''),
-            "department_kor": request.form.get('department_kor', ''),
-            "first_name": request.form.get('first_name', ''),
-            "family_name": request.form.get('family_name', ''),
-            "affiliation_eng": request.form.get('affiliation_eng', ''),
-            "department_eng": request.form.get('department_eng', ''),
-            "accept_or_decline": request.form.get('accept_or_decline', ''),
-            "email": request.form.get('email', ''),
-            "phone": request.form.get('phone', ''),
-            "position": request.form.get('position', ''),
-            "license_number": request.form.get('license_number', ''),
-            "cv": request.form.get('cv', ''),
-            "photo": request.form.get('photo', ''),
-            "ppt": request.form.get('ppt', ''),
-            "script": request.form.get('script', ''),
-            "agree": request.form.get('agree', ''),
-            "remark_user": request.form.get('remark_user', ''),
-            "remark_admin": request.form.get('remark_admin', ''),
-        }
-
         try:
-            # Insert data into the database
-            conn = sqlite3.connect('events.db')
-            cursor = conn.cursor()
-            cursor.execute('''
-                INSERT INTO participants (
-                    event_id, division, role, country, name_kor, affiliation_kor, department_kor,
-                    first_name, family_name, affiliation_eng, department_eng, accept_or_decline,
-                    email, phone, position, license_number, cv, photo, ppt, script, agree,
-                    remark_user, remark_admin
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (event_id, *form_data.values()))
-            conn.commit()
-            conn.close()
-
-            # Redirect to the participants page with success
-
-            response = jsonify({"status": "success"})
-            response.headers['Content-Type'] = 'application/json'  # Ensure correct Content-Type
-            return response
+            # 폼 데이터 처리
+            participant = Participant(
+                event_id=event_id,
+                registration=request.form.get('registration'),
+                division=request.form.get('division'),
+                role=request.form.get('role'),
+                country=request.form.get('country'),
+                name_kor=request.form.get('name_kor'),
+                affiliation_kor=request.form.get('affiliation_kor'),
+                department_kor=request.form.get('department_kor'),
+                first_name=request.form.get('first_name'),
+                family_name=request.form.get('family_name'),
+                affiliation_eng=request.form.get('affiliation_eng'),
+                department_eng=request.form.get('department_eng'),
+                accept_or_decline=request.form.get('accept_or_decline'),
+                email=request.form.get('email'),
+                phone=request.form.get('phone'),
+                position=request.form.get('position'),
+                license_number=request.form.get('license_number'),
+                agree=request.form.get('agree'),
+                remark_user=request.form.get('remark_user'),
+                remark_admin=request.form.get('remark_admin')
+            )
+            
+            # 파일 업로드 처리
+            for field in ['cv', 'photo', 'ppt', 'script']:
+                if field in request.files:
+                    file = request.files[field]
+                    if file and file.filename and allowed_file(file.filename):
+                        filename = secure_filename(file.filename)
+                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], SUBFOLDERS.get(field, ''), filename)
+                        file.save(filepath)
+                        setattr(participant, field, filepath)
+            
+            db.session.add(participant)
+            db.session.commit()
+            
+            # 참가자 코드 자동 생성
+            if not participant.code:
+                # 해당 이벤트의 최대 코드 번호 찾기
+                max_code = db.session.query(db.func.max(Participant.code)).filter_by(event_id=event_id).scalar()
+                participant.code = (max_code or 0) + 1
+                db.session.commit()
+            
+            return redirect(url_for('participant_management', event_id=event_id))
+            
         except Exception as e:
-            return jsonify({"status": "error", "message": str(e)})
-    return render_template('add_participant.html', event_id=event_id)
-
-    return render_template('add_participant.html', event_id=event_id)
+            db.session.rollback()
+            logging.error(f"Error adding participant: {str(e)}")
+            return render_template('add_participant.html', event=event, error=f"참가자 추가 중 오류가 발생했습니다: {str(e)}")
+    
+    return render_template('add_participant.html', event=event)
 
 @app.route('/upload_participants/<int:event_id>', methods=['GET', 'POST'])
 def upload_participants(event_id):
+    """참가자 일괄 업로드"""
+    event = Event.query.get_or_404(event_id)
+    
+    def parse_datetime_or_none(val):
+        try:
+            if pd.isna(val) or val in ['', 'nan', 'NaN', None]:
+                return None
+            return parser.parse(str(val))
+        except Exception:
+            return None
+    
     if request.method == 'POST':
         if 'file' not in request.files:
-            return jsonify({"status": "error", "message": "No file part"})
+            return 'No file uploaded', 400
+        
         file = request.files['file']
         if file.filename == '':
-            return jsonify({"status": "error", "message": "No selected file"})
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-
+            return 'No file selected', 400
+        
+        if file and allowed_file(file.filename, {'csv', 'xlsx'}):
             try:
-                # Read file using pandas
-                if filename.endswith('.xlsx'):
-                    df = pd.read_excel(filepath)
+                if file.filename.endswith('.csv'):
+                    df = pd.read_csv(file, encoding='utf-8', dtype=str, na_values=['nan', 'NaN', ''], keep_default_na=False)
                 else:
-                    df = pd.read_csv(filepath, encoding='utf-8')
-
-                # Log the raw data read from the file
-                logging.debug("Raw data read from file:\n%s", df.head())
-
-                # Normalize column names
+                    df = pd.read_excel(file, dtype=str, na_values=['nan', 'NaN', ''], keep_default_na=False)
+                
+                # NaN 값을 빈 문자열로 변환
+                df = df.fillna('')
+                
+                # 컬럼명 정규화 (소문자로 변환하고 공백 제거)
                 df.columns = [col.lower().strip() for col in df.columns]
-
-                # Verify required columns exist
-                required_columns = ['division', 'role', 'country', 'name (kor)', 'affiliation (kor)', 'department (kor)',
-                                    'first name', 'family name', 'affiliation (eng)', 'department (eng)', 'accept or decline',
-                                    'email', 'phone', 'position', 'license #', 'cv', 'photo', 'ppt', 'script', 'agree',
-                                    'remark (user)', 'remark (admin)']
-                for col in required_columns:
-                    if col not in df.columns:
-                        raise ValueError(f"Missing required column: {col}")
-
-                # Sanitize data
-                df = df.applymap(sanitize)
-                logging.debug("Sanitized DataFrame:\n%s", df.head())
-
-                conn = sqlite3.connect('events.db')
-                cursor = conn.cursor()
+                
+                # 컬럼명 매핑 (admin.py와 동일)
+                column_mapping = {
+                    'name_kor': 'name (kor)', 'affiliation_kor': 'affiliation (kor)', 'department_kor': 'department (kor)',
+                    'first_name': 'first name', 'family_name': 'family name', 'affiliation_eng': 'affiliation (eng)',
+                    'department_eng': 'department (eng)', 'accept_or_decline': 'accept or decline', 'license_number': 'license #',
+                    'remark_user': 'remark (user)', 'remark_admin': 'remark (admin)', 'check_in_time': 'check_in_time',
+                    'check_out_time': 'check_out_time', 'decline_reason': 'decline_reason'
+                }
+                df.rename(columns=column_mapping, inplace=True)
+                
+                # 모든 가능한 컬럼
+                all_columns = [
+                    'registration', 'division', 'role', 'country', 'name (kor)', 'affiliation (kor)', 'department (kor)',
+                    'first name', 'family name', 'affiliation (eng)', 'department (eng)', 'accept or decline',
+                    'email', 'phone', 'position', 'license #', 'cv', 'photo', 'ppt', 'script', 'agree',
+                    'remark (user)', 'remark (admin)', 'check_in_time', 'check_out_time', 'decline_reason'
+                ]
+                present_columns = [col for col in all_columns if col in df.columns]
+                missing_columns = [col for col in all_columns if col not in df.columns]
+                
+                # 데이터 처리 및 저장
                 for _, row in df.iterrows():
-                    # Insert rows into the database
-                    cursor.execute('''
-                        INSERT INTO participants (event_id, division, role, country, name_kor, affiliation_kor,
-                                                  department_kor, first_name, family_name, affiliation_eng,
-                                                  department_eng, accept_or_decline, email, phone, position, 
-                                                  license_number, cv, photo, ppt, script, agree, 
-                                                  remark_user, remark_admin)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                                   (event_id, row['division'], row['role'], row['country'], row['name (kor)'], row['affiliation (kor)'],
-                                    row['department (kor)'], row['first name'], row['family name'],
-                                    row['affiliation (eng)'], row['department (eng)'], row['accept or decline'], row['email'],
-                                    row['phone'], row['position'], row['license #'], row['cv'],
-                                    row['photo'], row['ppt'], row['script'], row['agree'],
-                                    row['remark (user)'], row['remark (admin)']))
-                conn.commit()
-
-                # Verify data stored in the database
-                cursor.execute('SELECT * FROM participants')
-                rows = cursor.fetchall()
-                logging.debug("Data stored in the database:\n%s", rows)
-
-                conn.close()
-                return jsonify({"status": "success"})
-            except ValueError as ve:
-                logging.error("Error: %s", str(ve))
-                return jsonify({"status": "error", "message": str(ve)})
+                    sanitized_data = {}
+                    for key in all_columns:
+                        value = row.get(key, '').strip() if key in row else ''
+                        # datetime 필드의 경우 빈 값이면 None으로 설정
+                        if key in ['check_in_time', 'check_out_time']:
+                            sanitized_data[key] = value if value else None
+                        else:
+                            sanitized_data[key] = value
+                    participant = Participant(
+                        event_id=event_id,
+                        registration=sanitized_data.get('registration', ''),
+                        division=sanitized_data.get('division', ''),
+                        role=sanitized_data.get('role', ''),
+                        country=sanitized_data.get('country', ''),
+                        name_kor=sanitized_data.get('name (kor)', ''),
+                        affiliation_kor=sanitized_data.get('affiliation (kor)', ''),
+                        department_kor=sanitized_data.get('department (kor)', ''),
+                        first_name=sanitized_data.get('first name', ''),
+                        family_name=sanitized_data.get('family name', ''),
+                        affiliation_eng=sanitized_data.get('affiliation (eng)', ''),
+                        department_eng=sanitized_data.get('department (eng)', ''),
+                        accept_or_decline=sanitized_data.get('accept or decline', ''),
+                        email=sanitized_data.get('email', ''),
+                        phone=sanitized_data.get('phone', ''),
+                        position=sanitized_data.get('position', ''),
+                        license_number=sanitized_data.get('license #', ''),
+                        agree=sanitized_data.get('agree', ''),
+                        remark_user=sanitized_data.get('remark (user)', ''),
+                        remark_admin=sanitized_data.get('remark (admin)', ''),
+                        check_in_time=sanitized_data.get('check_in_time') if sanitized_data.get('check_in_time') else None,
+                        check_out_time=sanitized_data.get('check_out_time') if sanitized_data.get('check_out_time') else None,
+                        decline_reason=sanitized_data.get('decline_reason', '')
+                    )
+                    db.session.add(participant)
+                db.session.commit()
+                # 참가자 코드 자동 생성
+                participants = Participant.query.filter_by(event_id=event_id).filter(Participant.code.is_(None)).all()
+                for i, participant in enumerate(participants, 1):
+                    participant.code = i
+                db.session.commit()
+                # 누락 컬럼 경고 메시지(선택)
+                if missing_columns:
+                    return f'업로드 완료 (누락 컬럼: {", ".join(missing_columns)})', 200
+                return redirect(url_for('participant_management', event_id=event_id))
             except Exception as e:
-                logging.error("Unhandled Error: %s", str(e))
-                return jsonify({"status": "error", "message": f"Failed to process file: {str(e)}"})
-    return render_template('upload.html', event_id=event_id)
-
-@app.route('/upload_file/<int:participant_id>', methods=['GET', 'POST'])
-def upload_file(participant_id):
-    if request.method == 'POST':
-        if 'file' not in request.files:
-            return jsonify({"status": "error", "message": "No file part"})
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({"status": "error", "message": "No selected file"})
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-
-            # Save file information in the database
-            conn = sqlite3.connect('events.db')
-            cursor = conn.cursor()
-            cursor.execute('INSERT INTO participant_files (participant_id, filename, filepath) VALUES (?, ?, ?)',
-                           (participant_id, filename, filepath))
-            conn.commit()
-            conn.close()
-
-            return jsonify({"status": "success"})
-        else:
-            return jsonify({"status": "error", "message": "File type not allowed"})
-    return render_template('upload_file.html', participant_id=participant_id)
+                logging.error(f"Upload failed: {e}")
+                return f'Upload failed: {str(e)}', 500
+    
+    return render_template('upload_participant.html', event=event)
 
 @app.route('/delete_file/<int:file_id>', methods=['POST'])
 def delete_file(file_id):
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT filepath FROM participant_files WHERE id = ?', (file_id,))
-    file_data = cursor.fetchone()
-
-    if not file_data:
-        conn.close()
-        return jsonify({"status": "error", "message": "File not found"}), 404
-
-    filepath = file_data[0]
+    """파일 삭제"""
+    file_record = ParticipantFile.query.get_or_404(file_id)
     try:
-        # Delete the file from the filesystem
-        if os.path.exists(filepath):
-            os.remove(filepath)
-        
-        # Delete the file record from the database
-        cursor.execute('DELETE FROM participant_files WHERE id = ?', (file_id,))
-        conn.commit()
+        if os.path.exists(file_record.filepath):
+            os.remove(file_record.filepath)
+        db.session.delete(file_record)
+        db.session.commit()
+        return jsonify({'success': True})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-    finally:
-        conn.close()
-
-    return jsonify({"status": "success"})
-
+        logging.error(f"File deletion failed: {e}")
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/delete_participants/<int:event_id>', methods=['POST'])
 def delete_participants(event_id):
-    ids = request.form.getlist('selected_participants')
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.executemany('DELETE FROM participants WHERE id = ?', [(participant_id,) for participant_id in ids])
-    conn.commit()
-    conn.close()
+    """참가자 삭제"""
+    selected_participants = request.form.getlist('selected_participants')
+    if selected_participants:
+        # 문자열을 정수로 변환
+        participant_ids = [int(participant_id) for participant_id in selected_participants]
+        Participant.query.filter(Participant.id.in_(participant_ids)).delete(synchronize_session=False)
+        db.session.commit()
     return redirect(url_for('participant_management', event_id=event_id))
 
 @app.route('/edit_participant/<int:participant_id>', methods=['GET', 'POST'])
 def edit_participant(participant_id):
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-
+    """참가자 편집"""
+    participant = Participant.query.get_or_404(participant_id)
+    
     if request.method == 'POST':
-        # Extract updated participant data from the form
-        division = request.form.get('division', '')
-        role = request.form.get('role', '')
-        country = request.form.get('country', '')
-        name_kor = request.form.get('name_kor', '')
-        affiliation_kor = request.form.get('affiliation_kor', '')
-        department_kor = request.form.get('department_kor', '')
-        first_name = request.form.get('first_name', '')
-        family_name = request.form.get('family_name', '')
-        affiliation_eng = request.form.get('affiliation_eng', '')
-        department_eng = request.form.get('department_eng', '')
-        accept_or_decline = request.form.get('accept_or_decline', '')
-        email = request.form.get('email', '')
-        phone = request.form.get('phone', '')
-        position = request.form.get('position', '')
-        license_number = request.form.get('license_number', '')
-        cv = request.form.get('cv', '')
-        photo = request.form.get('photo', '')
-        ppt = request.form.get('ppt', '')
-        script = request.form.get('script', '')
-        agree = request.form.get('agree', '')
-        remark_user = request.form.get('remark_user', '')
-        remark_admin = request.form.get('remark_admin', '')
-
-        # Update the participant's record in the database
-        cursor.execute('''
-            UPDATE participants
-            SET division = ?, role = ?, country = ?, name_kor = ?, affiliation_kor = ?, department_kor = ?, 
-                first_name = ?, family_name = ?, affiliation_eng = ?, department_eng = ?, 
-                accept_or_decline = ?, email = ?, phone = ?, position = ?, license_number = ?, cv = ?, 
-                photo = ?, ppt = ?, script = ?, agree = ?, remark_user = ?, remark_admin = ?
-            WHERE id = ?
-        ''', (
-            division, role, country, name_kor, affiliation_kor, department_kor,
-            first_name, family_name, affiliation_eng, department_eng,
-            accept_or_decline, email, phone, position, license_number, cv,
-            photo, ppt, script, agree, remark_user, remark_admin, participant_id
-        ))
-        conn.commit()
-        conn.close()
-
-        return jsonify({"status": "success"})
-
-    # Retrieve the participant's current data for the edit form
-    cursor.execute('SELECT * FROM participants WHERE id = ?', (participant_id,))
-    participant = cursor.fetchone()
-    conn.close()
-
+        # 폼 데이터 업데이트
+        participant.registration = request.form.get('registration')
+        participant.division = request.form.get('division')
+        participant.role = request.form.get('role')
+        participant.country = request.form.get('country')
+        participant.name_kor = request.form.get('name_kor')
+        participant.affiliation_kor = request.form.get('affiliation_kor')
+        participant.department_kor = request.form.get('department_kor')
+        participant.first_name = request.form.get('first_name')
+        participant.family_name = request.form.get('family_name')
+        participant.affiliation_eng = request.form.get('affiliation_eng')
+        participant.department_eng = request.form.get('department_eng')
+        participant.accept_or_decline = request.form.get('accept_or_decline')
+        participant.email = request.form.get('email')
+        participant.phone = request.form.get('phone')
+        participant.position = request.form.get('position')
+        participant.license_number = request.form.get('license_number')
+        participant.agree = request.form.get('agree')
+        participant.remark_user = request.form.get('remark_user')
+        participant.remark_admin = request.form.get('remark_admin')
+        
+        # 파일 업로드 처리
+        for field in ['cv', 'photo', 'ppt', 'script']:
+            if field in request.files:
+                file = request.files[field]
+                if file and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], SUBFOLDERS.get(field, ''), filename)
+                    file.save(filepath)
+                    setattr(participant, field, filepath)
+        
+        db.session.commit()
+        return redirect(url_for('participant_management', event_id=participant.event_id))
+    
     return render_template('edit_participant.html', participant=participant)
+
+@app.route('/delete_file_field/<int:participant_id>/<string:field>', methods=['POST'])
+def delete_file_field(participant_id, field):
+    """특정 파일 필드 삭제"""
+    participant = Participant.query.get_or_404(participant_id)
+    if hasattr(participant, field):
+        filepath = getattr(participant, field)
+        if filepath and os.path.exists(filepath):
+            os.remove(filepath)
+        setattr(participant, field, None)
+        db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/upload_image', methods=['POST'])
+def upload_image():
+    """이미지 업로드 (이메일용)"""
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image uploaded'}), 400
+    
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if file and allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['IMAGE_UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+        return jsonify({'url': f'/uploads/images/{filename}'})
+    
+    return jsonify({'error': 'Invalid file type'}), 400
 
 @app.route('/send_email', methods=['POST'])
 def send_email():
-    participant_ids = request.form['participant_ids'].split(',')
-    subject = request.form['subject']
-    body = request.form['body']
-    cc = request.form.get('cc', '')  # Get CC field (if provided)
-
-    # Normalize and handle special characters
-    subject = unicodedata.normalize("NFKD", subject)
-    body = unicodedata.normalize("NFKD", body).replace('\xa0', ' ').strip()
-
-    # Process CC email addresses
-    cc_list = [email.strip() for email in cc.split(',')] if cc else []
-
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT email FROM participants WHERE id IN ({})'.format(','.join('?' * len(participant_ids))), participant_ids)
-    recipients = [row[0] for row in cursor.fetchall()]
-    conn.close()
-
-    if not recipients:
-        return jsonify({"status": "error", "message": "No recipients found"}), 400
-
+    participant_ids = request.form.get('participant_ids', '').split(',')
+    participant_ids = [int(pid) for pid in participant_ids if pid.strip().isdigit()]
+    subject = request.form.get('subject', '')
+    body = request.form.get('body', '')
+    cc = request.form.get('cc', '')
+    include_buttons = request.form.get('include_buttons') == 'yes'
+    
+    if not participant_ids or not subject or not body:
+        return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
+    
+    participants = Participant.query.filter(Participant.id.in_(participant_ids)).all()
+    recipient_emails = [p.email for p in participants if p.email]
+    if not recipient_emails:
+        return jsonify({'status': 'error', 'message': 'No valid recipient emails found.'}), 400
+    
+    def replace_img_src(match):
+        img_tag = match.group(0)
+        src_match = re.search(r'src="([^"]+)"', img_tag)
+        if src_match:
+            img_path = src_match.group(1)
+            if img_path.startswith('/uploads/images/'):
+                full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
+                if os.path.exists(full_path):
+                    with open(full_path, 'rb') as img_file:
+                        img_data = img_file.read()
+                    return f'<img src="cid:image_{hash(img_path)}" style="max-width: 100%; height: auto;">'
+        return img_tag
+    
+    body = re.sub(r'<img[^>]+>', replace_img_src, body)
+    
     try:
-        msg = Message(subject, sender=app.config['MAIL_USERNAME'], recipients=recipients, cc=cc_list)
-        msg.body = body
-        msg.charset = 'utf-8'
-        mail.send(msg)
-        return jsonify({"status": "success"})
+        for participant in participants:
+            if participant.email:
+                # 각 참가자별로 실제 동작하는 URL 생성
+                accept_url = url_for('accept_response', participant_id=participant.id, response='accept', _external=True)
+                decline_url = url_for('accept_response', participant_id=participant.id, response='decline', _external=True)
+                email_body = body
+                if include_buttons:
+                    email_body += '<br><br>'
+                    email_body += f'<a href="{accept_url}" style="padding:10px 20px;background:#4CAF50;color:white;text-decoration:none;border-radius:5px;">Accept</a> '
+                    email_body += f'<a href="{decline_url}" style="padding:10px 20px;background:#F44336;color:white;text-decoration:none;border-radius:5px;">Decline</a>'
+                msg = Message(
+                    subject=subject,
+                    recipients=[participant.email],
+                    html=email_body
+                )
+                if cc:
+                    msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
+                img_pattern = r'<img[^>]+src="([^"]+)"[^>]*>'
+                for img_match in re.finditer(img_pattern, email_body):
+                    img_path = img_match.group(1)
+                    if img_path.startswith('/uploads/images/'):
+                        full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
+                        if os.path.exists(full_path):
+                            with open(full_path, 'rb') as img_file:
+                                msg.attach(
+                                    f'image_{hash(img_path)}.png',
+                                    'image/png',
+                                    img_file.read(),
+                                    'inline',
+                                    headers=[('Content-ID', f'<image_{hash(img_path)}>')]
+                                )
+                mail.send(msg)
+        return jsonify({'status': 'success', 'message': f'Email sent to {len(recipient_emails)} participants'})
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
+        logging.error(f"Email sending failed: {e}")
+        return jsonify({'status': 'error', 'message': f'Failed to send email: {str(e)}'}), 500
 
-@app.route('/participant/<int:code>', methods=['GET'])
-def get_participant_by_code(code):
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT name_kor, email, check_in_time, check_out_time
-        FROM participants
-        WHERE id = ?
-    """, (code,))
-    participant = cursor.fetchone()
-    conn.close()
+@app.route('/uploads/images/<filename>')
+def serve_image(filename):
+    """이미지 파일 서빙"""
+    return send_from_directory(app.config['IMAGE_UPLOAD_FOLDER'], filename)
 
-    if participant:
+@app.route('/decline_popup', methods=['GET'])
+def decline_popup():
+    """거절 사유 팝업"""
+    participant_id = request.args.get('participant_id')
+    return render_template('decline_reason.html', participant_id=participant_id)
+
+@app.route('/accept_response', methods=['GET', 'POST'])
+def accept_response():
+    """참가자 응답 처리"""
+    if request.method == 'GET':
+        participant_id = request.args.get('participant_id')
+        response = request.args.get('response')  # 'accept' or 'decline'
+        participant = Participant.query.get(participant_id) if participant_id else None
+        
+        # Accept인 경우 즉시 처리
+        if response == 'accept' and participant:
+            participant.accept_or_decline = 'Accept'
+            participant.decline_reason = None
+            db.session.commit()
+        
+        return render_template('accept_response.html', participant=participant, response=response)
+    
+    elif request.method == 'POST':
+        participant_id = request.form.get('participant_id')
+        response = request.form.get('response')
+        decline_reason = request.form.get('decline_reason', '')
+        
+        participant = Participant.query.get_or_404(participant_id)
+        
+        if response == 'accept':
+            participant.accept_or_decline = 'Accept'
+            participant.decline_reason = None
+        elif response == 'decline':
+            participant.accept_or_decline = 'Decline'
+            participant.decline_reason = decline_reason
+        
+        db.session.commit()
+        
+        return jsonify({'success': True})
+
+@app.route('/view_decline_reason/<int:participant_id>')
+def view_decline_reason(participant_id):
+    """거절 사유 조회"""
+    participant = Participant.query.get_or_404(participant_id)
+    return jsonify({'decline_reason': participant.decline_reason or ''})
+
+@app.route('/participant_by_code', methods=['GET'])
+def get_participant_by_code():
+    code = request.args.get('code')
+    event_id = request.args.get('event_id')
+    if not code or not event_id:
+        return jsonify({'status': 'error', 'message': 'Code and event_id are required'}), 400
+    try:
+        code = int(code)
+        event_id = int(event_id)
+    except Exception:
+        return jsonify({'status': 'error', 'message': 'Invalid code or event_id'}), 400
+    participant = Participant.query.filter_by(code=code, event_id=event_id).first()
+    if not participant:
+        return jsonify({'status': 'error', 'message': '참가자를 찾을 수 없습니다.'}), 404
+    return jsonify({
+        'status': 'success',
+        'participant': {
+        'id': participant.id,
+            'name_kor': participant.name_kor or f"{participant.first_name} {participant.family_name}",
+        'event_id': participant.event_id,
+            'accept_or_decline': participant.accept_or_decline,
+            'check_in_time': participant.check_in_time.strftime('%Y-%m-%d %H:%M:%S') if participant.check_in_time else None,
+            'check_out_time': participant.check_out_time.strftime('%Y-%m-%d %H:%M:%S') if participant.check_out_time else None
+        }
+    })
+
+@app.route('/participant/check_attendance_by_code', methods=['POST'])
+def check_attendance_by_code():
+    """통합 출석 처리: 첫 번째는 체크인, 그 다음부터는 체크아웃"""
+    code = request.form.get('code') or request.args.get('code')
+    event_id = request.form.get('event_id') or request.args.get('event_id')
+    if not code or not event_id:
+        return jsonify({'status': 'error', 'message': 'Code and event_id are required'}), 400
+    try:
+        code = int(code)
+        event_id = int(event_id)
+    except Exception:
+        return jsonify({'status': 'error', 'message': 'Invalid code or event_id'}), 400
+    
+    participant = Participant.query.filter_by(code=code, event_id=event_id).first()
+    if not participant:
+        return jsonify({'status': 'error', 'message': 'Participant not found'}), 404
+    
+    from datetime import datetime
+    now = datetime.now()
+    
+    # 디버깅 로그
+    print(f"DEBUG: Code {code}, Event {event_id}")
+    print(f"DEBUG: Current check_in_time: {participant.check_in_time}")
+    print(f"DEBUG: Current check_out_time: {participant.check_out_time}")
+    
+    # 참가자 이름
+    participant_name = participant.name_kor or f"{participant.first_name} {participant.family_name}"
+    
+    # 체크인이 없으면 체크인으로 처리
+    if not participant.check_in_time:
+        print(f"DEBUG: Performing CHECK-IN for participant {participant_name}")
+        participant.check_in_time = now
+        # 체크인 시에는 체크아웃 시간을 명시적으로 None으로 설정
+        participant.check_out_time = None
+        db.session.commit()
+        print(f"DEBUG: After check-in - check_in_time: {participant.check_in_time}, check_out_time: {participant.check_out_time}")
         return jsonify({
-            "status": "success",
-            "participant": {
-                "name_kor": participant[0],
-                "email": participant[1],
-                "check_in_time": participant[2],
-                "check_out_time": participant[3],
-            }
+            'status': 'success', 
+            'message': 'Check-in successful', 
+            'action': 'check_in',
+            'participant_name': participant_name,
+            'check_in_time': participant.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'check_out_time': None  # 체크인 시에는 체크아웃 시간을 None으로 반환
         })
+    
+    # 체크인이 있으면 체크아웃으로 처리
     else:
-        return jsonify({"status": "error", "message": "Participant not found"}), 404
+        print(f"DEBUG: Performing CHECK-OUT for participant {participant_name}")
+        participant.check_out_time = now
+        db.session.commit()
+        print(f"DEBUG: After check-out - check_in_time: {participant.check_in_time}, check_out_time: {participant.check_out_time}")
+        return jsonify({
+            'status': 'success', 
+            'message': 'Check-out successful', 
+            'action': 'check_out',
+            'participant_name': participant_name,
+            'check_in_time': participant.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'check_out_time': participant.check_out_time.strftime('%Y-%m-%d %H:%M:%S')
+        })
 
-@app.route('/participant/check_in/<int:code>', methods=['POST'])
-def check_in_participant(code):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute("UPDATE participants SET check_in_time = ? WHERE id = ?", (now, code))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success", "message": "Checked in successfully", "check_in_time": now})
-
-@app.route('/participant/check_out/<int:code>', methods=['POST'])
-def check_out_participant(code):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
-    cursor.execute("UPDATE participants SET check_out_time = ? WHERE id = ?", (now, code))
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success", "message": "Checked out successfully", "check_out_time": now})
-
-@app.route('/track_checkin')
-def track_checkin_page():
-    return render_template('track_checkin.html')
+@app.route('/track_checkin/<int:event_id>')
+def track_checkin(event_id):
+    """출석 관리 페이지"""
+    event = Event.query.get_or_404(event_id)
+    return render_template('track_checkin.html', event=event)
 
 @app.route('/download_participants_excel/<int:event_id>', methods=['POST'])
 def download_participants_excel(event_id):
-    selected_ids = request.form.getlist('selected_participants')
+    """참가자 엑셀 다운로드"""
+    event = Event.query.get_or_404(event_id)
+    selected_columns = request.form.getlist('selected_columns')
+    participant_ids = request.form.get('selected_participants', '')
+    if participant_ids:
+        ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
+        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+    else:
+        participants = Participant.query.filter_by(event_id=event_id).all()
     
-    if not selected_ids:
-        return jsonify({"status": "error", "message": "No participants selected"}), 400
-
-    conn = sqlite3.connect('events.db')
-    cursor = conn.cursor()
+    # 데이터 준비
+    data = []
+    for p in participants:
+        data.append({
+            'Event ID': event.event_id,
+            'Code': p.code,
+            'Registration': p.registration,
+            'Division': p.division,
+            'Role': p.role,
+            'Country': p.country,
+            'Name (KOR)': p.name_kor,
+            'Affiliation (KOR)': p.affiliation_kor,
+            'Department (KOR)': p.department_kor,
+            'First Name': p.first_name,
+            'Family Name': p.family_name,
+            'Affiliation (ENG)': p.affiliation_eng,
+            'Department (ENG)': p.department_eng,
+            'Accept/Decline': p.accept_or_decline,
+            'Email': p.email,
+            'Phone': p.phone,
+            'Position': p.position,
+            'License #': p.license_number,
+            'Agree': p.agree,
+            'Remark (User)': p.remark_user,
+            'Remark (Admin)': p.remark_admin,
+            'Check-In Time': p.check_in_time.strftime('%Y-%m-%d %H:%M:%S') if p.check_in_time else '',
+            'Check-Out Time': p.check_out_time.strftime('%Y-%m-%d %H:%M:%S') if p.check_out_time else '',
+            'Decline Reason': p.decline_reason
+        })
     
-    # Fetch participant data for the selected IDs
-    query = f'''
-        SELECT * FROM participants 
-        WHERE id IN ({','.join('?' * len(selected_ids))})
-    '''
-    cursor.execute(query, selected_ids)
-    rows = cursor.fetchall()
-    
-    # Get column names
-    cursor.execute("PRAGMA table_info(participants)")
-    column_names = [column[1] for column in cursor.fetchall()]
-    
-    conn.close()
-
-    # Convert the data to a DataFrame
-    df = pd.DataFrame(rows, columns=column_names)
-    
-    # Save the DataFrame to an in-memory buffer
+    # 엑셀 파일 생성
+    df = pd.DataFrame(data)
+    if selected_columns:
+        df = df[selected_columns]
     output = BytesIO()
-    df.to_excel(output, index=False)
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='Participants', index=False)
+    
     output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'participants_{event.event_id}.xlsx'
+    )
 
-    # Return the Excel file as a response
-    return send_file(output, as_attachment=True, download_name='participants.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+@app.route('/get_participant_status', methods=['GET'])
+def get_participant_status():
+    event_id = request.args.get('event_id', type=int)
+    if event_id:
+        participants = Participant.query.filter_by(event_id=event_id).all()
+    else:
+        participants = Participant.query.all()
+    def format_time(dt):
+        if not dt:
+            return ''
+        # datetime 객체면 strftime, 아니면 문자열로 처리
+        if hasattr(dt, 'strftime'):
+            return dt.strftime('%Y-%m-%d %H:%M')
+        s = str(dt)
+        # YYYY-MM-DD HH:MM:SS(.마이크로초) → YYYY-MM-DD HH:MM
+        if len(s) >= 16:
+            return s[:16]
+        return s
+    return jsonify([{
+        'event_id': p.event_id,
+        'code': p.code,
+        'accept_or_decline': p.accept_or_decline,
+        'check_in_time': format_time(p.check_in_time),
+        'check_out_time': format_time(p.check_out_time),
+        'remark_user': p.remark_user,
+        'remark_admin': p.remark_admin,
+        'decline_reason': p.decline_reason
+    } for p in participants])
+
+@app.route('/select_columns')
+def select_columns():
+    event_id = request.args.get('event_id')
+    participants = request.args.get('participants', '')
+    columns = [
+        'Event ID', 'Code', 'Registration', 'Division', 'Role', 'Country',
+        'Name (KOR)', 'Affiliation (KOR)', 'Department (KOR)', 'First Name', 'Family Name',
+        'Affiliation (ENG)', 'Department (ENG)', 'Accept/Decline', 'Email', 'Phone',
+        'Position', 'License #', 'Agree', 'Remark (User)', 'Remark (Admin)',
+        'Check-In Time', 'Check-Out Time', 'Decline Reason'
+    ]
+    return render_template('select_columns.html', event_id=event_id, participants=participants, columns=columns)
+
+@app.route('/download_file_path/<path:filepath>', methods=['GET'])
+def download_file_path(filepath):
+    """파일 경로로 다운로드"""
+    try:
+        return send_file(filepath, as_attachment=True)
+    except Exception as e:
+        logging.error(f"File download failed: {e}")
+        return "File not found", 404
+
+@app.route('/download_qr_participants_excel/<int:event_id>', methods=['POST'])
+def download_qr_participants_excel(event_id):
+    """QR 코드가 포함된 참가자 엑셀 다운로드"""
+    event = Event.query.get_or_404(event_id)
+    participant_ids = request.form.get('selected_participants', '')
+    if participant_ids:
+        ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
+        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+    else:
+        participants = Participant.query.filter_by(event_id=event_id).all()
+    
+    # QR 코드 생성
+    for participant in participants:
+        if participant.code:
+            generate_qr(participant.code)
+    
+    # 데이터 준비
+    data = []
+    for p in participants:
+        data.append({
+            'Event ID': event.event_id,
+            'Code': p.code,
+            'QR Code': f'qr_codes/{p.code}.png' if p.code else '',
+            'Name (KOR)': p.name_kor,
+            'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
+            'Affiliation': p.affiliation_kor or p.affiliation_eng,
+            'Email': p.email,
+            'Accept/Decline': p.accept_or_decline
+        })
+    
+    # 엑셀 파일 생성
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name='Participants', index=False)
+    
+    output.seek(0)
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=f'participants_qr_{event.event_id}.xlsx'
+    )
+
+@app.route('/download_custom_excel/<int:event_id>', methods=['POST'])
+def download_custom_excel(event_id):
+    """평점용 서식으로 엑셀 다운로드"""
+    event = Event.query.get_or_404(event_id)
+    participant_ids = request.form.get('selected_participants', '')
+    rating_criteria = request.form.get('rating_criteria', '6')
+    
+    if participant_ids:
+        ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
+        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+    else:
+        participants = Participant.query.filter_by(event_id=event_id).all()
+
+    data = []
+    for idx, p in enumerate(participants, start=1):
+        # 체크인/아웃 시간 처리
+        check_in_dt = pd.to_datetime(p.check_in_time, errors='coerce') if p.check_in_time else None
+        check_out_dt = pd.to_datetime(p.check_out_time, errors='coerce') if p.check_out_time else None
+        
+        check_in_time_str = check_in_dt.strftime('%H:%M') if pd.notna(check_in_dt) else ''
+        check_out_time_str = check_out_dt.strftime('%H:%M') if pd.notna(check_out_dt) else ''
+        
+        check_in_status = 1 if check_in_time_str else 0
+        check_out_status = 1 if check_out_time_str else 0
+        
+        # 체류시간 계산
+        duration = (check_out_dt - check_in_dt) if (pd.notna(check_in_dt) and pd.notna(check_out_dt)) else None
+        duration_seconds = duration.total_seconds() if duration and duration.total_seconds() >= 0 else 0
+        duration_str = f"{int(duration_seconds // 3600)}시간 {int((duration_seconds % 3600) // 60)}분" if duration and duration.total_seconds() >= 0 else ''
+        
+        # 평점 계산
+        if check_in_status == 0 or check_out_status == 0:
+            rating = 0
+        else:
+            if rating_criteria == '1':
+                rating = 1 if duration_seconds >= 1 * 3600 else 0
+            elif rating_criteria == '2':
+                rating = 2 if duration_seconds >= 1 * 3600 else 0
+            elif rating_criteria == '3':
+                rating = 3 if duration_seconds >= 1 * 3600 else 0
+            elif rating_criteria == '4':
+                rating = 4 if duration_seconds >= 4 * 3600 else 3 if duration_seconds >= 3 * 3600 else 0
+            elif rating_criteria == '5':
+                rating = 5 if duration_seconds >= 5 * 3600 else 4 if duration_seconds >= 4 * 3600 else 3 if duration_seconds >= 3 * 3600 else 0
+            else:  # '6'
+                rating = 6 if duration_seconds >= 6 * 3600 else 5 if duration_seconds >= 5 * 3600 else 4 if duration_seconds >= 4 * 3600 else 3 if duration_seconds >= 3 * 3600 else 0
+        
+        data.append({
+            '연번': idx,
+            '성명': p.name_kor or f'{p.first_name} {p.family_name}',
+            '의사 면허번호': p.license_number,
+            '교육전 서명 시간': check_in_time_str,
+            '서명여부 (1=yes, 0=no) (Check-in)': check_in_status,
+            '교육후 서명 시간': check_out_time_str,
+            '서명여부 (1=yes, 0=no) (Check-out)': check_out_status,
+            '체류시간 (자동계산)': duration_str,
+            '발급평점': rating,
+            '소속': p.affiliation_kor or p.affiliation_eng,
+            '직업구분': p.division,
+            '비고1': p.department_kor or p.department_eng
+        })
+
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name=f'{rating_criteria}평점')
+        worksheet = writer.sheets[f'{rating_criteria}평점']
+        for col_num, _ in enumerate(df.columns):
+            worksheet.set_column(col_num, col_num, None, writer.book.add_format({'num_format': '@'}))
+    
+    output.seek(0)
+    current_date = datetime.now().strftime("%Y%m%d")
+    filename = f"{event.event_id}_custom_participants_{rating_criteria}평점_{current_date}.xlsx"
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
 
 if __name__ == '__main__':
-    import sys
-    if hasattr(sys, '_MEIPASS'):
-        # Running as a bundled executable
-        app.run()
-    else:
-        # Running in development mode
-        app.run(debug=True)
+    app.run(debug=True) 

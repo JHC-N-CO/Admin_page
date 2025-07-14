@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원 정보 수정 - Admin Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_member.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- 사이드바 -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin</h2>
+                <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="사이드바 토글">
+                    <svg width="28" height="28" viewBox="0 0 32 32"><rect y="7" width="32" height="3" rx="1.5" fill="#888"/><rect y="14.5" width="32" height="3" rx="1.5" fill="#888"/><rect y="22" width="32" height="3" rx="1.5" fill="#888"/></svg>
+                </button>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/members" class="nav-link active" data-section="members">회원 관리</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/event" class="nav-link" data-section="events">행사 관리</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">&copy; 2025. JHC Conference</div>
+        </div>
+
+        <!-- 메인 콘텐츠 -->
+        <div class="main-content">
+            <div class="page-header">
+                <h1>회원 정보 수정</h1>
+                <a href="/members" class="back-link">← 회원 목록으로 돌아가기</a>
+            </div>
+            
+            <div class="form-container">
+                {% if error %}
+                <div class="error-message">
+                    {{ error }}
+                </div>
+                {% endif %}
+                
+                <form action="/members/edit/{{ member.id }}" method="post" enctype="multipart/form-data">
+                    <!-- 프로필 사진 -->
+                    <div class="form-section">
+                        <h3 class="section-title">프로필 사진</h3>
+                        <div class="photo-upload-area">
+                            {% if member.profile_photo %}
+                                <img id="photoPreview" class="photo-preview" src="/uploads/images/{{ member.profile_photo.split('/')[-1] }}" alt="프로필 사진">
+                            {% else %}
+                                <img id="photoPreview" class="photo-preview" src="{{ url_for('static', filename='images/profile_placeholder.jpeg') }}" alt="프로필 사진">
+                            {% endif %}
+                            <div class="upload-controls">
+                                <input type="file" id="profile_photo" name="profile_photo" accept="image/*" style="display:none;">
+                                <button type="button" class="upload-btn" onclick="document.getElementById('profile_photo').click()">사진 변경</button>
+                                <p class="upload-hint">JPG, PNG 파일만 가능 (최대 5MB)</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 기본정보 -->
+                    <div class="form-section">
+                        <h3 class="section-title">기본정보</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">아이디</label>
+                                <input type="text" id="username" name="username" value="{{ member.username }}" readonly>
+                                <small class="form-hint">아이디는 변경할 수 없습니다.</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">비밀번호</label>
+                                <input type="password" id="password" name="password" placeholder="변경하려면 입력하세요">
+                                <small class="form-hint">변경하지 않으려면 비워두세요.</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">비밀번호 확인</label>
+                                <input type="password" id="password_confirm" name="password_confirm" placeholder="비밀번호 재입력">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">이름(국문)</label>
+                                <input type="text" id="name_kor" name="name_kor" value="{{ member.name_kor }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">이름(영문)</label>
+                                <div class="name-eng-group">
+                                    {% set name_parts = member.name_eng.split(' ') if member.name_eng else ['', ''] %}
+                                    <input type="text" id="name_eng_first" name="name_eng_first" placeholder="First name" value="{{ name_parts[0] if name_parts|length > 0 else '' }}">
+                                    <input type="text" id="name_eng_last" name="name_eng_last" placeholder="Last name" value="{{ name_parts[1] if name_parts|length > 1 else '' }}">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">생년월일</label>
+                                <input type="text" id="birth_date" name="birth_date" placeholder="YYYY/MM/DD" autocomplete="off" value="{{ member.birth_date.strftime('%Y/%m/%d') if member.birth_date else '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">성별</label>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="gender" value="남" {% if member.gender == '남' %}checked{% endif %}> 남</label>
+                                    <label class="radio-item"><input type="radio" name="gender" value="여" {% if member.gender == '여' %}checked{% endif %}> 여</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">이메일</label>
+                                <input type="email" id="email" name="email" value="{{ member.email }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">전화번호</label>
+                                <div class="phone-group">
+                                    {% set phone_parts = member.phone.split('-') if member.phone else ['', '', ''] %}
+                                    <select name="phone_prefix">
+                                        <option value="">선택</option>
+                                        <option value="02" {% if phone_parts[0] == '02' %}selected{% endif %}>02</option>
+                                        <option value="031" {% if phone_parts[0] == '031' %}selected{% endif %}>031</option>
+                                        <option value="032" {% if phone_parts[0] == '032' %}selected{% endif %}>032</option>
+                                        <option value="033" {% if phone_parts[0] == '033' %}selected{% endif %}>033</option>
+                                        <option value="041" {% if phone_parts[0] == '041' %}selected{% endif %}>041</option>
+                                        <option value="042" {% if phone_parts[0] == '042' %}selected{% endif %}>042</option>
+                                        <option value="043" {% if phone_parts[0] == '043' %}selected{% endif %}>043</option>
+                                        <option value="044" {% if phone_parts[0] == '044' %}selected{% endif %}>044</option>
+                                        <option value="051" {% if phone_parts[0] == '051' %}selected{% endif %}>051</option>
+                                        <option value="052" {% if phone_parts[0] == '052' %}selected{% endif %}>052</option>
+                                        <option value="053" {% if phone_parts[0] == '053' %}selected{% endif %}>053</option>
+                                        <option value="054" {% if phone_parts[0] == '054' %}selected{% endif %}>054</option>
+                                        <option value="055" {% if phone_parts[0] == '055' %}selected{% endif %}>055</option>
+                                        <option value="061" {% if phone_parts[0] == '061' %}selected{% endif %}>061</option>
+                                        <option value="062" {% if phone_parts[0] == '062' %}selected{% endif %}>062</option>
+                                        <option value="063" {% if phone_parts[0] == '063' %}selected{% endif %}>063</option>
+                                        <option value="064" {% if phone_parts[0] == '064' %}selected{% endif %}>064</option>
+                                        <option value="070" {% if phone_parts[0] == '070' %}selected{% endif %}>070</option>
+                                        <option value="1588" {% if phone_parts[0] == '1588' %}selected{% endif %}>1588</option>
+                                    </select>
+                                    <input type="tel" name="phone_middle" placeholder="0000" maxlength="4" value="{{ phone_parts[1] if phone_parts|length > 1 else '' }}">
+                                    <input type="tel" name="phone_end" placeholder="0000" maxlength="4" value="{{ phone_parts[2] if phone_parts|length > 2 else '' }}">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">휴대폰번호</label>
+                                <div class="phone-group">
+                                    {% set mobile_parts = member.mobile.split('-') if member.mobile else ['', '', ''] %}
+                                    <select name="mobile_prefix">
+                                        <option value="">선택</option>
+                                        <option value="010" {% if mobile_parts[0] == '010' %}selected{% endif %}>010</option>
+                                        <option value="011" {% if mobile_parts[0] == '011' %}selected{% endif %}>011</option>
+                                        <option value="016" {% if mobile_parts[0] == '016' %}selected{% endif %}>016</option>
+                                        <option value="017" {% if mobile_parts[0] == '017' %}selected{% endif %}>017</option>
+                                        <option value="018" {% if mobile_parts[0] == '018' %}selected{% endif %}>018</option>
+                                        <option value="019" {% if mobile_parts[0] == '019' %}selected{% endif %}>019</option>
+                                    </select>
+                                    <input type="tel" name="mobile_middle" placeholder="0000" maxlength="4" value="{{ mobile_parts[1] if mobile_parts|length > 1 else '' }}">
+                                    <input type="tel" name="mobile_end" placeholder="0000" maxlength="4" value="{{ mobile_parts[2] if mobile_parts|length > 2 else '' }}">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">의사면허번호</label>
+                                <input type="text" id="license_number" name="license_number" value="{{ member.license_number }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 근무처 정보 -->
+                    <div class="form-section">
+                        <h3 class="section-title">근무처 정보</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">근무처명</label>
+                                <input type="text" id="workplace_name" name="workplace_name" value="{{ member.workplace_name or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">근무처명 (영문)</label>
+                                <input type="text" id="workplace_name_eng" name="workplace_name_eng" value="{{ member.workplace_name_eng or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">근무처구분</label>
+                                <select name="workplace_type">
+                                    <option value="">선택</option>
+                                    <option value="대학병원" {% if member.workplace_type == '대학병원' %}selected{% endif %}>대학병원</option>
+                                    <option value="종합병원" {% if member.workplace_type == '종합병원' %}selected{% endif %}>종합병원</option>
+                                    <option value="의원" {% if member.workplace_type == '의원' %}selected{% endif %}>의원</option>
+                                    <option value="기타" {% if member.workplace_type == '기타' %}selected{% endif %}>기타</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">직위</label>
+                                <input type="text" id="position" name="position" value="{{ member.position or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">진료과목</label>
+                                <input type="text" id="specialty" name="specialty" value="{{ member.specialty or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">진료과목 (영문)</label>
+                                <input type="text" id="specialty_eng" name="specialty_eng" value="{{ member.specialty_eng or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">주소</label>
+                                <input type="text" id="address" name="address" value="{{ member.address or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">주소 (영문)</label>
+                                <input type="text" id="address_eng" name="address_eng" value="{{ member.address_eng or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">근무처 전화번호</label>
+                                <div class="phone-group">
+                                    {% set workplace_phone_parts = member.workplace_phone.split('-') if member.workplace_phone else ['', '', ''] %}
+                                    <select name="workplace_phone_prefix">
+                                        <option value="">선택</option>
+                                        <option value="02" {% if workplace_phone_parts[0] == '02' %}selected{% endif %}>02</option>
+                                        <option value="031" {% if workplace_phone_parts[0] == '031' %}selected{% endif %}>031</option>
+                                        <option value="032" {% if workplace_phone_parts[0] == '032' %}selected{% endif %}>032</option>
+                                        <option value="033" {% if workplace_phone_parts[0] == '033' %}selected{% endif %}>033</option>
+                                        <option value="041" {% if workplace_phone_parts[0] == '041' %}selected{% endif %}>041</option>
+                                        <option value="042" {% if workplace_phone_parts[0] == '042' %}selected{% endif %}>042</option>
+                                        <option value="043" {% if workplace_phone_parts[0] == '043' %}selected{% endif %}>043</option>
+                                        <option value="044" {% if workplace_phone_parts[0] == '044' %}selected{% endif %}>044</option>
+                                        <option value="051" {% if workplace_phone_parts[0] == '051' %}selected{% endif %}>051</option>
+                                        <option value="052" {% if workplace_phone_parts[0] == '052' %}selected{% endif %}>052</option>
+                                        <option value="053" {% if workplace_phone_parts[0] == '053' %}selected{% endif %}>053</option>
+                                        <option value="054" {% if workplace_phone_parts[0] == '054' %}selected{% endif %}>054</option>
+                                        <option value="055" {% if workplace_phone_parts[0] == '055' %}selected{% endif %}>055</option>
+                                        <option value="061" {% if workplace_phone_parts[0] == '061' %}selected{% endif %}>061</option>
+                                        <option value="062" {% if workplace_phone_parts[0] == '062' %}selected{% endif %}>062</option>
+                                        <option value="063" {% if workplace_phone_parts[0] == '063' %}selected{% endif %}>063</option>
+                                        <option value="064" {% if workplace_phone_parts[0] == '064' %}selected{% endif %}>064</option>
+                                        <option value="070" {% if workplace_phone_parts[0] == '070' %}selected{% endif %}>070</option>
+                                        <option value="1588" {% if workplace_phone_parts[0] == '1588' %}selected{% endif %}>1588</option>
+                                    </select>
+                                    <input type="tel" name="workplace_phone_middle" placeholder="0000" maxlength="4" value="{{ workplace_phone_parts[1] if workplace_phone_parts|length > 1 else '' }}">
+                                    <input type="tel" name="workplace_phone_end" placeholder="0000" maxlength="4" value="{{ workplace_phone_parts[2] if workplace_phone_parts|length > 2 else '' }}">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">근무처 FAX</label>
+                                <div class="phone-group">
+                                    {% set workplace_fax_parts = member.workplace_fax.split('-') if member.workplace_fax else ['', '', ''] %}
+                                    <select name="workplace_fax_prefix">
+                                        <option value="">선택</option>
+                                        <option value="02" {% if workplace_fax_parts[0] == '02' %}selected{% endif %}>02</option>
+                                        <option value="031" {% if workplace_fax_parts[0] == '031' %}selected{% endif %}>031</option>
+                                        <option value="032" {% if workplace_fax_parts[0] == '032' %}selected{% endif %}>032</option>
+                                        <option value="033" {% if workplace_fax_parts[0] == '033' %}selected{% endif %}>033</option>
+                                        <option value="041" {% if workplace_fax_parts[0] == '041' %}selected{% endif %}>041</option>
+                                        <option value="042" {% if workplace_fax_parts[0] == '042' %}selected{% endif %}>042</option>
+                                        <option value="043" {% if workplace_fax_parts[0] == '043' %}selected{% endif %}>043</option>
+                                        <option value="044" {% if workplace_fax_parts[0] == '044' %}selected{% endif %}>044</option>
+                                        <option value="051" {% if workplace_fax_parts[0] == '051' %}selected{% endif %}>051</option>
+                                        <option value="052" {% if workplace_fax_parts[0] == '052' %}selected{% endif %}>052</option>
+                                        <option value="053" {% if workplace_fax_parts[0] == '053' %}selected{% endif %}>053</option>
+                                        <option value="054" {% if workplace_fax_parts[0] == '054' %}selected{% endif %}>054</option>
+                                        <option value="055" {% if workplace_fax_parts[0] == '055' %}selected{% endif %}>055</option>
+                                        <option value="061" {% if workplace_fax_parts[0] == '061' %}selected{% endif %}>061</option>
+                                        <option value="062" {% if workplace_fax_parts[0] == '062' %}selected{% endif %}>062</option>
+                                        <option value="063" {% if workplace_fax_parts[0] == '063' %}selected{% endif %}>063</option>
+                                        <option value="064" {% if workplace_fax_parts[0] == '064' %}selected{% endif %}>064</option>
+                                        <option value="070" {% if workplace_fax_parts[0] == '070' %}selected{% endif %}>070</option>
+                                        <option value="1588" {% if workplace_fax_parts[0] == '1588' %}selected{% endif %}>1588</option>
+                                    </select>
+                                    <input type="tel" name="workplace_fax_middle" placeholder="0000" maxlength="4" value="{{ workplace_fax_parts[1] if workplace_fax_parts|length > 1 else '' }}">
+                                    <input type="tel" name="workplace_fax_end" placeholder="0000" maxlength="4" value="{{ workplace_fax_parts[2] if workplace_fax_parts|length > 2 else '' }}">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 추가 정보 -->
+                    <div class="form-section">
+                        <h3 class="section-title">추가 정보</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">우편물수령장소</label>
+                                <select name="mail_receipt_location">
+                                    <option value="">선택</option>
+                                    <option value="근무처" {% if member.mail_receipt_location == '근무처' %}selected{% endif %}>근무처</option>
+                                    <option value="자택" {% if member.mail_receipt_location == '자택' %}selected{% endif %}>자택</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">자택주소</label>
+                                <input type="text" id="home_address" name="home_address" value="{{ member.home_address or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">출신학교</label>
+                                <input type="text" id="alma_mater" name="alma_mater" value="{{ member.alma_mater or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">전공과목</label>
+                                <input type="text" id="major" name="major" value="{{ member.major or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">졸업년도</label>
+                                <input type="number" id="graduation_year" name="graduation_year" min="1950" max="2030" value="{{ member.graduation_year or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">최종학위</label>
+                                <select name="highest_degree">
+                                    <option value="">선택</option>
+                                    <option value="의학사" {% if member.highest_degree == '의학사' %}selected{% endif %}>의학사</option>
+                                    <option value="의학석사" {% if member.highest_degree == '의학석사' %}selected{% endif %}>의학석사</option>
+                                    <option value="의학박사" {% if member.highest_degree == '의학박사' %}selected{% endif %}>의학박사</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">레지던트(이수기관)</label>
+                                <input type="text" id="residency_institution" name="residency_institution" value="{{ member.residency_institution or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">레지던트(수련병원)</label>
+                                <input type="text" id="residency_hospital" name="residency_hospital" value="{{ member.residency_hospital or '' }}">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">전문의취득년도</label>
+                                <input type="number" id="specialist_year" name="specialist_year" min="1950" max="2030" value="{{ member.specialist_year or '' }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 수신 동의 -->
+                    <div class="form-section">
+                        <h3 class="section-title">수신 동의</h3>
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label class="form-label">개인정보공개</label>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="profile_public" value="true" {% if member.profile_public %}checked{% endif %}> 공개</label>
+                                    <label class="radio-item"><input type="radio" name="profile_public" value="false" {% if not member.profile_public %}checked{% endif %}> 비공개</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">SMS 수신</label>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="sms_receipt" value="true" {% if member.sms_receipt %}checked{% endif %}> 받음</label>
+                                    <label class="radio-item"><input type="radio" name="sms_receipt" value="false" {% if not member.sms_receipt %}checked{% endif %}> 받지않음</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">정보메일 수신</label>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="email_receipt" value="true" {% if member.email_receipt %}checked{% endif %}> 받음</label>
+                                    <label class="radio-item"><input type="radio" name="email_receipt" value="false" {% if not member.email_receipt %}checked{% endif %}> 받지않음</label>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">우편물 수신</label>
+                                <div class="radio-group">
+                                    <label class="radio-item"><input type="radio" name="mail_receipt" value="true" {% if member.mail_receipt %}checked{% endif %}> 받음</label>
+                                    <label class="radio-item"><input type="radio" name="mail_receipt" value="false" {% if not member.mail_receipt %}checked{% endif %}> 받지않음</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 버튼 -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">수정 완료</button>
+                        <a href="/members" class="btn-secondary">취소</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/edit_member.js') }}"></script>
+</body>
+</html> 

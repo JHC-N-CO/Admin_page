@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>회원 관리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_members.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Removed inline <style>; all CSS is now in static/css/admin_members.css -->
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin</h2>
+                <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="사이드바 토글">
+                    <svg width="28" height="28" viewBox="0 0 32 32">
+                        <rect y="7" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="14.5" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="22" width="32" height="3" rx="1.5" fill="#888"/>
+                    </svg>
+                </button>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/members" class="nav-link active" data-section="members">회원 관리</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/event" class="nav-link" data-section="events">행사 관리</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">&copy; 2025. JHC Conference</div>
+        </div>
+        <div class="main-content">
+            <div class="page-header">
+                <h1>회원 목록</h1>
+            </div>
+            <div class="members-section">
+                <form action="/members/delete" method="post" id="deleteForm">
+                    <div class="action-buttons">
+                        <button type="button" class="secondary" onclick="openPopup('/add_member')">회원 추가</button>
+                        <button type="submit" class="secondary">선택 삭제</button>
+                        <button type="button" class="primary" onclick="exportMembers()">회원 내보내기</button>
+                    </div>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <input type="text" id="search-input" placeholder="검색...">
+                        </div>
+                        <div class="column-selector">
+                            <button type="button" class="column-selector-btn" title="컬럼 설정">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <div class="column-selector-dropdown">
+                                <div class="column-selector-header">표시할 컬럼 선택</div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-username" data-column="username" checked>
+                                    <label for="col-username">아이디</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-gender" data-column="gender" checked>
+                                    <label for="col-gender">성별</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-name-kor" data-column="name_kor" checked>
+                                    <label for="col-name-kor">성명(KOR)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-name-eng" data-column="name_eng" checked>
+                                    <label for="col-name-eng">성명(ENG)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-position" data-column="position" checked>
+                                    <label for="col-position">직위</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-license" data-column="license_number" checked>
+                                    <label for="col-license">면허번호</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-workplace-type" data-column="workplace_type" checked>
+                                    <label for="col-workplace-type">회원구분</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-specialty" data-column="specialty" checked>
+                                    <label for="col-specialty">과</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-mobile" data-column="mobile" checked>
+                                    <label for="col-mobile">핸드폰</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-email" data-column="email" checked>
+                                    <label for="col-email">E-mail</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-birth-date" data-column="birth_date" checked>
+                                    <label for="col-birth-date">생년월일</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-workplace-name" data-column="workplace_name" checked>
+                                    <label for="col-workplace-name">근무처</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-created" data-column="created_at" checked>
+                                    <label for="col-created">가입일</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-actions" data-column="actions" checked>
+                                    <label for="col-actions">관리</label>
+                                </div>
+                                <div class="column-selector-actions">
+                                    <button type="button" class="select-all-columns">전체 선택</button>
+                                    <button type="button" class="deselect-all-columns">전체 해제</button>
+                                    <button type="button" class="apply-columns primary">적용</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="exportMembers()">
+                            <i class="fas fa-download"></i> Excel 다운로드
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table id="members-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th class="sortable" data-column="username" data-sort="username">아이디</th>
+                                    <th class="sortable" data-column="gender" data-sort="gender">성별</th>
+                                    <th class="sortable" data-column="name_kor" data-sort="name_kor">성명(KOR)</th>
+                                    <th class="sortable" data-column="name_eng" data-sort="name_eng">성명(ENG)</th>
+                                    <th class="sortable" data-column="position" data-sort="position">직위</th>
+                                    <th class="sortable" data-column="license_number" data-sort="license_number">면허번호</th>
+                                    <th class="sortable" data-column="workplace_type" data-sort="workplace_type">회원구분</th>
+                                    <th class="sortable" data-column="specialty" data-sort="specialty">과</th>
+                                    <th class="sortable" data-column="mobile" data-sort="mobile">핸드폰</th>
+                                    <th class="sortable" data-column="email" data-sort="email">E-mail</th>
+                                    <th class="sortable" data-column="birth_date" data-sort="birth_date">생년월일</th>
+                                    <th class="sortable" data-column="workplace_name" data-sort="workplace_name">근무처</th>
+                                    <th class="sortable" data-column="created_at" data-sort="created_at">가입일</th>
+                                    <th data-column="actions">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for member in members %}
+                                <tr data-id="{{ member.id }}">
+                                    <td><input type="checkbox" name="selected_members" value="{{ member.id }}" class="row-checkbox"></td>
+                                    <td data-column="username">{{ member.username }}</td>
+                                    <td data-column="gender">{{ member.gender }}</td>
+                                    <td data-column="name_kor">{{ member.name_kor }}</td>
+                                    <td data-column="name_eng">{{ member.name_eng }}</td>
+                                    <td data-column="position">{{ member.position }}</td>
+                                    <td data-column="license_number">{{ member.license_number }}</td>
+                                    <td data-column="workplace_type">{{ member.workplace_type }}</td>
+                                    <td data-column="specialty">{{ member.specialty }}</td>
+                                    <td data-column="mobile">{{ member.mobile }}</td>
+                                    <td data-column="email">{{ member.email }}</td>
+                                    <td data-column="birth_date">{{ member.birth_date.strftime('%Y-%m-%d') if member.birth_date else '' }}</td>
+                                    <td data-column="workplace_name">{{ member.workplace_name }}</td>
+                                    <td data-column="created_at">{{ member.created_at.strftime('%Y-%m-%d') if member.created_at else '' }}</td>
+                                    <td data-column="actions">
+                                        <a href="/members/edit/{{ member.id }}" class="action-link">수정</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+
+    
+    <script src="../static/js/admin_members.js"></script>
+</body>
+</html> 

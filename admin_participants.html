@@ -1,0 +1,47 @@
+<head>
+    <title>참가자 관리</title>
+    <link rel="stylesheet" href="../static/css/admin_participants.css">
+</head>
+<body>
+    <div class="container">
+        <h1>참가자 관리</h1>
+        <div class="participant-list">
+            <h2>참가자 목록</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>이름</th>
+                        <th>이메일</th>
+                        <th>전화번호</th>
+                        <th>참가 날짜</th>
+                        <th>행동</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Participant data will be loaded here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+        <div class="add-participant-form">
+            <h2>참가자 추가</h2>
+            <form id="add-participant-form">
+                <div class="form-group">
+                    <label for="name">이름:</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">이메일:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">전화번호:</label>
+                    <input type="tel" id="phone" name="phone">
+                </div>
+                <button type="submit">참가자 추가</button>
+            </form>
+        </div>
+    </div>
+    <script src="../static/js/admin_participants.js"></script>
+</body>
+</html> 

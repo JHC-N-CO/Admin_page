@@ -2,101 +2,27 @@
 <html>
 <head>
     <title>Compose Email</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f4;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 50px auto;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            padding: 20px;
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 24px;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-        }
-
-        input[type="text"], input[type="email"], textarea {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 14px;
-        }
-
-        textarea {
-            height: 150px;
-            resize: none;
-        }
-
-        button {
-            padding: 10px;
-            background-color: #4285F4;
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        button:hover {
-            background-color: #357AE8;
-        }
-
-        .cc-input {
-            font-size: 12px;
-            color: #666;
-        }
-    </style>
-    <script>
-        async function sendEmail(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            const response = await fetch(event.target.action, {
-                method: 'POST',
-                body: formData
-            });
-
-            const result = await response.json();
-            if (result.status === "success") {
-                alert("Email sent successfully!");
-                window.close();
-            } else {
-                alert(result.message);
-            }
-        }
-
-        window.onload = function () {
-            window.resizeTo(800, 600); // Set window size to be large enough for the content
-        };
-    </script>
+    <link rel="stylesheet" href="../static/css/compose_email.css">
 </head>
 <body>
     <div class="container">
         <h1>Compose Email</h1>
         <form action="/send_email" method="post" onsubmit="sendEmail(event)">
             <input type="hidden" name="participant_ids" value="{{ participant_ids }}">
+            <input type="hidden" name="body" id="body">
             <input type="text" name="subject" placeholder="Subject" required>
-            <textarea name="body" placeholder="Compose your email here..." required></textarea>
+            <div id="editor" class="editor" contenteditable="true" placeholder="Compose your email here..."></div>
             <input type="text" name="cc" class="cc-input" placeholder="CC (comma-separated email addresses)">
+            <label class="checkbox-label">
+                <input type="checkbox" name="include_buttons" value="yes"> Include Accept/Decline buttons
+            </label>
             <button type="submit">Send Email</button>
+            <div id="loading" class="loading-container">
+                <span id="loading-icon" class="spinner"></span>
+                <span id="loading-text">이메일 발송 중...</span>
+            </div>
         </form>
     </div>
+    <script src="../static/js/compose_email.js"></script>
 </body>
 </html>

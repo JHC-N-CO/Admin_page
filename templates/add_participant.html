@@ -2,237 +2,163 @@
 <html>
 <head>
     <title>Add Participant</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f5f5f7;
-            color: #1d1d1f;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .container {
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            width: 90%;
-            max-width: 400px;
-            padding: 30px;
-            box-sizing: border-box;
-            overflow-y: auto;
-            max-height: 90vh;
-        }
-
-        h1 {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .form-group {
-            display: flex;
-            flex-direction: column;
-            text-align: left;
-        }
-
-        label {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        input[type="text"],
-        input[type="email"] {
-            padding: 10px;
-            border: 1px solid #d1d1d6;
-            border-radius: 8px;
-            font-size: 14px;
-            background-color: #f5f5f7;
-            transition: border-color 0.2s ease;
-        }
-
-        input[type="text"]:focus,
-        input[type="email"]:focus {
-            border-color: #007aff;
-            outline: none;
-            background-color: #ffffff;
-        }
-
-        button {
-            padding: 12px;
-            background-color: #007aff;
-            border: none;
-            border-radius: 8px;
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-        }
-
-        button:hover {
-            background-color: #005fcb;
-        }
-    </style>
+    <link rel="stylesheet" href="../static/css/add_participant.css">
 </head>
 <body>
     <div class="container">
         <h1>Add Participant</h1>
-        <form action="/add_participant/{{ event_id }}" method="post" onsubmit="submitForm(event)">
+        
+        {% if error %}
+        <div class="error-message">
+            {{ error }}
+        </div>
+        {% endif %}
+        
+        <form action="/add_participant/{{ event.id }}" method="post" enctype="multipart/form-data" onsubmit="submitForm(event)">
+            
+            <div class="form-group">
+                <label for="registration">Registration</label>
+                <select id="registration" name="registration" option>
+                    <option value="" disabled selected>선택하세요</option>
+                    <option value="사전등록">사전등록</option>
+                    <option value="현장등록">현장등록</option>
+                </select>
+            </div>
+            
             <div class="form-group">
                 <label for="division">Division</label>
-                <input type="text" id="division" name="division" placeholder="Enter division" required>
+                <select id="division" name="division" option>
+                    <option value="" disabled selected>선택하세요</option>
+                    <option value="전공의">전공의</option>
+                    <option value="전문의">전문의</option>
+                    <option value="기타">기타</option>
+                </select>
             </div>
             
             <div class="form-group">
                 <label for="role">Role</label>
-                <input type="text" id="role" name="role" placeholder="Enter role" required>
+                <select id="role" name="role" option>
+                    <option value="" disabled selected>선택하세요</option>
+                    <option value="좌장">좌장</option>
+                    <option value="연자">연자</option>
+                    <option value="기타">기타</option>
+                </select>
             </div>
 
             <div class="form-group">
                 <label for="country">Country</label>
-                <input type="text" id="country" name="country" placeholder="Enter country" required>
+                <input type="text" id="country" name="country" placeholder="Enter country" option>
             </div>
 
             <div class="form-group">
                 <label for="name_kor">Name (Korean)</label>
-                <input type="text" id="name_kor" name="name_kor" placeholder="Enter name in Korean" required>
+                <input type="text" id="name_kor" name="name_kor" placeholder="Enter name in Korean" option>
             </div>
 
             <div class="form-group">
                 <label for="affiliation_kor">Affiliation (Korean)</label>
-                <input type="text" id="affiliation_kor" name="affiliation_kor" placeholder="Enter affiliation in Korean" required>
+                <input type="text" id="affiliation_kor" name="affiliation_kor" placeholder="Enter affiliation in Korean" option>
             </div>
 
             <div class="form-group">
                 <label for="department_kor">Department (Korean)</label>
-                <input type="text" id="department_kor" name="department_kor" placeholder="Enter department in Korean" required>
+                <input type="text" id="department_kor" name="department_kor" placeholder="Enter department in Korean" option>
             </div>
 
             <div class="form-group">
                 <label for="first_name">First Name</label>
-                <input type="text" id="first_name" name="first_name" placeholder="Enter first name" required>
+                <input type="text" id="first_name" name="first_name" placeholder="Enter first name" option>
             </div>
 
             <div class="form-group">
                 <label for="family_name">Family Name</label>
-                <input type="text" id="family_name" name="family_name" placeholder="Enter family name" required>
+                <input type="text" id="family_name" name="family_name" placeholder="Enter family name" option>
             </div>
 
             <div class="form-group">
                 <label for="affiliation_eng">Affiliation (English)</label>
-                <input type="text" id="affiliation_eng" name="affiliation_eng" placeholder="Enter affiliation in English" required>
+                <input type="text" id="affiliation_eng" name="affiliation_eng" placeholder="Enter affiliation in English" option>
             </div>
 
             <div class="form-group">
                 <label for="department_eng">Department (English)</label>
-                <input type="text" id="department_eng" name="department_eng" placeholder="Enter department in English" required>
+                <input type="text" id="department_eng" name="department_eng" placeholder="Enter department in English" option>
             </div>
 
             <div class="form-group">
-                <label for="accept_or_decline">Accept or Decline</label>
-                <input type="text" id="accept_or_decline" name="accept_or_decline" placeholder="Accept or decline" required>
+                <label>Accept or Decline</label>
+                <div>
+                    <input type="radio" id="accept" name="accept_or_decline" value="Accept">
+                    <label for="accept">Accept</label>
+                </div>
+                <div>
+                    <input type="radio" id="decline" name="accept_or_decline" value="Decline">
+                    <label for="decline">Decline</label>
+                </div>
             </div>
-
+            
             <div class="form-group">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" placeholder="Enter email" required>
+                <input type="email" id="email" name="email" placeholder="Enter email" option>
             </div>
 
             <div class="form-group">
                 <label for="phone">Phone</label>
-                <input type="text" id="phone" name="phone" placeholder="Enter phone number" required>
+                <input type="text" id="phone" name="phone" placeholder="Enter phone number" option>
             </div>
 
             <div class="form-group">
                 <label for="position">Position</label>
-                <input type="text" id="position" name="position" placeholder="Enter position" required>
+                <input type="text" id="position" name="position" placeholder="Enter position" option>
             </div>
 
             <div class="form-group">
                 <label for="license_number">License #</label>
-                <input type="text" id="license_number" name="license_number" placeholder="Enter license number" required>
+                <input type="text" id="license_number" name="license_number" placeholder="Enter license number" option>
             </div>
 
             <div class="form-group">
-                <label for="cv">CV</label>
-                <input type="text" id="cv" name="cv" placeholder="Upload CV" required>
-            </div>
+                            <label for="cv">CV</label>
+                            <input type="file" id="cv" name="cv" accept=".pdf,.docx">
+                        </div>
 
-            <div class="form-group">
-                <label for="photo">Photo</label>
-                <input type="text" id="photo" name="photo" placeholder="Upload photo" required>
-            </div>
+                        <div class="form-group">
+                            <label for="photo">Photo</label>
+                            <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg">
+                        </div>
 
-            <div class="form-group">
-                <label for="ppt">PPT</label>
-                <input type="text" id="ppt" name="ppt" placeholder="Upload PPT" required>
-            </div>
+                        <div class="form-group">
+                            <label for="ppt">PPT</label>
+                            <input type="file" id="ppt" name="ppt" accept=".ppt,.pptx">
+                        </div>
 
-            <div class="form-group">
-                <label for="script">Script</label>
-                <input type="text" id="script" name="script" placeholder="Upload script" required>
-            </div>
+                        <div class="form-group">
+                            <label for="script">Script</label>
+                            <input type="file" id="script" name="script" accept=".pdf,.docx,.txt">
+                        </div>
 
-            <div class="form-group">
-                <label for="agree">Agree</label>
-                <input type="text" id="agree" name="agree" placeholder="Enter agreement" required>
-            </div>
-
-            <div class="form-group">
-                <label for="remark_user">Remark (User)</label>
-                <input type="text" id="remark_user" name="remark_user" placeholder="Enter user remarks" required>
-            </div>
-
-            <div class="form-group">
-                <label for="remark_admin">Remark (Admin)</label>
-                <input type="text" id="remark_admin" name="remark_admin" placeholder="Enter admin remarks" required>
-            </div>
-
+                        <div class="form-group">
+                            <label> Agree</label>
+                            <div>
+                                <input type="radio" id="agree_yes" name="agree" value="Yes">
+                                <label for="agree_yes">Yes</label>
+                            </div>
+                            <div>
+                                <input type="radio" id="agree_no" name="agree" value="No">
+                                <label for="agree_no">No</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="remark_user">Remark (User)</label>
+                            <textarea id="remark_user" name="remark_user" placeholder="Enter user remarks" class="auto-resize"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="remark_admin">Remark (Admin)</label>
+                            <textarea id="remark_admin" name="remark_admin" placeholder="Enter admin remarks" class="auto-resize"></textarea>
+                        </div>
             <button type="submit">Add Participant</button>
         </form>
     </div>
-    <script>
-        async function submitForm(event) {
-                    event.preventDefault(); // Prevent default form submission
-
-                    const formData = new FormData(event.target);
-
-                    try {
-                        const response = await fetch(event.target.action, {
-                            method: "POST",
-                            body: formData,
-                        });
-
-                        const result = await response.json();
-                        console.log("Response from server:", result);
-
-                        if (result.status === "success") {
-                            alert("Participant added successfully!");
-                            window.close(); // Close the popup
-                            if (window.opener) {
-                                window.opener.location.reload(); // Refresh parent page
-                            }
-                        } else {
-                            alert(result.message); // Show error message
-                        }
-                    } catch (error) {
-                        console.error("Error during submission:", error);
-                        alert("An error occurred while submitting the form.");
-                    }
-                }
-      </script>
+    <script src="../static/js/add_participant.js"></script>
 </body>
 </html>

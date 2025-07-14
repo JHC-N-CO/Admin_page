@@ -1,0 +1,251 @@
+:root {
+    --main-blue: #324052;
+    --main-blue-light: #3e4b5c;
+    --main-blue-bg: #f5f7fa;
+    --main-gray: #8a99a8;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--main-blue-bg);
+    color: var(--main-blue);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 4px 24px 0 rgba(50,64,82,0.08);
+    width: 100%;
+    max-width: 440px;
+    padding: 40px 32px 32px 32px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    max-height: 92vh;
+}
+
+h1 {
+    font-size: 2.2rem;
+    font-weight: 800;
+    margin-bottom: 28px;
+    text-align: center;
+    color: var(--main-blue);
+    letter-spacing: -1px;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+label {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 2px;
+    color: var(--main-gray);
+}
+
+input[type="text"],
+input[type="email"],
+select,
+textarea {
+    padding: 12px 14px;
+    border: 1.5px solid var(--main-blue-light);
+    border-radius: 10px;
+    font-size: 1rem;
+    background-color: #f9fbfd;
+    color: var(--main-blue);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: none;
+    outline: none;
+}
+input[type="text"]:focus,
+input[type="email"]:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--main-blue);
+    background: #fff;
+}
+
+button {
+    padding: 14px;
+    background-color: var(--main-blue);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    margin-top: 8px;
+}
+button:hover, button:focus {
+    background-color: var(--main-blue-light);
+}
+
+textarea.auto-resize {
+    padding: 10px;
+    border: 1px solid #d1d1d6;
+    border-radius: 8px;
+    font-size: 14px;
+    background-color: #f5f5f7;
+    transition: border-color 0.2s ease;
+    resize: none; /* 사용자가 수동으로 크기 조절 못 하게 설정 */
+    min-height: 40px; /* 최소 높이 설정 */
+    width: 100%; /* 전체 너비 사용 */
+    box-sizing: border-box;
+    overflow: hidden; /* 스크롤바 숨김 */
+}
+
+textarea.auto-resize:focus {
+    border-color: #007aff;
+    outline: none;
+    background-color: #ffffff;
+}
+
+/* Registration Step 3 Enhanced Styles */
+
+.form-section {
+  background: #f8f9fa;
+  border-radius: 10px;
+  padding: 24px 20px;
+  margin-bottom: 24px;
+  border: 1px solid #e0e3ed;
+  overflow-x: auto;
+}
+.section-title {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #3d4799;
+  margin-bottom: 18px;
+  margin-top: 0;
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 24px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-group.full-width {
+  grid-column: 1 / -1;
+}
+.form-label {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 4px;
+}
+.input-with-button {
+  display: flex;
+  gap: 8px;
+}
+.input-with-button input {
+  flex: 1;
+}
+.btn-secondary {
+  background: #e0e3ed;
+  color: #3d4799;
+  border: none;
+  border-radius: 6px;
+  padding: 0 16px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  height: 40px;
+}
+.btn-secondary:hover {
+  background: #d0d4e3;
+}
+.name-eng-group {
+  display: flex;
+  gap: 8px;
+}
+.name-eng-group input {
+  flex: 1;
+}
+.phone-group, .email-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.email-separator {
+  font-size: 1.1em;
+  color: #888;
+}
+.radio-group {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.radio-item {
+  font-weight: 400;
+  color: #444;
+}
+/* --- 프로필 사진 업로드 라인 정렬 개선 --- */
+/* --- 강제 가로 정렬 및 줄바꿈 방지 --- */
+.photo-upload-area {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: nowrap;
+}
+.photo-preview {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e0e3ed;
+  background: #fff;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.upload-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  align-items: flex-start;
+  min-width: 120px;
+  max-width: 300px;
+  width: auto;
+}
+.upload-btn {
+  background: #fff;
+  color: #3d4799;
+  border: 1.5px solid #3d4799;
+  border-radius: 6px;
+  padding: 4px 16px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border 0.2s;
+  height: 32px;
+  box-shadow: none;
+}
+.upload-btn:hover {
+  background: #f4f6fa;
+  color: #2a326d;
+  border-color: #2a326d;
+}
+.upload-hint {
+  font-size: 0.92em;
+  color: #888;
+}

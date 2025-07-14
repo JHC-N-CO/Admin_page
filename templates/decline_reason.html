@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Decline Reason</title>
+    <link rel="stylesheet" href="../static/css/decline_reason.css">
+</head>
+<body>
+    <div class="container">
+        <h1>거절 사유 입력</h1>
+        <p class="participant-name">이름: {{ participant_name }}</p>
+        <form action="/accept_response" method="post">
+            <input type="hidden" name="participant_id" value="{{ participant_id }}">
+            <input type="hidden" name="response" value="decline">
+            <input type="hidden" name="name" value="{{ participant_name }}">
+            <textarea name="decline_reason" placeholder="거절 사유를 입력하세요..." required></textarea>
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+            <button type="submit">제출</button>
+        </form>
+    </div>
+    <script src="../static/js/decline_reason.js"></script>
+</body>
+</html>

@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>참가자 관리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_participants.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body data-event-id="{{ event[0] }}">
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin</h2>
+                <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="사이드바 토글">
+                    <svg width="28" height="28" viewBox="0 0 32 32">
+                        <rect y="7" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="14.5" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="22" width="32" height="3" rx="1.5" fill="#888"/>
+                    </svg>
+                </button>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/members" class="nav-link" data-section="members">회원 관리</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/event" class="nav-link" data-section="events">행사 관리</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">&copy; 2025. JHC Conference</div>
+        </div>
+        <div class="main-content">
+            <div class="page-header">
+                <h1>참가자 관리</h1>
+                <a href="/" class="back-link">← 행사 관리 페이지로</a>
+            </div>
+            <div class="event-info">
+                <h2>행사명: {{ event[1] }}</h2>
+                <p>시작일: {{ event[2] }}</p>
+                <p>종료일: {{ event[3] }}</p>
+            </div>
+            <div class="participants-section">
+                <form id="deleteForm" action="/delete_participants/{{ event[0] }}" method="post">
+                    <div class="action-buttons">
+                        <button type="button" class="secondary" onclick="openPopup('/add_participant/{{ event[0] }}')">참가자 추가</button>
+                        <button type="button" class="secondary" onclick="openPopup('/upload_participants/{{ event[0] }}')">참가자 업로드</button>
+                        <button type="button" class="primary" onclick="openPopupAttn('/track_checkin/{{ event[0] }}')">출결 관리</button>
+                    </div>
+                    <div class="table-actions">
+                        <div class="search-box">
+                            <input type="text" id="search-input" placeholder="검색...">
+                        </div>
+                        <div class="column-selector">
+                            <button type="button" class="column-selector-btn" title="컬럼 설정">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <div class="column-selector-dropdown">
+                                <div class="column-selector-header">표시할 컬럼 선택</div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-event-id" data-column="event_id" checked>
+                                    <label for="col-event-id">Event ID</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-code" data-column="code" checked>
+                                    <label for="col-code">Code</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-registration" data-column="registration" checked>
+                                    <label for="col-registration">Registration</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-division" data-column="division" checked>
+                                    <label for="col-division">Division</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-role" data-column="role" checked>
+                                    <label for="col-role">Role</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-country" data-column="country" checked>
+                                    <label for="col-country">Country</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-name-kor" data-column="name_kor" checked>
+                                    <label for="col-name-kor">Name (KOR)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-affiliation-kor" data-column="affiliation_kor" checked>
+                                    <label for="col-affiliation-kor">Affiliation (KOR)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-department-kor" data-column="department_kor" checked>
+                                    <label for="col-department-kor">Department (KOR)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-first-name" data-column="first_name" checked>
+                                    <label for="col-first-name">First Name</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-family-name" data-column="family_name" checked>
+                                    <label for="col-family-name">Family Name</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-affiliation-eng" data-column="affiliation_eng" checked>
+                                    <label for="col-affiliation-eng">Affiliation (ENG)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-department-eng" data-column="department_eng" checked>
+                                    <label for="col-department-eng">Department (ENG)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-accept-decline" data-column="accept_decline" checked>
+                                    <label for="col-accept-decline">Accept/Decline</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-email" data-column="email" checked>
+                                    <label for="col-email">Email</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-phone" data-column="phone" checked>
+                                    <label for="col-phone">Phone</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-position" data-column="position" checked>
+                                    <label for="col-position">Position</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-license" data-column="license_number" checked>
+                                    <label for="col-license">License #</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-cv" data-column="cv" checked>
+                                    <label for="col-cv">CV</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-photo" data-column="photo" checked>
+                                    <label for="col-photo">Photo</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-ppt" data-column="ppt" checked>
+                                    <label for="col-ppt">PPT</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-script" data-column="script" checked>
+                                    <label for="col-script">Script</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-agree" data-column="agree" checked>
+                                    <label for="col-agree">Agree</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-remark-user" data-column="remark_user" checked>
+                                    <label for="col-remark-user">Remark (User)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-remark-admin" data-column="remark_admin" checked>
+                                    <label for="col-remark-admin">Remark (Admin)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-check-in" data-column="check_in_time" checked>
+                                    <label for="col-check-in">Check-In</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-check-out" data-column="check_out_time" checked>
+                                    <label for="col-check-out">Check-Out</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-actions" data-column="actions" checked>
+                                    <label for="col-actions">Actions</label>
+                                </div>
+                                <div class="column-selector-actions">
+                                    <button type="button" class="select-all-columns">전체 선택</button>
+                                    <button type="button" class="deselect-all-columns">전체 해제</button>
+                                    <button type="button" class="apply-columns primary">적용</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="inline-action-buttons">
+                            <button type="button" class="secondary" onclick="submitDeleteForm()">선택 삭제</button>
+                            <button type="button" class="primary" onclick="openEmailPopup()">이메일 발송</button>
+                            <button type="button" class="primary" onclick="downloadExcel()">선택 다운로드</button>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container">
+                        <div class="table-wrapper">
+                            <table id="participants-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th class="sortable" data-column="event_id" data-sort="event_id">Event ID</th>
+                                    <th class="sortable" data-column="code" data-sort="code">Code</th>
+                                    <th class="sortable" data-column="registration" data-sort="registration">Registration</th>
+                                    <th class="sortable" data-column="division" data-sort="division">Division</th>
+                                    <th class="sortable" data-column="role" data-sort="role">Role</th>
+                                    <th class="sortable" data-column="country" data-sort="country">Country</th>
+                                    <th class="sortable" data-column="name_kor" data-sort="name_kor">Name (KOR)</th>
+                                    <th class="sortable" data-column="affiliation_kor" data-sort="affiliation_kor">Affiliation (KOR)</th>
+                                    <th class="sortable" data-column="department_kor" data-sort="department_kor">Department (KOR)</th>
+                                    <th class="sortable" data-column="first_name" data-sort="first_name">First Name</th>
+                                    <th class="sortable" data-column="family_name" data-sort="family_name">Family Name</th>
+                                    <th class="sortable" data-column="affiliation_eng" data-sort="affiliation_eng">Affiliation (ENG)</th>
+                                    <th class="sortable" data-column="department_eng" data-sort="department_eng">Department (ENG)</th>
+                                    <th class="sortable" data-column="accept_decline" data-sort="accept_decline">Accept/Decline</th>
+                                    <th class="sortable" data-column="email" data-sort="email">Email</th>
+                                    <th class="sortable" data-column="phone" data-sort="phone">Phone</th>
+                                    <th class="sortable" data-column="position" data-sort="position">Position</th>
+                                    <th class="sortable" data-column="license_number" data-sort="license_number">License #</th>
+                                    <th data-column="cv">CV</th>
+                                    <th data-column="photo">Photo</th>
+                                    <th data-column="ppt">PPT</th>
+                                    <th data-column="script">Script</th>
+                                    <th class="sortable" data-column="agree" data-sort="agree">Agree</th>
+                                    <th class="sortable" data-column="remark_user" data-sort="remark_user">Remark (User)</th>
+                                    <th class="sortable" data-column="remark_admin" data-sort="remark_admin">Remark (Admin)</th>
+                                    <th>Check-In</th>
+                                    <th>Check-Out</th>
+                                    <th data-column="actions">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-body">
+                                {% for participant in participants %}
+                                <tr data-event-id="{{ participant[1] }}" data-code="{{ participant[2] }}">
+                                    <td><input type="checkbox" name="selected_participants" value="{{ participant[0] }}" class="row-checkbox"></td>
+                                    <td data-column="event_id">{{ event[4] }}</td>
+                                    <td data-column="code">{{ participant[2] }}</td>
+                                    <td data-column="registration">{{ participant[3] }}</td>
+                                    <td data-column="division">{{ participant[4] }}</td>
+                                    <td data-column="role">{{ participant[5] }}</td>
+                                    <td data-column="country">{{ participant[6] }}</td>
+                                    <td data-column="name_kor">{{ participant[7] }}</td>
+                                    <td data-column="affiliation_kor">{{ participant[8] }}</td>
+                                    <td data-column="department_kor">{{ participant[9] }}</td>
+                                    <td data-column="first_name">{{ participant[10] }}</td>
+                                    <td data-column="family_name">{{ participant[11] }}</td>
+                                    <td data-column="affiliation_eng">{{ participant[12] }}</td>
+                                    <td data-column="department_eng">{{ participant[13] }}</td>
+                                    <td data-column="accept_decline" class="accept-decline">
+                                        {% if participant[14] == 'Decline' %}
+                                            <span class="decline-status" 
+                                                  data-decline-reason="{{ participant[28] if participant[28] else '' }}"
+                                                  data-participant-name="{{ participant[8] if participant[8] else (participant[11] + ' ' + participant[12] if participant[11] and participant[12] else '참가자') }}"
+                                                  data-tooltip="{{ participant[28][:6] + '...' if participant[28] and participant[28]|length > 6 else participant[28] if participant[28] else '거절 사유 없음' }}"
+                                                  onclick="showDeclineReason(this)">
+                                                {{ participant[14] }}
+                                            </span>
+                                        {% elif participant[14] == 'Accept' %}
+                                            <span class="accept-status">{{ participant[14] }}</span>
+                                        {% else %}
+                                            {{ participant[14] }}
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="email">{{ participant[15] }}</td>
+                                    <td data-column="phone">{{ participant[16] }}</td>
+                                    <td data-column="position">{{ participant[17] }}</td>
+                                    <td data-column="license_number">{{ participant[18] }}</td>
+                                    <td data-column="cv">
+                                        {% if participant[19] and participant[19] not in ['nan', '', None] and participant[19] | length > 0 %}
+                                            <a href="#" onclick="downloadFile('{{ participant[19] | e }}', event)" class="attachment-icon">📎</a>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="photo">
+                                        {% if participant[20] and participant[20] not in ['nan', '', None] and participant[20] | length > 0 %}
+                                            <a href="#" onclick="downloadFile('{{ participant[20] | e }}', event)" class="attachment-icon">📎</a>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="ppt">
+                                        {% if participant[21] and participant[21] not in ['nan', '', None] and participant[21] | length > 0 %}
+                                            <a href="#" onclick="downloadFile('{{ participant[21] | e }}', event)" class="attachment-icon">📎</a>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="script">
+                                        {% if participant[22] and participant[22] not in ['nan', '', None] and participant[22] | length > 0 %}
+                                            <a href="#" onclick="downloadFile('{{ participant[22] | e }}', event)" class="attachment-icon">📎</a>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="agree">{{ participant[23] }}</td>
+                                    <td data-column="remark_user">{{ participant[24] }}</td>
+                                    <td data-column="remark_admin">{{ participant[25] }}</td>
+                                    <td class="check-in-time">{{ participant[26] }}</td>
+                                    <td class="check-out-time">{{ participant[27] }}</td>
+                                    <td data-column="actions">
+                                        <a href="#" onclick="openPopup('/edit_participant/{{ participant[0] }}'); return false;" class="action-link">수정</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <script src="../static/js/admin_participants.js"></script>
+</body>
+</html>

@@ -1,0 +1,275 @@
+/* admin_event.css - Only page-specific styles */
+* {
+    margin: 0;
+  padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+}
+
+.page-header {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.page-header h1 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+    .event-form {
+    background-color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.event-form form {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+.event-form input[name='name'],
+.event-form .date-picker-wrap {
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+    flex: 0 0 240px;
+}
+
+    .event-form button {
+    padding: 10px 20px;
+    background-color: #3498db;
+        color: white;
+  border: none;
+    border-radius: 4px;
+  cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+    .event-form button:hover {
+    background-color: #2980b9;
+}
+
+    .table-container {
+    background-color: white;
+  border-radius: 8px;
+        overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+    }
+
+.table-container th,
+.table-container td {
+    padding: 12px;
+  text-align: left;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9em;
+}
+
+.table-container th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+    }
+
+.table-container tr:hover {
+    background-color: #f8f9fa;
+}
+
+    .action-link {
+    color: #3498db;
+        text-decoration: none;
+    font-weight: 500;
+  }
+
+    .action-link:hover {
+        text-decoration: underline;
+  }
+
+.delete-btn {
+    margin: 10px;
+    padding: 10px 20px;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+.delete-btn:hover {
+    background-color: #c0392b;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #7f8c8d;
+    margin-top: 40px;
+}
+
+.flatpickr-input {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 10px;
+    font-size: 1em;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+.flatpickr-input:focus {
+    border-color: #3498db;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.15);
+}
+
+.date-picker-wrap {
+    position: relative;
+    width: 100%;
+    max-width: 240px;
+    flex: 1 1 200px;
+}
+.date-picker-wrap input {
+    width: 240px;
+    padding-right: 32px;
+    box-sizing: border-box;
+}
+.calendar-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    background: none;
+    border: none;
+    padding: 0;
+    color: #1976d2;
+    z-index: 2;
+}
+.calendar-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: #1976d2;
+}
+
+/* === Unified input style for all event-form inputs === */
+.event-form input[type='text'],
+.event-form input[type='email'],
+.event-form input[type='password'],
+.event-form input[type='number'],
+.event-form .date-picker-wrap input {
+    width: 240px;
+    box-sizing: border-box;
+    background: #fafbfc;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px 44px 8px 16px;
+    font-size: 1em;
+    font-weight: 500;
+    color: #444;
+    transition: border-color 0.2s;
+}
+.event-form input[type='text']:focus,
+.event-form input[type='email']:focus,
+.event-form input[type='password']:focus,
+.event-form input[type='number']:focus,
+.event-form .date-picker-wrap input:focus {
+    border-color: #3d4799;
+    background-color: #fff;
+}
+.event-form input[type='text']::placeholder,
+.event-form input[type='email']::placeholder,
+.event-form input[type='password']::placeholder,
+.event-form input[type='number']::placeholder,
+.event-form .date-picker-wrap input::placeholder {
+    color: #888;
+    font-size: 0.9em;
+    font-weight: 400;
+    opacity: 1;
+}
+/* === Calendar icon only for date inputs === */
+#start_date, #end_date {
+    background: #fafbfc url('data:image/svg+xml;utf8,<svg fill="%23999" height="20" viewBox="0 0 24 24" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zm0-13H5V6h14v1z"/></svg>') no-repeat right 14px center/22px 22px;
+}
+
+.flatpickr-calendar {
+    font-family: 'Noto Sans KR', Arial, sans-serif;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    border: 1px solid #e0e3ed;
+    padding: 0 0 4px 0;
+    font-size: 0.95em;
+    min-width: 260px;
+    max-width: 320px;
+}
+.flatpickr-months .flatpickr-month {
+    font-size: 1.05em;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 2px;
+    padding: 8px 0 0 0;
+}
+.flatpickr-current-month input.cur-year {
+    font-size: 1em;
+    height: 1.6em;
+}
+.flatpickr-weekdays {
+    font-size: 0.95em;
+    color: #888;
+    margin-bottom: 2px;
+}
+.flatpickr-days {
+    padding: 0 6px;
+}
+.flatpickr-day {
+    font-size: 1em;
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    margin: 1px;
+    transition: background 0.2s;
+}
+.flatpickr-day.selected, .flatpickr-day.startRange, .flatpickr-day.endRange {
+    background: #3d4799;
+    color: #fff;
+}
+.flatpickr-day.today {
+    border-color: #3d4799;
+}
+.flatpickr-day:hover {
+    background: #e0e3ed;
+}
+.flatpickr-prev-month, .flatpickr-next-month {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+}
+
+/* 헤더만 크게 */
+.table-container th {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* 내용만 작게 */
+.table-container td {
+    font-size: 14px;
+}
+

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload Participant</title>
+    <link rel="stylesheet" href="../static/css/upload_participant.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Participants</h1>
+        {% if error %}
+        <div class="error-message">{{ error }}</div>
+        {% endif %}
+        <form action="" method="post" enctype="multipart/form-data" onsubmit="uploadFile(event)">
+            <input type="file" name="file" required>
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+    <script src="../static/js/upload_participant.js"></script>
+</body>
+</html>
