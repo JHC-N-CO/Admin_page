@@ -44,6 +44,14 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
 // QR Export 버튼
 document.getElementById('qrExportBtn').addEventListener('click', async function() {
     try {
+        // 라이브러리 로딩 확인
+        if (typeof QRCode === 'undefined') {
+            throw new Error('QRCode library not loaded');
+        }
+        if (typeof XLSX === 'undefined') {
+            throw new Error('XLSX library not loaded');
+        }
+        
         // 참가자 데이터 가져오기
         const formData = new FormData(document.getElementById('exportForm'));
         const response = await fetch(`/get_participants_for_qr/${eventId}`, {
@@ -104,7 +112,7 @@ document.getElementById('qrExportBtn').addEventListener('click', async function(
         }));
         
         // Excel 파일 다운로드
-        const excelBlob = await generateExcelBlob(excelData);
+        const excelBlob = generateExcelBlob(excelData);
         const excelUrl = window.URL.createObjectURL(excelBlob);
         const excelLink = document.createElement('a');
         excelLink.href = excelUrl;
@@ -123,8 +131,7 @@ document.getElementById('qrExportBtn').addEventListener('click', async function(
 });
 
 // Excel 파일 생성 함수
-async function generateExcelBlob(data) {
-    const XLSX = await import('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+function generateExcelBlob(data) {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Participants");
