@@ -1410,7 +1410,7 @@ def generate_qr_image(code, event_name):
             img_io,
             mimetype='image/png',
             as_attachment=True,
-            download_name=f'{code}.png'
+            download_name=f'QR Codes/{event_name}/{code}.png'
         )
     except Exception as e:
         logging.error(f"QR generation failed for {code}: {str(e)}")
