@@ -12,16 +12,17 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
-    padding: 0;
+    padding: 20px;
+    box-sizing: border-box;
 }
 
 .container {
     background: #fff;
     border-radius: 18px;
     box-shadow: 0 4px 24px 0 rgba(50,64,82,0.08);
-    max-width: 420px;
+    max-width: 600px;
     width: 100%;
     padding: 40px 32px 32px 32px;
     box-sizing: border-box;
@@ -37,10 +38,61 @@ h1 {
     letter-spacing: -1px;
 }
 
+h3 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--main-blue);
+    text-align: left;
+}
+
+h4 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--main-blue);
+    text-align: left;
+}
+
+.upload-info {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    text-align: left;
+}
+
+.upload-info ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.upload-info li {
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+
+.upload-info ul ul {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.upload-info strong {
+    color: var(--main-blue);
+    font-weight: 600;
+}
+
 form {
     display: flex;
     flex-direction: column;
     gap: 18px;
+    margin-bottom: 24px;
+}
+
+.file-input-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 input[type="file"] {
@@ -52,10 +104,17 @@ input[type="file"] {
     color: var(--main-blue);
     transition: border-color 0.2s, box-shadow 0.2s;
 }
+
 input[type="file"]:focus {
     border-color: var(--main-blue);
     outline: none;
     background-color: #fff;
+}
+
+small {
+    color: var(--main-gray);
+    font-size: 0.9rem;
+    text-align: left;
 }
 
 button {
@@ -70,8 +129,14 @@ button {
     transition: background-color 0.2s;
     margin-top: 8px;
 }
+
 button:hover, button:focus {
     background-color: var(--main-blue-light);
+}
+
+button:disabled {
+    background-color: var(--main-gray);
+    cursor: not-allowed;
 }
 
 .error-message {
@@ -82,4 +147,32 @@ button:hover, button:focus {
     margin-bottom: 18px;
     text-align: center;
     font-size: 1rem;
+}
+
+.template-download {
+    background: #e8f4fd;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: left;
+}
+
+.template-download p {
+    margin-bottom: 12px;
+    color: var(--main-blue);
+    line-height: 1.5;
+}
+
+.template-link {
+    display: inline-block;
+    padding: 10px 16px;
+    background-color: var(--main-blue);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.template-link:hover {
+    background-color: var(--main-blue-light);
 }

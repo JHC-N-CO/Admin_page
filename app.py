@@ -774,11 +774,15 @@ def upload_participants(event_id):
     
     if request.method == 'POST':
         if 'file' not in request.files:
+            logging.error("No file uploaded")
             return 'No file uploaded', 400
         
         file = request.files['file']
         if file.filename == '':
+            logging.error("No file selected")
             return 'No file selected', 400
+        
+        logging.info(f"Processing file: {file.filename}")
         
         if file and allowed_file(file.filename, {'csv', 'xlsx'}):
             try:
@@ -787,11 +791,15 @@ def upload_participants(event_id):
                 else:
                     df = pd.read_excel(file, dtype=str, na_values=['nan', 'NaN', ''], keep_default_na=False)
                 
+                logging.info(f"File loaded successfully. Shape: {df.shape}")
+                logging.info(f"Original columns: {list(df.columns)}")
+                
                 # NaN 값을 빈 문자열로 변환
                 df = df.fillna('')
                 
                 # 컬럼명 정규화 (소문자로 변환하고 공백 제거)
                 df.columns = [col.lower().strip() for col in df.columns]
+                logging.info(f"Normalized columns: {list(df.columns)}")
                 
                 # 컬럼명 매핑 (admin.py와 동일)
                 column_mapping = {
@@ -802,6 +810,7 @@ def upload_participants(event_id):
                     'check_out_time': 'check_out_time', 'decline_reason': 'decline_reason'
                 }
                 df.rename(columns=column_mapping, inplace=True)
+                logging.info(f"After mapping columns: {list(df.columns)}")
                 
                 # 모든 가능한 컬럼
                 all_columns = [
@@ -813,55 +822,85 @@ def upload_participants(event_id):
                 present_columns = [col for col in all_columns if col in df.columns]
                 missing_columns = [col for col in all_columns if col not in df.columns]
                 
+                logging.info(f"Present columns: {present_columns}")
+                logging.info(f"Missing columns: {missing_columns}")
+                logging.info(f"First row data: {df.iloc[0].to_dict() if len(df) > 0 else 'No data'}")
+                
                 # 데이터 처리 및 저장
-                for _, row in df.iterrows():
-                    sanitized_data = {}
-                    for key in all_columns:
-                        value = row.get(key, '').strip() if key in row else ''
-                        # datetime 필드의 경우 빈 값이면 None으로 설정
-                        if key in ['check_in_time', 'check_out_time']:
-                            sanitized_data[key] = value if value else None
-                        else:
-                            sanitized_data[key] = value
-                    participant = Participant(
-                        event_id=event_id,
-                        registration=sanitized_data.get('registration', ''),
-                        division=sanitized_data.get('division', ''),
-                        role=sanitized_data.get('role', ''),
-                        country=sanitized_data.get('country', ''),
-                        name_kor=sanitized_data.get('name (kor)', ''),
-                        affiliation_kor=sanitized_data.get('affiliation (kor)', ''),
-                        department_kor=sanitized_data.get('department (kor)', ''),
-                        first_name=sanitized_data.get('first name', ''),
-                        family_name=sanitized_data.get('family name', ''),
-                        affiliation_eng=sanitized_data.get('affiliation (eng)', ''),
-                        department_eng=sanitized_data.get('department (eng)', ''),
-                        accept_or_decline=sanitized_data.get('accept or decline', ''),
-                        email=sanitized_data.get('email', ''),
-                        phone=sanitized_data.get('phone', ''),
-                        position=sanitized_data.get('position', ''),
-                        license_number=sanitized_data.get('license #', ''),
-                        agree=sanitized_data.get('agree', ''),
-                        remark_user=sanitized_data.get('remark (user)', ''),
-                        remark_admin=sanitized_data.get('remark (admin)', ''),
-                        check_in_time=sanitized_data.get('check_in_time') if sanitized_data.get('check_in_time') else None,
-                        check_out_time=sanitized_data.get('check_out_time') if sanitized_data.get('check_out_time') else None,
-                        decline_reason=sanitized_data.get('decline_reason', '')
-                    )
-                    db.session.add(participant)
+                participants_added = 0
+                for index, row in df.iterrows():
+                    try:
+                        sanitized_data = {}
+                        for key in all_columns:
+                            value = row.get(key, '').strip() if key in row else ''
+                            # datetime 필드의 경우 빈 값이면 None으로 설정
+                            if key in ['check_in_time', 'check_out_time']:
+                                sanitized_data[key] = value if value else None
+                            else:
+                                sanitized_data[key] = value
+                        
+                        # 최소한의 필수 데이터 확인
+                        if not sanitized_data.get('name (kor)') and not sanitized_data.get('first name'):
+                            logging.warning(f"Row {index}: Missing name data, skipping")
+                            continue
+                        
+                        participant = Participant(
+                            event_id=event_id,
+                            registration=sanitized_data.get('registration', ''),
+                            division=sanitized_data.get('division', ''),
+                            role=sanitized_data.get('role', ''),
+                            country=sanitized_data.get('country', ''),
+                            name_kor=sanitized_data.get('name (kor)', ''),
+                            affiliation_kor=sanitized_data.get('affiliation (kor)', ''),
+                            department_kor=sanitized_data.get('department (kor)', ''),
+                            first_name=sanitized_data.get('first name', ''),
+                            family_name=sanitized_data.get('family name', ''),
+                            affiliation_eng=sanitized_data.get('affiliation (eng)', ''),
+                            department_eng=sanitized_data.get('department (eng)', ''),
+                            accept_or_decline=sanitized_data.get('accept or decline', ''),
+                            email=sanitized_data.get('email', ''),
+                            phone=sanitized_data.get('phone', ''),
+                            position=sanitized_data.get('position', ''),
+                            license_number=sanitized_data.get('license #', ''),
+                            agree=sanitized_data.get('agree', ''),
+                            remark_user=sanitized_data.get('remark (user)', ''),
+                            remark_admin=sanitized_data.get('remark (admin)', ''),
+                            check_in_time=sanitized_data.get('check_in_time') if sanitized_data.get('check_in_time') else None,
+                            check_out_time=sanitized_data.get('check_out_time') if sanitized_data.get('check_out_time') else None,
+                            decline_reason=sanitized_data.get('decline_reason', '')
+                        )
+                        db.session.add(participant)
+                        participants_added += 1
+                        logging.info(f"Added participant {participants_added}: {sanitized_data.get('name (kor)', sanitized_data.get('first name', 'Unknown'))}")
+                    except Exception as e:
+                        logging.error(f"Error processing row {index}: {e}")
+                        continue
+                
+                logging.info(f"Attempting to commit {participants_added} participants to database")
                 db.session.commit()
+                logging.info(f"Successfully committed {participants_added} participants")
+                
                 # 참가자 코드 자동 생성
                 participants = Participant.query.filter_by(event_id=event_id).filter(Participant.code.is_(None)).all()
                 for i, participant in enumerate(participants, 1):
                     participant.code = i
                 db.session.commit()
+                logging.info(f"Generated codes for {len(participants)} participants")
+                
                 # 누락 컬럼 경고 메시지(선택)
                 if missing_columns:
-                    return f'업로드 완료 (누락 컬럼: {", ".join(missing_columns)})', 200
+                    logging.warning(f"Missing columns: {missing_columns}")
+                    return f'업로드 완료 - {participants_added}명 추가됨 (누락 컬럼: {", ".join(missing_columns)})', 200
+                
+                logging.info(f"Upload completed successfully. {participants_added} participants added.")
                 return redirect(url_for('participant_management', event_id=event_id))
             except Exception as e:
                 logging.error(f"Upload failed: {e}")
+                db.session.rollback()
                 return f'Upload failed: {str(e)}', 500
+        else:
+            logging.error(f"Invalid file type: {file.filename}")
+            return 'Invalid file type. Please upload CSV or Excel file.', 400
     
     return render_template('upload_participant.html', event=event)
 

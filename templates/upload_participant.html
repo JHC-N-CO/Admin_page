@@ -6,15 +6,66 @@
 </head>
 <body>
     <div class="container">
-        <h1>Upload Participants</h1>
+        <h1>참가자 일괄 업로드</h1>
+        
         {% if error %}
         <div class="error-message">{{ error }}</div>
         {% endif %}
+        
+        <div class="upload-info">
+            <h3>업로드 가이드</h3>
+            <ul>
+                <li>CSV 또는 Excel 파일(.xlsx)만 업로드 가능합니다.</li>
+                <li>필수 컬럼: <strong>name (kor)</strong> 또는 <strong>first name</strong></li>
+                <li>지원하는 컬럼들:</li>
+                <ul>
+                    <li>registration, division, role, country</li>
+                    <li>name (kor), affiliation (kor), department (kor)</li>
+                    <li>first name, family name, affiliation (eng), department (eng)</li>
+                    <li>accept or decline, email, phone, position, license #</li>
+                    <li>remark (user), remark (admin)</li>
+                </ul>
+            </ul>
+        </div>
+        
         <form action="" method="post" enctype="multipart/form-data" onsubmit="uploadFile(event)">
-            <input type="file" name="file" required>
-            <button type="submit">Upload</button>
+            <div class="file-input-container">
+                <input type="file" name="file" accept=".csv,.xlsx" required>
+                <small>CSV 또는 Excel 파일을 선택하세요</small>
+            </div>
+            <button type="submit">업로드</button>
         </form>
+        
+        <div class="template-download">
+            <h4>템플릿 다운로드</h4>
+            <p>올바른 형식의 엑셀 파일을 다운로드하여 참고하세요.</p>
+            <a href="#" onclick="downloadTemplate()" class="template-link">템플릿 다운로드</a>
+        </div>
     </div>
+    
     <script src="../static/js/upload_participant.js"></script>
+    <script>
+        function downloadTemplate() {
+            // 간단한 템플릿 생성
+            const template = [
+                ['name (kor)', 'affiliation (kor)', 'department (kor)', 'email', 'phone', 'accept or decline'],
+                ['홍길동', '서울대학교병원', '신경과', 'hong@example.com', '010-1234-5678', 'accept'],
+                ['김철수', '연세대학교병원', '소아과', 'kim@example.com', '010-9876-5432', 'accept']
+            ];
+            
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            template.forEach(row => {
+                csvContent += row.join(',') + '\n';
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "participant_template.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
 </body>
 </html>
