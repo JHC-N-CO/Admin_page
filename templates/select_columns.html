@@ -6,8 +6,8 @@
     <title>컬럼 선택 - Excel 내보내기</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/select_columns.css') }}">
     <!-- QR 코드 생성을 위한 라이브러리 -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -105,6 +105,14 @@
     <!-- eventId 변수를 Flask 템플릿에서 JavaScript로 전달 -->
     <script>
         const eventId = "{{ event_id }}";
+        
+        // 라이브러리 로딩 상태 확인
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                console.log('QRCode loaded:', typeof QRCode !== 'undefined');
+                console.log('XLSX loaded:', typeof XLSX !== 'undefined');
+            }, 1000);
+        });
     </script>
     <script src="{{ url_for('static', filename='js/select_columns.js') }}"></script>
 </body>

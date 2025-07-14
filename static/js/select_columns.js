@@ -44,12 +44,18 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
 // QR Export 버튼
 document.getElementById('qrExportBtn').addEventListener('click', async function() {
     try {
-        // 라이브러리 로딩 확인
+        // 라이브러리 로딩 확인 및 대기
+        let attempts = 0;
+        while ((typeof QRCode === 'undefined' || typeof XLSX === 'undefined') && attempts < 50) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
         if (typeof QRCode === 'undefined') {
-            throw new Error('QRCode library not loaded');
+            throw new Error('QRCode library not loaded after 5 seconds');
         }
         if (typeof XLSX === 'undefined') {
-            throw new Error('XLSX library not loaded');
+            throw new Error('XLSX library not loaded after 5 seconds');
         }
         
         // 참가자 데이터 가져오기
