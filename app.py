@@ -1360,9 +1360,43 @@ def download_file_path(filepath):
         logging.error(f"File download failed: {e}")
         return "File not found", 404
 
+@app.route('/get_participants_for_qr/<int:event_id>', methods=['POST'])
+def get_participants_for_qr(event_id):
+    """QR 코드 생성을 위한 참가자 데이터 JSON 반환"""
+    event = Event.query.get_or_404(event_id)
+    participant_ids = request.form.get('selected_participants', '')
+    if participant_ids:
+        ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
+        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+    else:
+        participants = Participant.query.filter_by(event_id=event_id).all()
+    
+    # 행사명에서 안전한 폴더명 생성
+    safe_event_name = "".join(c for c in event.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    
+    # 데이터 준비
+    data = []
+    for p in participants:
+        data.append({
+            'event_id': event.event_id,
+            'code': p.code,
+            'name_kor': p.name_kor,
+            'first_name': p.first_name,
+            'family_name': p.family_name,
+            'affiliation_kor': p.affiliation_kor,
+            'affiliation_eng': p.affiliation_eng,
+            'email': p.email,
+            'accept_or_decline': p.accept_or_decline
+        })
+    
+    return jsonify({
+        'participants': data,
+        'event_name': safe_event_name
+    })
+
 @app.route('/download_qr_participants_excel/<int:event_id>', methods=['POST'])
 def download_qr_participants_excel(event_id):
-    """QR 코드가 포함된 참가자 엑셀 다운로드"""
+    """QR 코드가 포함된 참가자 엑셀 다운로드 (기존 방식 - 호환성 유지)"""
     event = Event.query.get_or_404(event_id)
     participant_ids = request.form.get('selected_participants', '')
     if participant_ids:
