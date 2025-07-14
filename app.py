@@ -35,19 +35,33 @@ db.init_app(app)
 # 로깅 설정
 logging.basicConfig(level=logging.DEBUG)
 
-# QR 코드 저장 폴더 설정
+# QR 코드 저장 폴더 설정 (다운로드 폴더로 변경됨)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-QR_FOLDER = os.path.join(BASE_DIR, "qr_codes")
-os.makedirs(QR_FOLDER, exist_ok=True)
 
-def generate_qr(number):
+def generate_qr(number, event_id=None):
+    """QR 코드 생성 및 다운로드 폴더에 저장"""
     try:
         qr = qrcode.make(str(number))
         qr_filename = f"{number}.png"
-        qr_path = os.path.join(QR_FOLDER, qr_filename)
+        
+        # 다운로드 폴더 경로 설정
+        if event_id:
+            download_folder = os.path.expanduser(f"~/Downloads/QR Codes/{event_id}")
+        else:
+            download_folder = os.path.expanduser("~/Downloads/QR Codes")
+        
+        # 폴더 생성
+        os.makedirs(download_folder, exist_ok=True)
+        
+        # QR 코드 저장
+        qr_path = os.path.join(download_folder, qr_filename)
         qr.save(qr_path)
+        
+        # 상대 경로 반환 (인디자인 병합용)
+        relative_path = f"QR Codes/{event_id}/{qr_filename}" if event_id else f"QR Codes/{qr_filename}"
+        
         logging.debug(f"QR code generated: {qr_path}")
-        return f"qr_codes/{qr_filename}"
+        return relative_path
     except Exception as e:
         logging.error(f"QR generation failed for {number}: {str(e)}")
         raise
@@ -1337,7 +1351,7 @@ def download_qr_participants_excel(event_id):
     # QR 코드 생성
     for participant in participants:
         if participant.code:
-            generate_qr(participant.code)
+            generate_qr(participant.code, event.event_id)
     
     # 데이터 준비
     data = []
@@ -1345,7 +1359,7 @@ def download_qr_participants_excel(event_id):
         data.append({
             'Event ID': event.event_id,
             'Code': p.code,
-            'QR Code': f'qr_codes/{p.code}.png' if p.code else '',
+            'QR Code': f'QR Codes/{event.event_id}/{p.code}.png' if p.code else '',
             'Name (KOR)': p.name_kor,
             'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
             'Affiliation': p.affiliation_kor or p.affiliation_eng,
