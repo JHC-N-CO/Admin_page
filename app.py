@@ -44,11 +44,14 @@ def generate_qr(number, event_id=None):
         qr = qrcode.make(str(number))
         qr_filename = f"{number}.png"
         
-        # 다운로드 폴더 경로 설정
+        # Docker 볼륨 마운트된 다운로드 폴더 사용
+        download_base = "/app/downloads"
+        
+        # QR Codes 폴더 경로 설정
         if event_id:
-            download_folder = os.path.expanduser(f"~/Downloads/QR Codes/{event_id}")
+            download_folder = os.path.join(download_base, "QR Codes", str(event_id))
         else:
-            download_folder = os.path.expanduser("~/Downloads/QR Codes")
+            download_folder = os.path.join(download_base, "QR Codes")
         
         # 폴더 생성
         os.makedirs(download_folder, exist_ok=True)

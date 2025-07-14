@@ -1,0 +1,29 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to server
+      uses: appleboy/ssh-action@v0.1.5
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          cd ~/Admin_page
+          git pull origin main
+          docker stop admin-page-new || true
+          docker rm admin-page-new || true
+          docker build -t admin-page-new .
+          docker run -d --name admin-page-new \
+            --network host \
+            -v ~/Downloads:/app/downloads \
+            --env-file config.env \
+            admin-page-new
+          echo "Deployment completed successfully!" 
