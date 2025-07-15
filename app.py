@@ -1402,9 +1402,9 @@ def download_qr_participants_excel(event_id):
     participant_ids = request.form.get('selected_participants', '')
     if participant_ids:
         ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
-        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+        participants = Participant.query.filter(Participant.id.in_(ids)).order_by(Participant.code).all()
     else:
-        participants = Participant.query.filter_by(event_id=event_id).all()
+        participants = Participant.query.filter_by(event_id=event_id).order_by(Participant.code).all()
 
     import tempfile, shutil, zipfile
     temp_dir = tempfile.mkdtemp()
@@ -1415,12 +1415,35 @@ def download_qr_participants_excel(event_id):
     data = []
     
     # 코드 번호로 오름차순 정렬 (모든 방식에 공통 적용)
-    participants = sorted(participants, key=lambda p: int(p.code) if p.code and str(p.code).isdigit() else 0)
+    def safe_code_sort_key(p):
+        if not p.code:
+            return 999999  # 코드가 없는 경우 맨 뒤로
+        try:
+            # 문자열을 정수로 변환하여 정렬
+            return int(str(p.code))
+        except (ValueError, TypeError):
+            return 999999  # 변환 실패 시 맨 뒤로
+    
+    # 정렬 전 상태 로깅
+    print(f"DEBUG: Before sorting - participants codes: {[p.code for p in participants]}")
+    
+    participants = sorted(participants, key=safe_code_sort_key)
+    
+    # 정렬 후 상태 로깅
+    print(f"DEBUG: After sorting - participants codes: {[p.code for p in participants]}")
+    
+    # 디버깅: 정렬 결과 확인
+    print(f"DEBUG: Sorted participants codes: {[p.code for p in participants]}")
     
     if request.form.get('export_layout', 'normal') == 'odd_even':
         # participants에서 바로 홀수/짝수 분리 (중복 정렬 X)
         odd_participants = [p for p in participants if p.code and int(p.code) % 2 == 1]
         even_participants = [p for p in participants if p.code and int(p.code) % 2 == 0]
+        
+        # 디버깅: 홀수/짝수 분리 결과 확인
+        print(f"DEBUG: Odd participants codes: {[p.code for p in odd_participants]}")
+        print(f"DEBUG: Even participants codes: {[p.code for p in even_participants]}")
+        
         # 홀수와 짝수 참가자 데이터를 나란히 정렬
         max_rows = max(len(odd_participants), len(even_participants))
         for i in range(max_rows):
@@ -1496,7 +1519,9 @@ def download_qr_participants_excel(event_id):
             data.append(row_data)
     else:
         # 일반 방식 (코드번호 순서대로)
+        print(f"DEBUG: Normal mode - processing {len(participants)} participants")
         for p in participants:
+            print(f"DEBUG: Processing participant with code: {p.code}")
             if p.code:
                 qr_filename = f"{p.code}.png"
                 qr_path = os.path.join(qr_dir, qr_filename)
@@ -1555,13 +1580,28 @@ def download_qr_participants_excel_with_path(event_id):
     custom_path = request.form.get('custom_path', '/Users/jhc/Downloads/Excel_QR_Code')
     if participant_ids:
         ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
-        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+        participants = Participant.query.filter(Participant.id.in_(ids)).order_by(Participant.code).all()
     else:
-        participants = Participant.query.filter_by(event_id=event_id).all()
+        participants = Participant.query.filter_by(event_id=event_id).order_by(Participant.code).all()
     
     # 코드 번호로 오름차순 정렬 (한 번만)
-    participants = sorted(participants, key=lambda p: int(p.code) if p.code and str(p.code).isdigit() else 0)
-
+    def safe_code_sort_key(p):
+        if not p.code:
+            return 999999  # 코드가 없는 경우 맨 뒤로
+        try:
+            # 문자열을 정수로 변환하여 정렬
+            return int(str(p.code))
+        except (ValueError, TypeError):
+            return 999999  # 변환 실패 시 맨 뒤로
+    
+    # 정렬 전 상태 로깅
+    print(f"DEBUG: Before sorting - participants codes: {[p.code for p in participants]}")
+    
+    participants = sorted(participants, key=safe_code_sort_key)
+    
+    # 정렬 후 상태 로깅
+    print(f"DEBUG: After sorting - participants codes: {[p.code for p in participants]}")
+    
     # 경로 정규화 (백슬래시 이스케이프 처리)
     custom_path = custom_path.replace('\\', '/')
     
@@ -1689,9 +1729,9 @@ def download_qr_participants_excel_with_path_zip(event_id):
     custom_path = request.form.get('custom_path', '/Users/jhc/Downloads/Excel_QR_Code')
     if participant_ids:
         ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
-        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+        participants = Participant.query.filter(Participant.id.in_(ids)).order_by(Participant.code).all()
     else:
-        participants = Participant.query.filter_by(event_id=event_id).all()
+        participants = Participant.query.filter_by(event_id=event_id).order_by(Participant.code).all()
 
     import tempfile, shutil, zipfile
     temp_dir = tempfile.mkdtemp()
@@ -1704,11 +1744,28 @@ def download_qr_participants_excel_with_path_zip(event_id):
     # QR 코드 생성 및 실제 경로 수집
     data = []
     
+    # 코드 번호로 오름차순 정렬 (모든 방식에 공통 적용)
+    def safe_code_sort_key(p):
+        if not p.code:
+            return 999999  # 코드가 없는 경우 맨 뒤로
+        try:
+            # 문자열을 정수로 변환하여 정렬
+            return int(str(p.code))
+        except (ValueError, TypeError):
+            return 999999  # 변환 실패 시 맨 뒤로
+    
+    # 정렬 전 상태 로깅
+    print(f"DEBUG: Before sorting - participants codes: {[p.code for p in participants]}")
+    
+    participants = sorted(participants, key=safe_code_sort_key)
+    
+    # 정렬 후 상태 로깅
+    print(f"DEBUG: After sorting - participants codes: {[p.code for p in participants]}")
+    
     if request.form.get('export_layout', 'normal') == 'odd_even':
-        # 코드번호 오름차순 정렬 후 홀수/짝수 분리
-        participants_sorted = sorted(participants, key=lambda p: int(p.code) if p.code and str(p.code).isdigit() else 0)
-        odd_participants = [p for p in participants_sorted if p.code and int(p.code) % 2 == 1]
-        even_participants = [p for p in participants_sorted if p.code and int(p.code) % 2 == 0]
+        # participants에서 바로 홀수/짝수 분리 (중복 정렬 X)
+        odd_participants = [p for p in participants if p.code and int(p.code) % 2 == 1]
+        even_participants = [p for p in participants if p.code and int(p.code) % 2 == 0]
         # 홀수와 짝수 참가자 데이터를 나란히 정렬
         max_rows = max(len(odd_participants), len(even_participants))
         for i in range(max_rows):
@@ -1785,7 +1842,7 @@ def download_qr_participants_excel_with_path_zip(event_id):
             
             data.append(row_data)
     else:
-        # 일반 방식 (순서대로, 이미 정렬되어 있음)
+        # 일반 방식 (코드번호 순서대로)
         for p in participants:
             if p.code:
                 qr_filename = f"{p.code}.png"
