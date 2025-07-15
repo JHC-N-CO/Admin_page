@@ -33,7 +33,6 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
-        window.close();
     })
     .catch(error => {
         console.error('Download Error:', error);
@@ -41,70 +40,19 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
     });
 });
 
-// QR Export 버튼
-document.getElementById('qrExportBtn').addEventListener('click', async function() {
-    try {
-        // 참가자 데이터 가져오기
-        const formData = new FormData(document.getElementById('exportForm'));
-        const qrResponse = await fetch(`/get_participants_for_qr/${eventId}`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!qrResponse.ok) {
-            throw new Error('Failed to get participants data');
-        }
-        
-        const data = await qrResponse.json();
-        const participants = data.participants;
-        const eventName = data.event_name;
-        
-        // ZIP 파일 생성
-        const zip = new JSZip();
-        const qrFolder = zip.folder("QR Codes");
-        const eventFolder = qrFolder.folder(eventName);
-        
-        // 각 참가자의 QR 코드를 ZIP에 추가
-        for (const participant of participants) {
-            if (participant.code) {
-                try {
-                    const qrImageResponse = await fetch(`/generate_qr_image/${participant.code}/${eventName}`);
-                    if (qrImageResponse.ok) {
-                        const qrBlob = await qrImageResponse.blob();
-                        eventFolder.file(`${participant.code}.png`, qrBlob);
-                    }
-                } catch (error) {
-                    console.error(`Failed to add QR for participant ${participant.code}:`, error);
-                }
-            }
-        }
-        
-        // Excel 파일을 ZIP에 추가
-        const excelResponse = await fetch(`/download_qr_participants_excel/${eventId}`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (excelResponse.ok) {
-            const excelBlob = await excelResponse.blob();
-            zip.file(`participants_qr_${eventId}.xlsx`, excelBlob);
-        }
-        
-        // ZIP 파일 다운로드
-        const zipBlob = await zip.generateAsync({type: 'blob'});
-        saveAs(zipBlob, `participants_qr_${eventId}.zip`);
-        
-        window.close();
-        
-    } catch (error) {
-        console.error('QR Export Error:', error);
-        alert(`Failed to download QR file: ${error.message}`);
+// QR Export 버튼 (경로 선택 UI 표시)
+document.getElementById('qrExportBtn').addEventListener('click', function() {
+    const pathSelection = document.querySelector('.path-selection');
+    if (pathSelection.style.display === 'none') {
+        pathSelection.style.display = 'block';
+        this.textContent = 'Excel 다운로드 (QR 코드) - 경로 설정';
+    } else {
+        pathSelection.style.display = 'none';
+        this.textContent = 'Excel 다운로드 (QR 코드)';
     }
 });
 
-
-
-// Custom Excel Export 버튼
+// Custom Excel Export 버튼 (기존과 동일)
 document.getElementById('customExportBtn').addEventListener('click', function() {
     const formData = new FormData(document.getElementById('exportForm'));
     fetch(`/download_custom_excel/${eventId}`, {
@@ -126,10 +74,54 @@ document.getElementById('customExportBtn').addEventListener('click', function() 
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
-        window.close();
     })
     .catch(error => {
         console.error('Custom Export Error:', error);
         alert(`Failed to download Custom Excel file: ${error.message}`);
+    });
+});
+
+// 폴더 선택 버튼 (브라우저 제한으로 인해 입력만 가능)
+document.getElementById('browsePathBtn').addEventListener('click', function() {
+    const pathInput = document.getElementById('customPath');
+    const currentPath = pathInput.value || '/Users/jhc/Downloads/Excel_QR_Code';
+    const newPath = prompt('저장할 폴더 경로를 입력하세요:', currentPath);
+    if (newPath) {
+        pathInput.value = newPath;
+    }
+});
+
+// 실제 경로로 다운로드 버튼 (ZIP 파일로 다운로드)
+document.getElementById('qrExportWithPathBtn').addEventListener('click', function() {
+    const customPath = document.getElementById('customPath').value.trim();
+    if (!customPath) {
+        alert('저장할 폴더 경로를 입력해주세요.');
+        return;
+    }
+    
+    const formData = new FormData(document.getElementById('exportForm'));
+    formData.append('custom_path', customPath);
+    
+    fetch(`/download_qr_participants_excel_with_path_zip/${eventId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Excel_QR_Code.zip';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(error => {
+        console.error('Download Error:', error);
+        alert('Failed to download the file.');
     });
 });

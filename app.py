@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory, after_this_request
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -19,6 +19,8 @@ from dateutil import parser
 from werkzeug.security import generate_password_hash, check_password_hash
 from zipfile import ZipFile
 import tempfile
+import shutil
+import zipfile
 
 # SQLAlchemy 및 모델 import
 from flask_sqlalchemy import SQLAlchemy
@@ -51,7 +53,7 @@ def generate_qr(number):
         else:  # 로컬 환경
             home_dir = os.path.expanduser("~")
             download_base = os.path.join(home_dir, "Downloads")
-        download_folder = os.path.join(download_base, "QR Codes")
+        download_folder = os.path.join(download_base, "QR_Codes")
         os.makedirs(download_folder, exist_ok=True)
         qr_path = os.path.join(download_folder, qr_filename)
         qr.save(qr_path)
@@ -1235,6 +1237,9 @@ def download_participants_excel(event_id):
     else:
         participants = Participant.query.filter_by(event_id=event_id).all()
     
+    # 코드 번호로 오름차순 정렬
+    participants = sorted(participants, key=lambda p: int(p.code) if p.code and p.code.isdigit() else 0)
+    
     # 데이터 준비
     data = []
     for p in participants:
@@ -1343,6 +1348,9 @@ def get_participants_for_qr(event_id):
     else:
         participants = Participant.query.filter_by(event_id=event_id).all()
     
+    # 코드 번호로 오름차순 정렬
+    participants = sorted(participants, key=lambda p: int(p.code) if p.code and p.code.isdigit() else 0)
+    
     # 행사명에서 안전한 폴더명 생성
     safe_event_name = "".join(c for c in event.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
     
@@ -1382,7 +1390,7 @@ def generate_qr_image(code, event_name):
             img_io,
             mimetype='image/png',
             as_attachment=True,
-            download_name=f'QR Codes/{event_name}/{code}.png'
+            download_name=f'QR_Codes/{event_name}/{code}.png'
         )
     except Exception as e:
         logging.error(f"QR generation failed for {code}: {str(e)}")
@@ -1390,7 +1398,6 @@ def generate_qr_image(code, event_name):
 
 @app.route('/download_qr_participants_excel/<int:event_id>', methods=['POST'])
 def download_qr_participants_excel(event_id):
-    """QR 코드가 포함된 참가자 엑셀, TXT, QR 이미지 ZIP 다운로드"""
     event = Event.query.get_or_404(event_id)
     participant_ids = request.form.get('selected_participants', '')
     if participant_ids:
@@ -1399,65 +1406,436 @@ def download_qr_participants_excel(event_id):
     else:
         participants = Participant.query.filter_by(event_id=event_id).all()
 
+    import tempfile, shutil, zipfile
+    temp_dir = tempfile.mkdtemp()
+    qr_dir = os.path.join(temp_dir, "QR_Codes")
+    os.makedirs(qr_dir, exist_ok=True)
+
     # QR 코드 생성 및 경로 수집
-    qr_paths = {}
-    for participant in participants:
-        if participant.code:
-            qr_path = generate_qr(participant.code)
-            qr_paths[participant.code] = qr_path
-
-    # 데이터 준비 (Excel, TXT)
     data = []
-    for p in participants:
-        qr_full_path = qr_paths.get(p.code, '') if p.code else ''
-        data.append({
-            'Event ID': event.event_id,
-            'Code': p.code,
-            '@Image': qr_full_path,
-            'Name (KOR)': p.name_kor,
-            'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
-            'Affiliation': p.affiliation_kor or p.affiliation_eng,
-            'Email': p.email,
-            'Accept/Decline': p.accept_or_decline
-        })
+    
+    # 코드 번호로 오름차순 정렬 (모든 방식에 공통 적용)
+    participants = sorted(participants, key=lambda p: int(p.code) if p.code and str(p.code).isdigit() else 0)
+    
+    if request.form.get('export_layout', 'normal') == 'odd_even':
+        # participants에서 바로 홀수/짝수 분리 (중복 정렬 X)
+        odd_participants = [p for p in participants if p.code and int(p.code) % 2 == 1]
+        even_participants = [p for p in participants if p.code and int(p.code) % 2 == 0]
+        # 홀수와 짝수 참가자 데이터를 나란히 정렬
+        max_rows = max(len(odd_participants), len(even_participants))
+        for i in range(max_rows):
+            row_data = {}
+            # 홀수 참가자 데이터 (좌측)
+            if i < len(odd_participants):
+                p = odd_participants[i]
+                if p.code:
+                    qr_filename = f"{p.code}.png"
+                    qr_path = os.path.join(qr_dir, qr_filename)
+                    qr = qrcode.make(str(p.code))
+                    qr.save(qr_path)
+                    image_path_for_excel = f"QR_Codes/{p.code}.png"
+                else:
+                    image_path_for_excel = ""
+                row_data.update({
+                    'Event ID_홀수': event.event_id,
+                    'Code_홀수': p.code,
+                    '@Image_홀수': image_path_for_excel,
+                    'Name (KOR)_홀수': p.name_kor,
+                    'Name (ENG)_홀수': f"{p.first_name} {p.family_name}".strip(),
+                    'Affiliation_홀수': p.affiliation_kor or p.affiliation_eng,
+                    'Email_홀수': p.email,
+                    'Accept/Decline_홀수': p.accept_or_decline
+                })
+            else:
+                # 홀수 참가자가 없는 경우 빈 값으로 채움
+                row_data.update({
+                    'Event ID_홀수': '',
+                    'Code_홀수': '',
+                    '@Image_홀수': '',
+                    'Name (KOR)_홀수': '',
+                    'Name (ENG)_홀수': '',
+                    'Affiliation_홀수': '',
+                    'Email_홀수': '',
+                    'Accept/Decline_홀수': ''
+                })
+            
+            # 짝수 참가자 데이터 (우측)
+            if i < len(even_participants):
+                p = even_participants[i]
+                if p.code:
+                    qr_filename = f"{p.code}.png"
+                    qr_path = os.path.join(qr_dir, qr_filename)
+                    qr = qrcode.make(str(p.code))
+                    qr.save(qr_path)
+                    image_path_for_excel = f"QR_Codes/{p.code}.png"
+                else:
+                    image_path_for_excel = ""
+                row_data.update({
+                    'Event ID_짝수': event.event_id,
+                    'Code_짝수': p.code,
+                    '@Image_짝수': image_path_for_excel,
+                    'Name (KOR)_짝수': p.name_kor,
+                    'Name (ENG)_짝수': f"{p.first_name} {p.family_name}".strip(),
+                    'Affiliation_짝수': p.affiliation_kor or p.affiliation_eng,
+                    'Email_짝수': p.email,
+                    'Accept/Decline_짝수': p.accept_or_decline
+                })
+            else:
+                # 짝수 참가자가 없는 경우 빈 값으로 채움
+                row_data.update({
+                    'Event ID_짝수': '',
+                    'Code_짝수': '',
+                    '@Image_짝수': '',
+                    'Name (KOR)_짝수': '',
+                    'Name (ENG)_짝수': '',
+                    'Affiliation_짝수': '',
+                    'Email_짝수': '',
+                    'Accept/Decline_짝수': ''
+                })
+            
+            data.append(row_data)
+    else:
+        # 일반 방식 (코드번호 순서대로)
+        for p in participants:
+            if p.code:
+                qr_filename = f"{p.code}.png"
+                qr_path = os.path.join(qr_dir, qr_filename)
+                qr = qrcode.make(str(p.code))
+                qr.save(qr_path)
+                image_path_for_excel = f"QR_Codes/{p.code}.png"
+            else:
+                image_path_for_excel = ""
+            data.append({
+                'Event ID': event.event_id,
+                'Code': p.code,
+                '@Image': image_path_for_excel,
+                'Name (KOR)': p.name_kor,
+                'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
+                'Affiliation': p.affiliation_kor or p.affiliation_eng,
+                'Email': p.email,
+                'Accept/Decline': p.accept_or_decline
+            })
 
-    # Excel 파일 생성
+    # Excel, TXT 파일 생성
     import pandas as pd
-    from io import BytesIO
     df = pd.DataFrame(data)
-    excel_output = BytesIO()
-    with pd.ExcelWriter(excel_output, engine='xlsxwriter') as writer:
-        df.to_excel(writer, sheet_name='Participants', index=False)
-    excel_output.seek(0)
-
-    # TXT 파일 생성 (UTF-16, 탭 구분)
-    import tempfile
-    txt_fd, txt_path = tempfile.mkstemp(suffix='.txt')
-    df.to_csv(txt_path, sep='\t', index=False, encoding='utf-16')
+    excel_path = os.path.join(temp_dir, "participants.xlsx")
+    df.to_excel(excel_path, sheet_name='Participants', index=False)
+    txt_path = os.path.join(temp_dir, "participants.txt")
+    notice = "※ 압축을 푼 폴더에서 QR_Codes 폴더와 participants.xlsx, participants.txt를 사용하세요. @Image 컬럼은 QR_Codes 폴더의 이미지를 가리킵니다.\n"
+    with open(txt_path, 'w', encoding='utf-16') as f:
+        f.write(notice)
+        df.to_csv(f, sep='\t', index=False, encoding='utf-16', lineterminator='\n')
 
     # ZIP 파일 생성
-    import tempfile
-    zip_fd, zip_path = tempfile.mkstemp(suffix='.zip')
-    with ZipFile(zip_path, 'w') as zipf:
-        # Excel
-        zipf.writestr('participants.xlsx', excel_output.getvalue())
-        # TXT
-        with open(txt_path, 'rb') as f:
-            zipf.writestr('participants.txt', f.read())
-        # QR 이미지
-        for code, qr_path in qr_paths.items():
-            if os.path.exists(qr_path):
-                zipf.write(qr_path, os.path.join('QR Codes', os.path.basename(qr_path)))
-    os.close(txt_fd)
-    os.remove(txt_path)
-    os.close(zip_fd)
+    zip_path = os.path.join(temp_dir, "Excel_QR_Code.zip")
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        zipf.write(excel_path, "participants.xlsx")
+        zipf.write(txt_path, "participants.txt")
+        for filename in os.listdir(qr_dir):
+            zipf.write(os.path.join(qr_dir, filename), os.path.join("QR_Codes", filename))
 
-    # ZIP 파일 반환
+    from flask import after_this_request
+    @after_this_request
+    def cleanup(response):
+        shutil.rmtree(temp_dir)
+        return response
+
     return send_file(
         zip_path,
         mimetype='application/zip',
         as_attachment=True,
-        download_name=f'participants_qr_{event.event_id}.zip'
+        download_name='Excel_QR_Code.zip'
+    )
+
+@app.route('/download_qr_participants_excel_with_path/<int:event_id>', methods=['POST'])
+def download_qr_participants_excel_with_path(event_id):
+    event = Event.query.get_or_404(event_id)
+    participant_ids = request.form.get('selected_participants', '')
+    custom_path = request.form.get('custom_path', '/Users/jhc/Downloads/Excel_QR_Code')
+    if participant_ids:
+        ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
+        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+    else:
+        participants = Participant.query.filter_by(event_id=event_id).all()
+    
+    # 코드 번호로 오름차순 정렬 (한 번만)
+    participants = sorted(participants, key=lambda p: int(p.code) if p.code and str(p.code).isdigit() else 0)
+
+    # 경로 정규화 (백슬래시 이스케이프 처리)
+    custom_path = custom_path.replace('\\', '/')
+    
+    # QR 코드 생성 및 실제 경로 수집
+    data = []
+    
+    if request.form.get('export_layout', 'normal') == 'odd_even':
+        # participants에서 바로 홀수/짝수 분리 (중복 정렬 X)
+        odd_participants = [p for p in participants if p.code and int(p.code) % 2 == 1]
+        even_participants = [p for p in participants if p.code and int(p.code) % 2 == 0]
+        # 홀수와 짝수 참가자 데이터를 나란히 정렬
+        max_rows = max(len(odd_participants), len(even_participants))
+        for i in range(max_rows):
+            row_data = {}
+            # 홀수 참가자 데이터 (좌측)
+            if i < len(odd_participants):
+                p = odd_participants[i]
+                if p.code:
+                    actual_image_path = f"{custom_path}/QR_Codes/{p.code}.png"
+                else:
+                    actual_image_path = ""
+                row_data.update({
+                    'Event ID_홀수': event.event_id,
+                    'Code_홀수': p.code,
+                    '@Image_홀수': actual_image_path,
+                    'Name (KOR)_홀수': p.name_kor,
+                    'Name (ENG)_홀수': f"{p.first_name} {p.family_name}".strip(),
+                    'Affiliation_홀수': p.affiliation_kor or p.affiliation_eng,
+                    'Email_홀수': p.email,
+                    'Accept/Decline_홀수': p.accept_or_decline
+                })
+            else:
+                # 홀수 참가자가 없는 경우 빈 값으로 채움
+                row_data.update({
+                    'Event ID_홀수': '',
+                    'Code_홀수': '',
+                    '@Image_홀수': '',
+                    'Name (KOR)_홀수': '',
+                    'Name (ENG)_홀수': '',
+                    'Affiliation_홀수': '',
+                    'Email_홀수': '',
+                    'Accept/Decline_홀수': ''
+                })
+            
+            # 짝수 참가자 데이터 (우측)
+            if i < len(even_participants):
+                p = even_participants[i]
+                if p.code:
+                    actual_image_path = f"{custom_path}/QR_Codes/{p.code}.png"
+                else:
+                    actual_image_path = ""
+                row_data.update({
+                    'Event ID_짝수': event.event_id,
+                    'Code_짝수': p.code,
+                    '@Image_짝수': actual_image_path,
+                    'Name (KOR)_짝수': p.name_kor,
+                    'Name (ENG)_짝수': f"{p.first_name} {p.family_name}".strip(),
+                    'Affiliation_짝수': p.affiliation_kor or p.affiliation_eng,
+                    'Email_짝수': p.email,
+                    'Accept/Decline_짝수': p.accept_or_decline
+                })
+            else:
+                # 짝수 참가자가 없는 경우 빈 값으로 채움
+                row_data.update({
+                    'Event ID_짝수': '',
+                    'Code_짝수': '',
+                    '@Image_짝수': '',
+                    'Name (KOR)_짝수': '',
+                    'Name (ENG)_짝수': '',
+                    'Affiliation_짝수': '',
+                    'Email_짝수': '',
+                    'Accept/Decline_짝수': ''
+                })
+            
+            data.append(row_data)
+    else:
+        # 일반 방식 (순서대로, 이미 정렬되어 있음)
+        for p in participants:
+            if p.code:
+                actual_image_path = f"{custom_path}/QR_Codes/{p.code}.png"
+            else:
+                actual_image_path = ""
+            data.append({
+                'Event ID': event.event_id,
+                'Code': p.code,
+                '@Image': actual_image_path,
+                'Name (KOR)': p.name_kor,
+                'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
+                'Affiliation': p.affiliation_kor or p.affiliation_eng,
+                'Email': p.email,
+                'Accept/Decline': p.accept_or_decline
+            })
+
+    # Excel 파일 생성
+    import pandas as pd
+    df = pd.DataFrame(data)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Participants')
+        worksheet = writer.sheets['Participants']
+        
+        # 컬럼 너비 자동 조정
+        for col_num, value in enumerate(df.columns.values):
+            max_length = max(
+                df[value].astype(str).apply(len).max(),
+                len(str(value))
+            )
+            worksheet.set_column(col_num, col_num, min(max_length + 2, 50))
+    
+    output.seek(0)
+    current_date = datetime.now().strftime("%Y%m%d")
+    filename = f"{event.event_id}_participants_with_paths_{current_date}.xlsx"
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/download_qr_participants_excel_with_path_zip/<int:event_id>', methods=['POST'])
+def download_qr_participants_excel_with_path_zip(event_id):
+    event = Event.query.get_or_404(event_id)
+    participant_ids = request.form.get('selected_participants', '')
+    custom_path = request.form.get('custom_path', '/Users/jhc/Downloads/Excel_QR_Code')
+    if participant_ids:
+        ids = [int(pid) for pid in participant_ids.split(',') if pid.strip().isdigit()]
+        participants = Participant.query.filter(Participant.id.in_(ids)).all()
+    else:
+        participants = Participant.query.filter_by(event_id=event_id).all()
+
+    import tempfile, shutil, zipfile
+    temp_dir = tempfile.mkdtemp()
+    qr_dir = os.path.join(temp_dir, "QR_Codes")
+    os.makedirs(qr_dir, exist_ok=True)
+
+    # 경로 정규화 (백슬래시 이스케이프 처리)
+    custom_path = custom_path.replace('\\', '/')
+    
+    # QR 코드 생성 및 실제 경로 수집
+    data = []
+    
+    if request.form.get('export_layout', 'normal') == 'odd_even':
+        # 코드번호 오름차순 정렬 후 홀수/짝수 분리
+        participants_sorted = sorted(participants, key=lambda p: int(p.code) if p.code and str(p.code).isdigit() else 0)
+        odd_participants = [p for p in participants_sorted if p.code and int(p.code) % 2 == 1]
+        even_participants = [p for p in participants_sorted if p.code and int(p.code) % 2 == 0]
+        # 홀수와 짝수 참가자 데이터를 나란히 정렬
+        max_rows = max(len(odd_participants), len(even_participants))
+        for i in range(max_rows):
+            row_data = {}
+            # 홀수 참가자 데이터 (좌측)
+            if i < len(odd_participants):
+                p = odd_participants[i]
+                if p.code:
+                    qr_filename = f"{p.code}.png"
+                    qr_path = os.path.join(qr_dir, qr_filename)
+                    qr = qrcode.make(str(p.code))
+                    qr.save(qr_path)
+                    # 실제 파일 시스템 경로 생성
+                    actual_image_path = f"{custom_path}/QR_Codes/{p.code}.png"
+                else:
+                    actual_image_path = ""
+                row_data.update({
+                    'Event ID_홀수': event.event_id,
+                    'Code_홀수': p.code,
+                    '@Image_홀수': actual_image_path,
+                    'Name (KOR)_홀수': p.name_kor,
+                    'Name (ENG)_홀수': f"{p.first_name} {p.family_name}".strip(),
+                    'Affiliation_홀수': p.affiliation_kor or p.affiliation_eng,
+                    'Email_홀수': p.email,
+                    'Accept/Decline_홀수': p.accept_or_decline
+                })
+            else:
+                # 홀수 참가자가 없는 경우 빈 값으로 채움
+                row_data.update({
+                    'Event ID_홀수': '',
+                    'Code_홀수': '',
+                    '@Image_홀수': '',
+                    'Name (KOR)_홀수': '',
+                    'Name (ENG)_홀수': '',
+                    'Affiliation_홀수': '',
+                    'Email_홀수': '',
+                    'Accept/Decline_홀수': ''
+                })
+            
+            # 짝수 참가자 데이터 (우측)
+            if i < len(even_participants):
+                p = even_participants[i]
+                if p.code:
+                    qr_filename = f"{p.code}.png"
+                    qr_path = os.path.join(qr_dir, qr_filename)
+                    qr = qrcode.make(str(p.code))
+                    qr.save(qr_path)
+                    # 실제 파일 시스템 경로 생성
+                    actual_image_path = f"{custom_path}/QR_Codes/{p.code}.png"
+                else:
+                    actual_image_path = ""
+                row_data.update({
+                    'Event ID_짝수': event.event_id,
+                    'Code_짝수': p.code,
+                    '@Image_짝수': actual_image_path,
+                    'Name (KOR)_짝수': p.name_kor,
+                    'Name (ENG)_짝수': f"{p.first_name} {p.family_name}".strip(),
+                    'Affiliation_짝수': p.affiliation_kor or p.affiliation_eng,
+                    'Email_짝수': p.email,
+                    'Accept/Decline_짝수': p.accept_or_decline
+                })
+            else:
+                # 짝수 참가자가 없는 경우 빈 값으로 채움
+                row_data.update({
+                    'Event ID_짝수': '',
+                    'Code_짝수': '',
+                    '@Image_짝수': '',
+                    'Name (KOR)_짝수': '',
+                    'Name (ENG)_짝수': '',
+                    'Affiliation_짝수': '',
+                    'Email_짝수': '',
+                    'Accept/Decline_짝수': ''
+                })
+            
+            data.append(row_data)
+    else:
+        # 일반 방식 (순서대로, 이미 정렬되어 있음)
+        for p in participants:
+            if p.code:
+                qr_filename = f"{p.code}.png"
+                qr_path = os.path.join(qr_dir, qr_filename)
+                qr = qrcode.make(str(p.code))
+                qr.save(qr_path)
+                # 실제 파일 시스템 경로 생성
+                actual_image_path = f"{custom_path}/QR_Codes/{p.code}.png"
+            else:
+                actual_image_path = ""
+            data.append({
+                'Event ID': event.event_id,
+                'Code': p.code,
+                '@Image': actual_image_path,
+                'Name (KOR)': p.name_kor,
+                'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
+                'Affiliation': p.affiliation_kor or p.affiliation_eng,
+                'Email': p.email,
+                'Accept/Decline': p.accept_or_decline
+            })
+
+    # Excel, TXT 파일 생성
+    import pandas as pd
+    df = pd.DataFrame(data)
+    excel_path = os.path.join(temp_dir, "participants.xlsx")
+    df.to_excel(excel_path, sheet_name='Participants', index=False)
+    
+    txt_path = os.path.join(temp_dir, "participants.txt")
+    with open(txt_path, 'w', encoding='utf-16') as f:
+        df.to_csv(f, sep='\t', index=False, encoding='utf-16', lineterminator='\n')
+
+    # ZIP 파일 생성
+    zip_path = os.path.join(temp_dir, "Excel_QR_Code.zip")
+    with zipfile.ZipFile(zip_path, 'w') as zipf:
+        zipf.write(excel_path, "participants.xlsx")
+        zipf.write(txt_path, "participants.txt")
+        for filename in os.listdir(qr_dir):
+            zipf.write(os.path.join(qr_dir, filename), os.path.join("QR_Codes", filename))
+
+    from flask import after_this_request
+    @after_this_request
+    def cleanup(response):
+        shutil.rmtree(temp_dir)
+        return response
+
+    return send_file(
+        zip_path,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name='Excel_QR_Code.zip'
     )
 
 @app.route('/download_custom_excel/<int:event_id>', methods=['POST'])

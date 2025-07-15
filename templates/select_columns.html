@@ -68,6 +68,10 @@
 
             <div class="section">
                 <h2 class="section-title">내보내기 옵션</h2>
+                <div class="export-layout-options" style="margin-bottom: 12px;">
+                    <label><input type="radio" name="export_layout" value="normal" checked> 일반 방식 (순서대로)</label>
+                    <label><input type="radio" name="export_layout" value="odd_even"> 홀수/짝수 분리 방식</label>
+                </div>
                 <div class="export-buttons">
                     <button type="submit" class="btn btn-primary">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -87,6 +91,13 @@
                         </svg>
                         Excel 다운로드 (QR 코드)
                     </button>
+                    
+                    <div class="path-selection" style="display: none; margin-top: 10px;">
+                        <label for="customPath" class="path-label">저장할 폴더 경로:</label>
+                        <input type="text" id="customPath" placeholder="/Users/jhc/Downloads/Excel_QR_Code" class="path-input">
+                        <button type="button" id="browsePathBtn" class="btn btn-secondary">폴더 선택</button>
+                        <button type="button" id="qrExportWithPathBtn" class="btn btn-primary">실제 경로로 다운로드</button>
+                    </div>
                     
                     <button type="button" id="customExportBtn" class="btn btn-secondary">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
