@@ -46,62 +46,53 @@ document.getElementById('qrExportBtn').addEventListener('click', async function(
     try {
         // 참가자 데이터 가져오기
         const formData = new FormData(document.getElementById('exportForm'));
-        const response = await fetch(`/download_qr_participants_excel/${eventId}`, {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to download QR Excel file');
-        }
-        
-        // Excel 파일 다운로드
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `participants_qr_${eventId}.xlsx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-        
-        // QR 코드 이미지들을 개별적으로 다운로드
         const qrResponse = await fetch(`/get_participants_for_qr/${eventId}`, {
             method: 'POST',
             body: formData
         });
         
-        if (qrResponse.ok) {
-            const data = await qrResponse.json();
-            const participants = data.participants;
-            const eventName = data.event_name;
-            
-            // 각 참가자의 QR 코드를 개별적으로 다운로드
-            for (const participant of participants) {
-                if (participant.code) {
-                    try {
-                        const qrImageResponse = await fetch(`/generate_qr_image/${participant.code}/${eventName}`);
-                        if (qrImageResponse.ok) {
-                            const qrBlob = await qrImageResponse.blob();
-                            const qrUrl = window.URL.createObjectURL(qrBlob);
-                            const qrLink = document.createElement('a');
-                            qrLink.href = qrUrl;
-                            qrLink.download = `QR Codes/${eventName}/${participant.code}.png`;
-                            document.body.appendChild(qrLink);
-                            qrLink.click();
-                            document.body.removeChild(qrLink);
-                            window.URL.revokeObjectURL(qrUrl);
-                            
-                            // 다운로드 간격을 두어 브라우저가 처리할 시간을 줌
-                            await new Promise(resolve => setTimeout(resolve, 100));
-                        }
-                    } catch (error) {
-                        console.error(`Failed to download QR for participant ${participant.code}:`, error);
+        if (!qrResponse.ok) {
+            throw new Error('Failed to get participants data');
+        }
+        
+        const data = await qrResponse.json();
+        const participants = data.participants;
+        const eventName = data.event_name;
+        
+        // ZIP 파일 생성
+        const zip = new JSZip();
+        const qrFolder = zip.folder("QR Codes");
+        const eventFolder = qrFolder.folder(eventName);
+        
+        // 각 참가자의 QR 코드를 ZIP에 추가
+        for (const participant of participants) {
+            if (participant.code) {
+                try {
+                    const qrImageResponse = await fetch(`/generate_qr_image/${participant.code}/${eventName}`);
+                    if (qrImageResponse.ok) {
+                        const qrBlob = await qrImageResponse.blob();
+                        eventFolder.file(`${participant.code}.png`, qrBlob);
                     }
+                } catch (error) {
+                    console.error(`Failed to add QR for participant ${participant.code}:`, error);
                 }
             }
         }
+        
+        // Excel 파일을 ZIP에 추가
+        const excelResponse = await fetch(`/download_qr_participants_excel/${eventId}`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (excelResponse.ok) {
+            const excelBlob = await excelResponse.blob();
+            zip.file(`participants_qr_${eventId}.xlsx`, excelBlob);
+        }
+        
+        // ZIP 파일 다운로드
+        const zipBlob = await zip.generateAsync({type: 'blob'});
+        saveAs(zipBlob, `participants_qr_${eventId}.zip`);
         
         window.close();
         
