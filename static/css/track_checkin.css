@@ -49,8 +49,9 @@ body {
 }
 
 .checkin-desc {
-    font-size: 1.1rem;
-    color: #4a5568;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--main-blue);
     margin-bottom: 0.5em;
     text-align: center;
 }
@@ -167,6 +168,15 @@ body {
     color: var(--main-gray);
     margin-bottom: 18px;
     text-align: left;
+    width: 100%;
+    max-width: 400px;
+}
+
+.input-instruction {
+    font-size: 1rem;
+    color: var(--main-gray);
+    margin-bottom: 18px;
+    text-align: center;
     width: 100%;
     max-width: 400px;
 }

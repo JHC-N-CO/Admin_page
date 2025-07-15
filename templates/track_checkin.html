@@ -14,7 +14,7 @@
         </div>
         <h1 class="checkin-title">참가자 출결관리</h1>
         <div class="checkin-subtitle">출석 체크</div>
-        <div class="checkin-desc">참가자 코드를 입력하거나 바코드를 스캔하세요</div>
+        <div class="checkin-desc">{{ event.name }}</div>
     </div>
     <div class="container">
         <div class="main">
@@ -27,7 +27,7 @@
                     autocomplete="off"
                 >
             </div>
-            <div class="input-hint">참가자 고유 코드를 정확히 입력해주세요</div>
+            <div class="input-instruction">참가자 코드를 입력하거나 바코드를 스캔하세요</div>
             <div class="result-section" id="resultSection" style="display: none;">
                 <div class="participant-info">
                     <h3 id="participantName">참가자명</h3>
