@@ -1,5 +1,11 @@
-/* --- Extracted from register_step3.html inline <style> --- */
-/* Only keep edit member form, button, input, and page-specific styles. Remove all sidebar, sidebar-header, nav-menu, nav-link, main-content, container, and layout styles. */
+/* --- Add Member Form Styles --- */
+/* Clean form styles matching edit_member design */
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
 
 .page-header {
     background-color: white;
@@ -312,13 +318,21 @@ input[readonly] {
     background-color: #7f8c8d;
 }
 
-footer {
-    text-align: center;
-    padding: 20px;
-    color: #7f8c8d;
-    margin-top: 40px;
+/* Add Member specific styles */
+.member-type-section {
+    background: #e8f4fd;
+    border-left: 4px solid #3498db;
+    padding: 15px;
+    margin-bottom: 20px;
+    border-radius: 4px;
 }
 
+.member-type-section .section-title {
+    color: #2980b9;
+    border-bottom-color: #3498db;
+}
+
+/* Responsive Design */
 @media (max-width: 768px) {
     .form-container {
         padding: 16px;
@@ -327,8 +341,13 @@ footer {
         grid-template-columns: 1fr;
         gap: 18px;
     }
-    .form-section { padding: 8px 2px; }
-    .form-group { padding: 6px 2px 4px 2px; margin-bottom: 10px; }
+    .form-section { 
+        padding: 8px 2px; 
+    }
+    .form-group { 
+        padding: 6px 2px 4px 2px; 
+        margin-bottom: 10px; 
+    }
     .phone-group {
         flex-direction: column;
     }
@@ -337,6 +356,13 @@ footer {
     }
     .name-eng-group {
         flex-direction: column;
+    }
+    .input-with-button {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .input-with-button .btn-secondary {
+        width: 100%;
     }
     .form-actions {
         flex-direction: column;

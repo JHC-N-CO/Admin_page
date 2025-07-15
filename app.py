@@ -267,12 +267,96 @@ def members_page():
     members = Member.query.order_by(Member.created_at.desc()).all()
     return render_template('admin_members.html', members=members)
 
-# check_registration 라우트는 새로운 단계별 회원가입으로 대체됨
-# @app.route('/check_registration', methods=['GET', 'POST'])
-# def check_registration():
-#     """회원가입 여부 확인 페이지 (기존 방식)"""
-#     # 이 기능은 새로운 단계별 회원가입의 1단계로 통합되었습니다.
-#     return redirect(url_for('register_step1'))
+@app.route('/add_member', methods=['GET', 'POST'])
+def add_member():
+    """관리자용 회원 추가 페이지"""
+    if request.method == 'POST':
+        # 폼 데이터 수집
+        form_data = get_form_data(request)
+        
+        try:
+            # 필수 필드 검증
+            required_fields = ['username', 'password', 'license_number']
+            for field in required_fields:
+                if not request.form.get(field):
+                    return render_template('add_member.html', 
+                                         error=f'{field}을(를) 입력해주세요.',
+                                         **form_data)
+            
+            # 중복 확인
+            existing_member = Member.query.filter(
+                (Member.username == request.form.get('username')) | 
+                (Member.email == request.form.get('email'))
+            ).first()
+            
+            if existing_member:
+                return render_template('add_member.html', 
+                                     error='이미 등록된 아이디 또는 이메일입니다.',
+                                     **form_data)
+            
+            # 새 회원 생성
+            member = Member(
+                username=request.form.get('username'),
+                password_hash=generate_password_hash(request.form.get('password')),
+                email=request.form.get('email'),
+                name_kor=request.form.get('name_kor'),
+                name_eng=f"{request.form.get('name_eng_first', '')} {request.form.get('name_eng_last', '')}".strip(),
+                birth_date=parse_birth_date(request.form.get('birth_date')) if request.form.get('birth_date') else None,
+                gender=request.form.get('gender'),
+                phone=f"{request.form.get('phone_prefix', '')}-{request.form.get('phone_middle', '')}-{request.form.get('phone_end', '')}" if request.form.get('phone_prefix') else None,
+                mobile=f"{request.form.get('mobile_prefix', '')}-{request.form.get('mobile_middle', '')}-{request.form.get('mobile_end', '')}" if request.form.get('mobile_prefix') else None,
+                license_number=request.form.get('license_number'),
+                workplace_name=request.form.get('workplace_name'),
+                workplace_name_eng=request.form.get('workplace_name_eng'),
+                workplace_type=request.form.get('workplace_type'),
+                position=request.form.get('position'),
+                specialty=request.form.get('specialty'),
+                specialty_eng=request.form.get('specialty_eng'),
+                address=request.form.get('address'),
+                address_eng=request.form.get('address_eng'),
+                workplace_phone=f"{request.form.get('workplace_phone_prefix')}-{request.form.get('workplace_phone_middle')}-{request.form.get('workplace_phone_end')}" if request.form.get('workplace_phone_prefix') else None,
+                workplace_fax=f"{request.form.get('workplace_fax_prefix')}-{request.form.get('workplace_fax_middle')}-{request.form.get('workplace_fax_end')}" if request.form.get('workplace_fax_prefix') else None,
+                mail_receipt_location=request.form.get('mail_receipt_location'),
+                home_address=request.form.get('home_address'),
+                alma_mater=request.form.get('alma_mater'),
+                major=request.form.get('major'),
+                graduation_year=int(request.form.get('graduation_year')) if request.form.get('graduation_year') else None,
+                highest_degree=request.form.get('highest_degree'),
+                residency_institution=request.form.get('residency_institution'),
+                residency_hospital=request.form.get('residency_hospital'),
+                specialist_year=int(request.form.get('specialist_year')) if request.form.get('specialist_year') else None,
+                profile_public=request.form.get('profile_public') == 'true',
+                sms_receipt=request.form.get('sms_receipt') == 'true',
+                email_receipt=request.form.get('email_receipt') == 'true',
+                mail_receipt=request.form.get('mail_receipt') == 'true',
+                terms_agreed=True,
+                terms_agreed_at=datetime.utcnow(),
+                is_active=True  # 관리자가 추가하는 회원은 바로 활성화
+            )
+            
+            # 프로필 사진 업로드
+            if 'profile_photo' in request.files:
+                file = request.files['profile_photo']
+                if file and file.filename and allowed_file(file.filename, ALLOWED_IMAGE_EXTENSIONS):
+                    filename = secure_filename(file.filename)
+                    filepath = os.path.join(app.config['IMAGE_UPLOAD_FOLDER'], f"profile_{member.username}_{filename}")
+                    file.save(filepath)
+                    member.profile_photo = filepath
+            
+            db.session.add(member)
+            db.session.commit()
+            
+            return redirect(url_for('members_page'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error adding member: {str(e)}")
+            return render_template('add_member.html', 
+                                 error=f'회원 추가 중 오류가 발생했습니다: {str(e)}',
+                                 **form_data)
+    
+    # GET 요청 시 빈 폼 표시
+    return render_template('add_member.html')
 
 @app.route('/register/step1', methods=['GET', 'POST'])
 def register_step1():
@@ -480,15 +564,6 @@ def check_license():
     except Exception as e:
         logging.error(f"Error checking license: {str(e)}")
         return jsonify({'available': False, 'error': '중복확인 중 오류가 발생했습니다.'})
-
-# 기존 register 라우트는 새로운 단계별 회원가입으로 대체됨
-# @app.route('/register', methods=['GET', 'POST'])
-# def register():
-#     """회원가입 페이지 (기존 단일 페이지 방식)"""
-#     # 이 라우트는 새로운 단계별 회원가입으로 대체되었습니다.
-#     return redirect(url_for('register_step1'))
-
-
 
 @app.route('/members/delete', methods=['POST'])
 def delete_members():
