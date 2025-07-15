@@ -17,6 +17,8 @@ from email.mime.image import MIMEImage
 import re
 from dateutil import parser
 from werkzeug.security import generate_password_hash, check_password_hash
+from zipfile import ZipFile
+import tempfile
 
 # SQLAlchemy 및 모델 import
 from flask_sqlalchemy import SQLAlchemy
@@ -38,53 +40,23 @@ logging.basicConfig(level=logging.DEBUG)
 # QR 코드 저장 폴더 설정 (다운로드 폴더로 변경됨)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-def generate_qr(number, event_id=None, event_name=None):
-    """QR 코드 생성 및 사용자 PC 다운로드 폴더에 저장"""
+def generate_qr(number):
+    """QR 코드 생성 및 사용자 PC 다운로드 폴더에 저장 (행사명/이벤트ID 폴더 없이)"""
     try:
         qr = qrcode.make(str(number))
         qr_filename = f"{number}.png"
-        
         # 환경에 따른 다운로드 폴더 설정
         if os.path.exists("/app/downloads"):  # Docker 환경 (서버)
             download_base = "/app/downloads"
         else:  # 로컬 환경
-            # macOS, Windows, Linux 사용자 다운로드 폴더 자동 감지
             home_dir = os.path.expanduser("~")
-            if os.name == 'nt':  # Windows
-                download_base = os.path.join(home_dir, "Downloads")
-            elif os.name == 'posix':  # macOS/Linux
-                download_base = os.path.join(home_dir, "Downloads")
-            else:
-                download_base = os.path.join(home_dir, "Downloads")
-        
-        # QR Codes 폴더 경로 설정 (행사명 사용)
-        if event_name:
-            # 파일명에 사용할 수 없는 문자 제거
-            safe_event_name = "".join(c for c in event_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-            download_folder = os.path.join(download_base, "QR Codes", safe_event_name)
-        elif event_id:
-            download_folder = os.path.join(download_base, "QR Codes", str(event_id))
-        else:
-            download_folder = os.path.join(download_base, "QR Codes")
-        
-        # 폴더 생성
+            download_base = os.path.join(home_dir, "Downloads")
+        download_folder = os.path.join(download_base, "QR Codes")
         os.makedirs(download_folder, exist_ok=True)
-        
-        # QR 코드 저장
         qr_path = os.path.join(download_folder, qr_filename)
         qr.save(qr_path)
-        
-        # 상대 경로 반환 (인디자인 병합용)
-        if event_name:
-            safe_event_name = "".join(c for c in event_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-            relative_path = f"QR Codes/{safe_event_name}/{qr_filename}"
-        elif event_id:
-            relative_path = f"QR Codes/{event_id}/{qr_filename}"
-        else:
-            relative_path = f"QR Codes/{qr_filename}"
-        
-        logging.debug(f"QR code generated: {qr_path}")
-        return relative_path
+        # 전체 경로 반환
+        return qr_path
     except Exception as e:
         logging.error(f"QR generation failed for {number}: {str(e)}")
         raise
@@ -1418,7 +1390,7 @@ def generate_qr_image(code, event_name):
 
 @app.route('/download_qr_participants_excel/<int:event_id>', methods=['POST'])
 def download_qr_participants_excel(event_id):
-    """QR 코드가 포함된 참가자 엑셀 다운로드 (기존 방식 - 호환성 유지)"""
+    """QR 코드가 포함된 참가자 엑셀, TXT, QR 이미지 ZIP 다운로드"""
     event = Event.query.get_or_404(event_id)
     participant_ids = request.form.get('selected_participants', '')
     if participant_ids:
@@ -1426,41 +1398,66 @@ def download_qr_participants_excel(event_id):
         participants = Participant.query.filter(Participant.id.in_(ids)).all()
     else:
         participants = Participant.query.filter_by(event_id=event_id).all()
-    
-    # 행사명에서 안전한 폴더명 생성
-    safe_event_name = "".join(c for c in event.name if c.isalnum() or c in (' ', '-', '_')).rstrip()
-    
-    # QR 코드 생성
+
+    # QR 코드 생성 및 경로 수집
+    qr_paths = {}
     for participant in participants:
         if participant.code:
-            generate_qr(participant.code, event.event_id, event.name)
-    
-    # 데이터 준비
+            qr_path = generate_qr(participant.code)
+            qr_paths[participant.code] = qr_path
+
+    # 데이터 준비 (Excel, TXT)
     data = []
     for p in participants:
+        qr_full_path = qr_paths.get(p.code, '') if p.code else ''
         data.append({
             'Event ID': event.event_id,
             'Code': p.code,
-            'QR Code': f'QR Codes/{safe_event_name}/{p.code}.png' if p.code else '',
+            '@Image': qr_full_path,
             'Name (KOR)': p.name_kor,
             'Name (ENG)': f"{p.first_name} {p.family_name}".strip(),
             'Affiliation': p.affiliation_kor or p.affiliation_eng,
             'Email': p.email,
             'Accept/Decline': p.accept_or_decline
         })
-    
-    # 엑셀 파일 생성
+
+    # Excel 파일 생성
+    import pandas as pd
+    from io import BytesIO
     df = pd.DataFrame(data)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+    excel_output = BytesIO()
+    with pd.ExcelWriter(excel_output, engine='xlsxwriter') as writer:
         df.to_excel(writer, sheet_name='Participants', index=False)
-    
-    output.seek(0)
+    excel_output.seek(0)
+
+    # TXT 파일 생성 (UTF-16, 탭 구분)
+    import tempfile
+    txt_fd, txt_path = tempfile.mkstemp(suffix='.txt')
+    df.to_csv(txt_path, sep='\t', index=False, encoding='utf-16')
+
+    # ZIP 파일 생성
+    import tempfile
+    zip_fd, zip_path = tempfile.mkstemp(suffix='.zip')
+    with ZipFile(zip_path, 'w') as zipf:
+        # Excel
+        zipf.writestr('participants.xlsx', excel_output.getvalue())
+        # TXT
+        with open(txt_path, 'rb') as f:
+            zipf.writestr('participants.txt', f.read())
+        # QR 이미지
+        for code, qr_path in qr_paths.items():
+            if os.path.exists(qr_path):
+                zipf.write(qr_path, os.path.join('QR Codes', os.path.basename(qr_path)))
+    os.close(txt_fd)
+    os.remove(txt_path)
+    os.close(zip_fd)
+
+    # ZIP 파일 반환
     return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        zip_path,
+        mimetype='application/zip',
         as_attachment=True,
-        download_name=f'participants_qr_{event.event_id}.xlsx'
+        download_name=f'participants_qr_{event.event_id}.zip'
     )
 
 @app.route('/download_custom_excel/<int:event_id>', methods=['POST'])
