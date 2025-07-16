@@ -2054,8 +2054,19 @@ def download_custom_excel(event_id):
     else:
         participants = Participant.query.filter_by(event_id=event_id).all()
 
+    # Code 번호로 오름차순 정렬 (안전한 처리)
+    def safe_code_sort_key(p):
+        try:
+            if p.code and str(p.code).isdigit():
+                return int(p.code)
+            return 0
+        except (ValueError, TypeError):
+            return 0
+    
+    participants = sorted(participants, key=safe_code_sort_key)
+    
     data = []
-    for idx, p in enumerate(participants, start=1):
+    for p in participants:
         # 체크인/아웃 시간 처리
         check_in_dt = pd.to_datetime(p.check_in_time, errors='coerce') if p.check_in_time else None
         check_out_dt = pd.to_datetime(p.check_out_time, errors='coerce') if p.check_out_time else None
@@ -2089,7 +2100,7 @@ def download_custom_excel(event_id):
                 rating = 6 if duration_seconds >= 6 * 3600 else 5 if duration_seconds >= 5 * 3600 else 4 if duration_seconds >= 4 * 3600 else 3 if duration_seconds >= 3 * 3600 else 0
         
         data.append({
-            '연번': idx,
+            '연번': p.code if p.code else '',  # 참가자의 Code 번호 사용 (None 처리)
             '성명': p.name_kor or f'{p.first_name} {p.family_name}',
             '의사 면허번호': p.license_number,
             '교육전 서명 시간': check_in_time_str,
