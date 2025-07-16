@@ -966,12 +966,17 @@ def upload_participants(event_id):
                 db.session.commit()
                 logging.info(f"Successfully committed {participants_added} participants")
                 
-                # 참가자 코드 자동 생성
+                # 참가자 코드 자동 생성 (기존 코드 다음부터 시작)
+                # 현재 이벤트의 최대 코드 번호 찾기
+                max_code = db.session.query(db.func.max(Participant.code)).filter_by(event_id=event_id).scalar()
+                start_code = (max_code or 0) + 1
+                
+                # 코드가 없는 참가자들에 대해 순차적으로 코드 부여
                 participants = Participant.query.filter_by(event_id=event_id).filter(Participant.code.is_(None)).all()
-                for i, participant in enumerate(participants, 1):
+                for i, participant in enumerate(participants, start_code):
                     participant.code = i
                 db.session.commit()
-                logging.info(f"Generated codes for {len(participants)} participants")
+                logging.info(f"Generated codes for {len(participants)} participants starting from {start_code}")
                 
                 # 누락 컬럼 경고 메시지(선택)
                 if missing_columns:
