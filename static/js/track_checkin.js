@@ -7,32 +7,34 @@ async function updateAttendance(eventId, code) {
     return response.json();
 }
 
-// 날짜/시간 포맷팅 함수 (한국 시간 직접 표시)
+// 날짜/시간 포맷팅 함수 (한국 시간 문자열 직접 파싱)
 function formatDateTime(dateTimeStr) {
     if (!dateTimeStr || dateTimeStr === 'None' || dateTimeStr === null || dateTimeStr === undefined) return '-';
     
     try {
-        // 한국 시간을 그대로 파싱
-        const date = new Date(dateTimeStr);
+        // 디버깅: 받은 시간 문자열 출력
+        console.log('Received time string:', dateTimeStr);
         
-        if (isNaN(date.getTime())) {
-            console.error('Invalid date:', dateTimeStr);
+        // YYYY-MM-DD HH:MM:SS 형식에서 직접 파싱
+        const match = dateTimeStr.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+        if (!match) {
+            console.error('Invalid date format:', dateTimeStr);
             return '-';
         }
         
-        // 한국 시간을 그대로 표시
-        const year = date.getFullYear();
-        const month = (date.getMonth() + 1).toString().padStart(2, '0');
-        const day = date.getDate().toString().padStart(2, '0');
+        const [, year, month, day, hour, minute, second] = match;
+        
+        // 날짜 포맷팅
         const dateStr = `${year}. ${month}. ${day}.`;
         
         // 시간 포맷팅 (오전/오후)
-        const hour = date.getHours();
-        const minute = date.getMinutes().toString().padStart(2, '0');
-        const second = date.getSeconds().toString().padStart(2, '0');
-        const ampm = hour < 12 ? '오전' : '오후';
-        const displayHour = hour < 12 ? hour : (hour === 12 ? 12 : hour - 12);
+        const hourNum = parseInt(hour);
+        const ampm = hourNum < 12 ? '오전' : '오후';
+        const displayHour = hourNum < 12 ? hourNum : (hourNum === 12 ? 12 : hourNum - 12);
         const timeStr = `${ampm} ${displayHour.toString().padStart(2, '0')}:${minute}:${second}`;
+        
+        // 디버깅: 최종 결과 출력
+        console.log('Final result:', `${dateStr}<br>${timeStr}`);
         
         return `${dateStr}<br>${timeStr}`;
     } catch (error) {
