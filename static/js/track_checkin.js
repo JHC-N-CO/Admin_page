@@ -7,32 +7,36 @@ async function updateAttendance(eventId, code) {
     return response.json();
 }
 
-// 날짜/시간 포맷팅 함수 (타임존 고려)
+// 날짜/시간 포맷팅 함수 (한국 시간 직접 표시)
 function formatDateTime(dateTimeStr) {
     if (!dateTimeStr || dateTimeStr === 'None' || dateTimeStr === null || dateTimeStr === undefined) return '-';
     
     try {
-        // UTC 시간을 로컬 시간으로 변환
+        // 한국 시간을 그대로 파싱
         const date = new Date(dateTimeStr);
-        if (isNaN(date.getTime())) return '-';
         
-        // 한국 시간대로 포맷팅
-        const dateStr = date.toLocaleDateString('ko-KR', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            timeZone: 'Asia/Seoul'
-        });
-        const timeStr = date.toLocaleTimeString('ko-KR', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-            timeZone: 'Asia/Seoul'
-        });
+        if (isNaN(date.getTime())) {
+            console.error('Invalid date:', dateTimeStr);
+            return '-';
+        }
+        
+        // 한국 시간을 그대로 표시
+        const year = date.getFullYear();
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+        const dateStr = `${year}. ${month}. ${day}.`;
+        
+        // 시간 포맷팅 (오전/오후)
+        const hour = date.getHours();
+        const minute = date.getMinutes().toString().padStart(2, '0');
+        const second = date.getSeconds().toString().padStart(2, '0');
+        const ampm = hour < 12 ? '오전' : '오후';
+        const displayHour = hour < 12 ? hour : (hour === 12 ? 12 : hour - 12);
+        const timeStr = `${ampm} ${displayHour.toString().padStart(2, '0')}:${minute}:${second}`;
         
         return `${dateStr}<br>${timeStr}`;
     } catch (error) {
-        console.error('Date parsing error:', error);
+        console.error('Date parsing error:', error, 'Input:', dateTimeStr);
         return '-';
     }
 }

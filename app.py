@@ -1253,7 +1253,7 @@ def check_attendance_by_code():
     
     from datetime import datetime, timezone, timedelta
     
-    # 한국 시간대로 현재 시간 가져오기 (UTC+9)
+    # 한국 시간으로 저장 (UTC+9)
     utc_now = datetime.now(timezone.utc)
     korea_tz = timezone(timedelta(hours=9))
     now = utc_now.astimezone(korea_tz)
@@ -1262,6 +1262,7 @@ def check_attendance_by_code():
     print(f"DEBUG: Code {code}, Event {event_id}")
     print(f"DEBUG: Current check_in_time: {participant.check_in_time}")
     print(f"DEBUG: Current check_out_time: {participant.check_out_time}")
+    print(f"DEBUG: Server UTC time: {now}")
     
     # 참가자 이름
     participant_name = participant.name_kor or f"{participant.first_name} {participant.family_name}"
@@ -1279,7 +1280,7 @@ def check_attendance_by_code():
             'message': 'Check-in successful', 
             'action': 'check_in',
             'participant_name': participant_name,
-            'check_in_time': participant.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'check_in_time': participant.check_in_time.isoformat(),  # 한국 시간 표시
             'check_out_time': None  # 체크인 시에는 체크아웃 시간을 None으로 반환
         })
     
@@ -1294,8 +1295,8 @@ def check_attendance_by_code():
             'message': 'Check-out successful', 
             'action': 'check_out',
             'participant_name': participant_name,
-            'check_in_time': participant.check_in_time.strftime('%Y-%m-%d %H:%M:%S'),
-            'check_out_time': participant.check_out_time.strftime('%Y-%m-%d %H:%M:%S')
+            'check_in_time': participant.check_in_time.isoformat(),  # 한국 시간 표시
+            'check_out_time': participant.check_out_time.isoformat()  # 한국 시간 표시
         })
 
 @app.route('/track_checkin/<int:event_id>')
