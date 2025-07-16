@@ -1281,18 +1281,29 @@ def check_attendance_by_code():
             'KOREA' in str(timezone_info).upper() or 
             'SEOUL' in str(timezone_info).upper() or
             'ASIA/SEOUL' in str(env_tz).upper() or
-            '+09' in str(env_tz) or
-            abs(local_time.hour - utc_time.hour) <= 1  # 1시간 이내 차이면 같은 시간대
+            '+09' in str(env_tz)
+        )
+        
+        # UTC 환경인지 명시적으로 확인
+        is_utc_timezone = (
+            'UTC' in str(timezone_info).upper() or
+            'ETC/UTC' in str(env_tz).upper() or
+            env_tz == '' or  # TZ 환경변수가 설정되지 않음
+            abs(local_time.hour - utc_time.hour) <= 1  # 로컬과 UTC 시간이 같거나 1시간 이내 차이
         )
         
         if is_korea_timezone:
             # 이미 한국 시간대
             now = local_time
             print(f"DEBUG: Server is in Korea timezone, using local time")
-        else:
+        elif is_utc_timezone:
             # UTC 시간대이므로 +9시간 추가
             now = utc_time.replace(tzinfo=timezone.utc) + timedelta(hours=9)
             print(f"DEBUG: Server is in UTC timezone, converting to Korea time (+9 hours)")
+        else:
+            # 기타 시간대는 UTC + 9시간으로 처리
+            now = utc_time.replace(tzinfo=timezone.utc) + timedelta(hours=9)
+            print(f"DEBUG: Server timezone unknown, using UTC + 9 hours as fallback")
             
     except Exception as e:
         # 에러 발생 시 기본적으로 UTC + 9시간 사용
