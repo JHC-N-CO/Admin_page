@@ -1253,22 +1253,59 @@ def check_attendance_by_code():
     
     from datetime import datetime, timezone, timedelta
     
-    # 한국 시간으로 저장 (UTC+9) - 명시적 계산
-    utc_now = datetime.now(timezone.utc)
-    korea_offset = timedelta(hours=9)
-    now = utc_now.replace(tzinfo=timezone.utc) + korea_offset
+    # 서버 환경 자동 감지 및 한국 시간 계산
+    import os
+    import time
+    
+    # 시스템 시간대 확인
+    try:
+        # 시스템 시간대 정보 가져오기
+        timezone_info = time.tzname[time.daylight]
+        print(f"DEBUG: System timezone: {timezone_info}")
+        
+        # 환경변수로 시간대 확인
+        env_tz = os.environ.get('TZ', '')
+        print(f"DEBUG: Environment TZ: {env_tz}")
+        
+        # 현재 로컬 시간과 UTC 시간 비교
+        local_time = datetime.now()
+        utc_time = datetime.now(timezone.utc)
+        
+        print(f"DEBUG: Local time: {local_time}")
+        print(f"DEBUG: UTC time: {utc_time}")
+        print(f"DEBUG: Time difference: {local_time.hour - utc_time.hour} hours")
+        
+        # 한국 시간대인지 확인 (KST, Asia/Seoul, +09:00 등)
+        is_korea_timezone = (
+            'KST' in str(timezone_info).upper() or 
+            'KOREA' in str(timezone_info).upper() or 
+            'SEOUL' in str(timezone_info).upper() or
+            'ASIA/SEOUL' in str(env_tz).upper() or
+            '+09' in str(env_tz) or
+            abs(local_time.hour - utc_time.hour) <= 1  # 1시간 이내 차이면 같은 시간대
+        )
+        
+        if is_korea_timezone:
+            # 이미 한국 시간대
+            now = local_time
+            print(f"DEBUG: Server is in Korea timezone, using local time")
+        else:
+            # UTC 시간대이므로 +9시간 추가
+            now = utc_time.replace(tzinfo=timezone.utc) + timedelta(hours=9)
+            print(f"DEBUG: Server is in UTC timezone, converting to Korea time (+9 hours)")
+            
+    except Exception as e:
+        # 에러 발생 시 기본적으로 UTC + 9시간 사용
+        print(f"DEBUG: Error detecting timezone: {e}")
+        now = datetime.now(timezone.utc) + timedelta(hours=9)
+        print(f"DEBUG: Using fallback: UTC + 9 hours")
     
     # 디버깅 로그
     print(f"DEBUG: Code {code}, Event {event_id}")
     print(f"DEBUG: Current check_in_time: {participant.check_in_time}")
     print(f"DEBUG: Current check_out_time: {participant.check_out_time}")
-    print(f"DEBUG: Server UTC time: {datetime.now(timezone.utc)}")
-    print(f"DEBUG: Server Korea time: {now}")
-    print(f"DEBUG: Time difference: {now - datetime.now(timezone.utc)}")
-    print(f"DEBUG: ISO format: {now.isoformat()}")
-    print(f"DEBUG: strftime format: {now.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"DEBUG: now.tzinfo: {now.tzinfo}")
-    print(f"DEBUG: now.utcoffset(): {now.utcoffset()}")
+    print(f"DEBUG: Final Korea time: {now}")
+    print(f"DEBUG: Final Korea time strftime: {now.strftime('%Y-%m-%d %H:%M:%S')}")
     
     # 참가자 이름
     participant_name = participant.name_kor or f"{participant.first_name} {participant.family_name}"
@@ -1281,20 +1318,15 @@ def check_attendance_by_code():
         participant.check_out_time = None
         db.session.commit()
         print(f"DEBUG: After check-in - check_in_time: {participant.check_in_time}, check_out_time: {participant.check_out_time}")
-        # 한국 시간을 명시적으로 계산
-        korea_hour = (participant.check_in_time.hour + 9) % 24
-        korea_day = participant.check_in_time.day
-        if participant.check_in_time.hour + 9 >= 24:
-            korea_day += 1
-        
-        korea_time_str = f"{participant.check_in_time.year}-{participant.check_in_time.month:02d}-{korea_day:02d} {korea_hour:02d}:{participant.check_in_time.minute:02d}:{participant.check_in_time.second:02d}"
+        # 서버 시간을 그대로 사용 (이미 한국 시간)
+        korea_time_str = participant.check_in_time.strftime('%Y-%m-%d %H:%M:%S')
         
         return jsonify({
             'status': 'success', 
             'message': 'Check-in successful', 
             'action': 'check_in',
             'participant_name': participant_name,
-            'check_in_time': korea_time_str,  # 명시적 한국 시간
+            'check_in_time': korea_time_str,  # 서버 로컬 시간 (한국 시간)
             'check_out_time': None  # 체크인 시에는 체크아웃 시간을 None으로 반환
         })
     
@@ -1304,27 +1336,17 @@ def check_attendance_by_code():
         participant.check_out_time = now
         db.session.commit()
         print(f"DEBUG: After check-out - check_in_time: {participant.check_in_time}, check_out_time: {participant.check_out_time}")
-        # 체크인 시간을 한국 시간으로 변환
-        korea_checkin_hour = (participant.check_in_time.hour + 9) % 24
-        korea_checkin_day = participant.check_in_time.day
-        if participant.check_in_time.hour + 9 >= 24:
-            korea_checkin_day += 1
-        korea_checkin_str = f"{participant.check_in_time.year}-{participant.check_in_time.month:02d}-{korea_checkin_day:02d} {korea_checkin_hour:02d}:{participant.check_in_time.minute:02d}:{participant.check_in_time.second:02d}"
-        
-        # 체크아웃 시간을 한국 시간으로 변환
-        korea_checkout_hour = (participant.check_out_time.hour + 9) % 24
-        korea_checkout_day = participant.check_out_time.day
-        if participant.check_out_time.hour + 9 >= 24:
-            korea_checkout_day += 1
-        korea_checkout_str = f"{participant.check_out_time.year}-{participant.check_out_time.month:02d}-{korea_checkout_day:02d} {korea_checkout_hour:02d}:{participant.check_out_time.minute:02d}:{participant.check_out_time.second:02d}"
+        # 서버 시간을 그대로 사용 (이미 한국 시간으로 변환됨)
+        korea_checkin_str = participant.check_in_time.strftime('%Y-%m-%d %H:%M:%S')
+        korea_checkout_str = participant.check_out_time.strftime('%Y-%m-%d %H:%M:%S')
         
         return jsonify({
             'status': 'success', 
             'message': 'Check-out successful', 
             'action': 'check_out',
             'participant_name': participant_name,
-            'check_in_time': korea_checkin_str,  # 명시적 한국 시간
-            'check_out_time': korea_checkout_str  # 명시적 한국 시간
+            'check_in_time': korea_checkin_str,  # 서버 로컬 시간 (한국 시간)
+            'check_out_time': korea_checkout_str  # 서버 로컬 시간 (한국 시간)
         })
 
 @app.route('/track_checkin/<int:event_id>')
