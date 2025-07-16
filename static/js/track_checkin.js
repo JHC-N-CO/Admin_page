@@ -7,32 +7,27 @@ async function updateAttendance(eventId, code) {
     return response.json();
 }
 
-// 날짜/시간 포맷팅 함수 (iOS Safari 호환)
+// 날짜/시간 포맷팅 함수 (타임존 고려)
 function formatDateTime(dateTimeStr) {
     if (!dateTimeStr || dateTimeStr === 'None' || dateTimeStr === null || dateTimeStr === undefined) return '-';
     
-    // 문자열 형식이면 직접 조작 (iOS Safari 호환)
-    if (typeof dateTimeStr === 'string' && dateTimeStr.length >= 16) {
-        // YYYY-MM-DD HH:MM:SS → YYYY-MM-DD<br>HH:MM:SS
-        const datePart = dateTimeStr.slice(0, 10);
-        const timePart = dateTimeStr.slice(11, 19);
-        return `${datePart}<br>${timePart}`;
-    }
-    
-    // Date 객체로 파싱 시도 (fallback)
     try {
+        // UTC 시간을 로컬 시간으로 변환
         const date = new Date(dateTimeStr);
         if (isNaN(date.getTime())) return '-';
         
+        // 한국 시간대로 포맷팅
         const dateStr = date.toLocaleDateString('ko-KR', {
             year: 'numeric',
             month: '2-digit',
-            day: '2-digit'
+            day: '2-digit',
+            timeZone: 'Asia/Seoul'
         });
         const timeStr = date.toLocaleTimeString('ko-KR', {
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit'
+            second: '2-digit',
+            timeZone: 'Asia/Seoul'
         });
         
         return `${dateStr}<br>${timeStr}`;

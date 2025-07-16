@@ -1251,8 +1251,12 @@ def check_attendance_by_code():
     if not participant:
         return jsonify({'status': 'error', 'message': 'Participant not found'}), 404
     
-    from datetime import datetime
-    now = datetime.now()
+    from datetime import datetime, timezone, timedelta
+    
+    # 한국 시간대로 현재 시간 가져오기 (UTC+9)
+    utc_now = datetime.now(timezone.utc)
+    korea_tz = timezone(timedelta(hours=9))
+    now = utc_now.astimezone(korea_tz)
     
     # 디버깅 로그
     print(f"DEBUG: Code {code}, Event {event_id}")
