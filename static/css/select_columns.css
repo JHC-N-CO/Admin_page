@@ -200,3 +200,33 @@ body {
         gap: 8px;
     }
 }
+
+/* 평점 선택 섹션 스타일 */
+.rating-selection {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 10px;
+}
+
+.rating-selection .rating-label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.rating-selection .rating-select {
+    width: 200px;
+    padding: 8px 12px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    margin-right: 10px;
+    font-size: 14px;
+    background-color: white;
+}
+
+.rating-selection .btn {
+    margin-left: 10px;
+}

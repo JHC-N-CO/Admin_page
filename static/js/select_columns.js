@@ -52,34 +52,61 @@ document.getElementById('qrExportBtn').addEventListener('click', function() {
     }
 });
 
-// Custom Excel Export 버튼 (기존과 동일)
-document.getElementById('customExportBtn').addEventListener('click', function() {
-    const formData = new FormData(document.getElementById('exportForm'));
+// 평점 선택 관련 요소들
+const customExportBtn = document.getElementById('customExportBtn');
+const ratingSelection = document.querySelector('.rating-selection');
+const confirmRatingBtn = document.getElementById('confirmRatingBtn');
+const ratingCriteriaSelect = document.getElementById('ratingCriteria');
+
+// 평점신고 버튼 클릭 시 섹션 토글
+if (customExportBtn) {
+    customExportBtn.addEventListener('click', function() {
+        if (ratingSelection) {
+            const isVisible = ratingSelection.style.display !== 'none';
+            ratingSelection.style.display = isVisible ? 'none' : 'block';
+        }
+    });
+}
+
+// 확인 버튼 클릭 시 다운로드 실행
+if (confirmRatingBtn) {
+    confirmRatingBtn.addEventListener('click', function() {
+    const selectedParticipants = document.querySelector('input[name="selected_participants"]').value;
+    const ratingCriteria = ratingCriteriaSelect.value;
+    
     fetch(`/download_custom_excel/${eventId}`, {
         method: 'POST',
-        body: formData
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `selected_participants=${encodeURIComponent(selectedParticipants)}&rating_criteria=${ratingCriteria}`
     })
     .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.message || 'Unknown error'); });
+        if (response.ok) {
+            return response.blob();
         }
-        return response.blob();
+        throw new Error('Network response was not ok');
     })
     .then(blob => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'custom_participants.xlsx';
+        a.download = `custom_participants_${ratingCriteria}평점.xlsx`;
         document.body.appendChild(a);
         a.click();
-        a.remove();
         window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        // 다운로드 후 섹션 숨기기
+        if (ratingSelection) {
+            ratingSelection.style.display = 'none';
+        }
     })
     .catch(error => {
         console.error('Custom Export Error:', error);
-        alert(`Failed to download Custom Excel file: ${error.message}`);
+        alert('Failed to download Custom Excel file: ' + error.message);
     });
-});
+    });
+}
 
 // 폴더 선택 버튼 (브라우저 제한으로 인해 입력만 가능)
 document.getElementById('browsePathBtn').addEventListener('click', function() {

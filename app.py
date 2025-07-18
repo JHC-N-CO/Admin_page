@@ -2082,22 +2082,75 @@ def download_custom_excel(event_id):
         duration_seconds = duration.total_seconds() if duration and duration.total_seconds() >= 0 else 0
         duration_str = f"{int(duration_seconds // 3600)}시간 {int((duration_seconds % 3600) // 60)}분" if duration and duration.total_seconds() >= 0 else ''
         
-        # 평점 계산
+        # 평점 계산 (올바른 로직)
         if check_in_status == 0 or check_out_status == 0:
             rating = 0
         else:
+            hours = duration_seconds / 3600  # 시간 단위로 변환
+            
             if rating_criteria == '1':
-                rating = 1 if duration_seconds >= 1 * 3600 else 0
+                # 1시간 미만=0점, 1시간 이상=1점
+                rating = 1 if hours >= 1 else 0
             elif rating_criteria == '2':
-                rating = 2 if duration_seconds >= 1 * 3600 else 0
+                # 1시간 미만=0점, 1-2시간=1점, 2시간 이상=2점
+                if hours < 1:
+                    rating = 0
+                elif hours < 2:
+                    rating = 1
+                else:
+                    rating = 2
             elif rating_criteria == '3':
-                rating = 3 if duration_seconds >= 1 * 3600 else 0
+                # 1시간 미만=0점, 1-2시간=1점, 2-3시간=2점, 3시간 이상=3점
+                if hours < 1:
+                    rating = 0
+                elif hours < 2:
+                    rating = 1
+                elif hours < 3:
+                    rating = 2
+                else:
+                    rating = 3
             elif rating_criteria == '4':
-                rating = 4 if duration_seconds >= 4 * 3600 else 3 if duration_seconds >= 3 * 3600 else 0
+                # 1시간 미만=0점, 1-2시간=1점, 2-3시간=2점, 3-4시간=3점, 4시간 이상=4점
+                if hours < 1:
+                    rating = 0
+                elif hours < 2:
+                    rating = 1
+                elif hours < 3:
+                    rating = 2
+                elif hours < 4:
+                    rating = 3
+                else:
+                    rating = 4
             elif rating_criteria == '5':
-                rating = 5 if duration_seconds >= 5 * 3600 else 4 if duration_seconds >= 4 * 3600 else 3 if duration_seconds >= 3 * 3600 else 0
+                # 1시간 미만=0점, 1-2시간=1점, 2-3시간=2점, 3-4시간=3점, 4-5시간=4점, 5시간 이상=5점
+                if hours < 1:
+                    rating = 0
+                elif hours < 2:
+                    rating = 1
+                elif hours < 3:
+                    rating = 2
+                elif hours < 4:
+                    rating = 3
+                elif hours < 5:
+                    rating = 4
+                else:
+                    rating = 5
             else:  # '6'
-                rating = 6 if duration_seconds >= 6 * 3600 else 5 if duration_seconds >= 5 * 3600 else 4 if duration_seconds >= 4 * 3600 else 3 if duration_seconds >= 3 * 3600 else 0
+                # 1시간 미만=0점, 1-2시간=1점, 2-3시간=2점, 3-4시간=3점, 4-5시간=4점, 5-6시간=5점, 6시간 이상=6점
+                if hours < 1:
+                    rating = 0
+                elif hours < 2:
+                    rating = 1
+                elif hours < 3:
+                    rating = 2
+                elif hours < 4:
+                    rating = 3
+                elif hours < 5:
+                    rating = 4
+                elif hours < 6:
+                    rating = 5
+                else:
+                    rating = 6
         
         data.append({
             '연번': p.code if p.code else '',  # 참가자의 Code 번호 사용 (None 처리)
