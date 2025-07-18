@@ -91,7 +91,7 @@ if (confirmRatingBtn) {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `custom_participants_${ratingCriteria}평점.xlsx`;
+                        a.download = `평점신고_${ratingCriteria}평점.xlsx`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);

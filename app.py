@@ -2177,7 +2177,7 @@ def download_custom_excel(event_id):
     
     output.seek(0)
     current_date = datetime.now().strftime("%Y%m%d")
-    filename = f"{event.event_id}_custom_participants_{rating_criteria}평점_{current_date}.xlsx"
+    filename = f"{event.event_id}_평점신고_{rating_criteria}평점_{current_date}.xlsx"
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
