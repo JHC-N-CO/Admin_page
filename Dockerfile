@@ -12,10 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # 소스 코드 전체 복사
 COPY . .
 
-# 환경변수 (Flask 실행용)
+# 환경변수
 ENV FLASK_APP=app.py
-ENV FLASK_RUN_HOST=0.0.0.0
-ENV FLASK_RUN_PORT=5000
 
-# 컨테이너 시작 시 실행할 명령
-CMD ["flask", "run"] 
+# Gunicorn으로 실행 (프로덕션)
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "-w", "4", "app:app"] 
