@@ -1,6 +1,32 @@
 /* --- Extracted from register_step3.html inline <style> --- */
 /* Only keep edit member form, button, input, and page-specific styles. Remove all sidebar, sidebar-header, nav-menu, nav-link, main-content, container, and layout styles. */
 
+/* 전역 레이아웃 스타일 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f7fa;
+    line-height: 1.6;
+}
+
+.container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+}
+
+.main-content {
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
 .page-header {
     background-color: white;
     padding: 20px;
@@ -11,22 +37,9 @@
 }
 .page-header h1 {
     color: #2c3e50;
-    margin-bottom: 10px;
+    margin-bottom: 0;
     font-size: 2.2em;
     font-weight: 700;
-}
-.page-header .back-link {
-    color: #512da8;
-    text-decoration: none;
-    font-size: 1.05em;
-    font-weight: 500;
-    margin-top: 2px;
-    transition: color 0.2s;
-    display: inline-block;
-}
-.page-header .back-link:hover {
-    text-decoration: underline;
-    color: #1976d2;
 }
 
 .form-container {

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>참가자 등록 - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/participant_registration.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <h1>대한뇌전증학회</h1>
+                <p>Korean Epilepsy Society</p>
+            </div>
+            <div class="event-info">
+                <h2>{{ event.name }}</h2>
+                <div class="event-details">
+                    <p><strong>일시:</strong> {{ event.start_date.strftime('%Y-%m-%d') }} ~ {{ event.end_date.strftime('%Y-%m-%d') }}</p>
+                    <p><strong>장소:</strong> 
+                        {% if event.location %}
+                            {{ event.location }}
+                        {% else %}
+                            <span class="no-location">장소가 설정되지 않았습니다</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>마감일:</strong> {{ (event.start_date - timedelta(days=5)).strftime('%Y-%m-%d') }} 까지</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="registration-form-container">
+            <div class="form-header">
+                <h3>참가자 등록</h3>
+                <p class="required-note">* 표시는 필수입력사항입니다.</p>
+            </div>
+
+            <form id="registrationForm" method="POST" action="/register_participant/{{ event.id }}">
+                <div class="form-section">
+                    <h4>신청자 정보</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="registration_type">등록구분 *</label>
+                            <select id="registration_type" name="registration_type" required>
+                                <option value="">- 선택 -</option>
+                                <option value="전문의">전문의</option>
+                                <option value="전공의">전공의</option>
+                                <option value="기타">기타</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="name_kor">성명 *</label>
+                            <input type="text" id="name_kor" name="name_kor" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="first_name">Given Name *</label>
+                            <input type="text" id="first_name" name="first_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="family_name">Family Name *</label>
+                            <input type="text" id="family_name" name="family_name" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="license_number">면허번호 *</label>
+                            <input type="text" id="license_number" name="license_number" required>
+                            <button type="button" class="check-btn" onclick="checkLicense()">중복확인</button>
+                        </div>
+                        <div class="form-group">
+                            <label for="specialty">진료과목(과) *</label>
+                            <select id="specialty" name="specialty" required>
+                                <option value="">- 선택 -</option>
+                                <option value="신경과">신경과</option>
+                                <option value="소아청소년과">소아청소년과</option>
+                                <option value="신경외과">신경외과</option>
+                                <option value="정신과">정신과</option>
+                                <option value="기타">기타(직접입력)</option>
+                            </select>
+                            <input type="text" id="specialty_other" name="specialty_other" placeholder="기타 과목 입력" style="display: none;">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="phone">휴대전화 *</label>
+                            <input type="tel" id="phone" name="phone" placeholder="010-1234-5678" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">이메일 *</label>
+                            <input type="email" id="email" name="email" required>
+                            <button type="button" class="check-btn" onclick="checkEmail()">중복확인</button>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="workplace_name">근무처명 *</label>
+                            <input type="text" id="workplace_name" name="workplace_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="workplace_type">근무처 구분 *</label>
+                            <select id="workplace_type" name="workplace_type" required>
+                                <option value="">- 선택 -</option>
+                                <option value="개원의">개원의</option>
+                                <option value="봉직의">봉직의</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="affiliation_eng">Affiliation *</label>
+                            <input type="text" id="affiliation_eng" name="affiliation_eng" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="rating_required">평점 필요여부 *</label>
+                            <select id="rating_required" name="rating_required" required>
+                                <option value="">- 선택 -</option>
+                                <option value="예">예</option>
+                                <option value="아니오">아니오</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="registration_fee">등록비 *</label>
+                            <select id="registration_fee" name="registration_fee" required>
+                                <option value="">- 선택 -</option>
+                                <option value="전문의">전문의 (40,000원)</option>
+                                <option value="전공의">전공의 (0원)</option>
+                                <option value="일반/기타">일반/기타 (40,000원)</option>
+                                <option value="기사/간호사/연구원">기사/간호사/연구원 (0원)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="remark_user">비고</label>
+                            <textarea id="remark_user" name="remark_user" rows="3" placeholder="추가 요청사항이나 특이사항이 있으시면 입력해주세요."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>개인정보 처리방침 동의</h4>
+                    <div class="checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="agree_terms" name="agree_terms" required>
+                            <span class="checkmark"></span>
+                            개인정보 수집 및 이용에 동의합니다. *
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="history.back()">취소</button>
+                    <button type="submit" class="btn btn-primary">등록</button>
+                </div>
+            </form>
+        </div>
+
+        <footer class="footer">
+            <p>(04501) 서울시 중구 만리재로 185 KCC 파크타운 101동 308호</p>
+            <p>Tel : 02-362-9662 · Fax : 02-362-9663 · E-mail : epilepsy@kes.or.kr</p>
+            <p>ⓒ 대한뇌전증학회 Korean Epilepsy Society. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/participant_registration.js') }}"></script>
+</body>
+</html>

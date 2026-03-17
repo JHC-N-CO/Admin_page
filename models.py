@@ -13,6 +13,7 @@ class Event(db.Model):
     start_date = db.Column(db.Date, nullable=False)
     end_date = db.Column(db.Date, nullable=False)
     event_id = db.Column(db.String(50), unique=True, index=True)
+    location = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -32,7 +33,9 @@ class Participant(db.Model):
     division = db.Column(db.String(100))
     role = db.Column(db.String(100))
     country = db.Column(db.String(100))
+    country_code = db.Column(db.String(10))  # 국가약어 (예: KR, US, JP)
     name_kor = db.Column(db.String(100))
+    name_eng = db.Column(db.String(100))  # 영문 전체 이름
     affiliation_kor = db.Column(db.String(200))
     department_kor = db.Column(db.String(200))
     first_name = db.Column(db.String(100))
@@ -44,6 +47,8 @@ class Participant(db.Model):
     phone = db.Column(db.String(50))
     position = db.Column(db.String(100))
     license_number = db.Column(db.String(100))
+    birth_date = db.Column(db.Date)  # 생년월일
+    workplace_type = db.Column(db.String(50))  # 회원구분 (정회원, 준회원, 종신회원)
     cv = db.Column(db.String(500))
     photo = db.Column(db.String(500))
     ppt = db.Column(db.String(500))
@@ -98,6 +103,8 @@ class Member(db.Model):
     # 기본정보
     name_kor = db.Column(db.String(100), nullable=False)
     name_eng = db.Column(db.String(100))
+    first_name = db.Column(db.String(100))
+    last_name = db.Column(db.String(100))
     birth_date = db.Column(db.Date)
     gender = db.Column(db.String(10))  # 남성, 여성
     phone = db.Column(db.String(50))
@@ -111,6 +118,8 @@ class Member(db.Model):
     position = db.Column(db.String(50))  # 전문의, 전공의, 기타
     specialty = db.Column(db.String(100))  # 신경과, 소아과, 신경외과, 정신과, 기타
     specialty_eng = db.Column(db.String(100))
+    department_kor = db.Column(db.String(200))  # 부서명(한글)
+    department_eng = db.Column(db.String(200))  # 부서명(영문)
     
     # 주소 정보
     address_postcode = db.Column(db.String(10))

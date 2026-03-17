@@ -320,7 +320,19 @@ function sortTable(sortKey, direction) {
 
 // Export members function
 function exportMembers() {
-    window.location.href = '/members/export';
+    const checkboxes = document.getElementsByName('selected_members');
+    const selected = Array.from(checkboxes)
+        .filter(checkbox => checkbox.checked)
+        .map(checkbox => checkbox.value);
+    
+    if (selected.length === 0) {
+        alert("다운로드할 회원을 최소 1명 이상 선택해주세요.");
+        return;
+    }
+    
+    // 컬럼 선택 팝업 열기
+    const popupUrl = `/select_columns_members?members=${encodeURIComponent(selected.join(','))}`;
+    window.open(popupUrl, '_blank', 'width=600,height=800,scrollbars=yes,resizable=yes');
 }
 
 // Open popup function

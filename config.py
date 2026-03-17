@@ -1,15 +1,17 @@
 import os
 from dotenv import load_dotenv
 
-# .env 파일 로드
-load_dotenv()
+# config.env 파일 로드 (명시적으로 지정)
+load_dotenv('config.env')
 
 class Config:
     # Flask 설정
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
     
-    # 데이터베이스 설정
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///events.db'
+    # 데이터베이스 설정 - PostgreSQL 필수
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    if not SQLALCHEMY_DATABASE_URI:
+        raise ValueError("DATABASE_URL environment variable is required")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_pre_ping': True,
@@ -39,15 +41,11 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     DEBUG = False
     FLASK_ENV = 'production'
-    
-    # 프로덕션에서는 보안 강화
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    if not SQLALCHEMY_DATABASE_URI:
-        raise ValueError("DATABASE_URL environment variable is required in production")
 
 class TestingConfig(Config):
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    # 테스트용 PostgreSQL URL 또는 메모리 데이터베이스 사용
+    SQLALCHEMY_DATABASE_URI = os.environ.get('TEST_DATABASE_URL') or 'postgresql://test:test@localhost:5432/test_db'
 
 # 설정 매핑
 config = {

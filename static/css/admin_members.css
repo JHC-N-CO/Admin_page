@@ -115,6 +115,33 @@ body {
     position: relative;
 }
 
+/* Table wrapper for horizontal scrolling */
+.main-content .table-container .table-wrapper {
+    overflow-x: scroll; /* 항상 스크롤바 표시 */
+    width: 100%;
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--border-light) transparent; /* Firefox */
+    -webkit-overflow-scrolling: touch; /* iOS 스크롤 개선 */
+}
+
+/* Webkit 스크롤바 스타일링 */
+.main-content .table-container .table-wrapper::-webkit-scrollbar {
+    height: 8px;
+}
+
+.main-content .table-container .table-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.main-content .table-container .table-wrapper::-webkit-scrollbar-thumb {
+    background-color: var(--border-light);
+    border-radius: 4px;
+}
+
+.main-content .table-container .table-wrapper::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-light);
+}
+
 /* Table header controls */
 .table-header-controls {
     display: flex;
@@ -321,6 +348,23 @@ body {
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Table actions button styles */
+.table-actions button.primary {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+}
+
+.table-actions button.primary:hover {
+    background-color: var(--primary-hover);
 }
 
 .search-box {

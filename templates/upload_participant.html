@@ -1,55 +1,93 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Upload Participant</title>
-    <link rel="stylesheet" href="../static/css/upload_participant.css">
+    <title>참가자 업로드</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/upload_participant.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>참가자 일괄 업로드</h1>
-        
-        {% if error %}
-        <div class="error-message">{{ error }}</div>
-        {% endif %}
-        
-        <form action="" method="post" enctype="multipart/form-data" onsubmit="uploadFile(event)">
-            <div class="file-input-container">
-                <input type="file" name="file" accept=".csv,.xlsx" required>
-                <small>CSV 또는 Excel 파일을 선택하세요</small>
+    <div class="upload-container">
+        <div class="upload-header">
+            <h1><i class="fas fa-upload"></i> 참가자 일괄 업로드</h1>
+            <p class="subtitle">{{ event.name }} ({{ event.event_id }})</p>
+        </div>
+
+        <div class="instructions">
+            <h3>Excel 파일 형식 안내</h3>
+            <div class="instruction-content">
+                <div class="instruction-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span><strong>표준 31개 컬럼:</strong> 이벤트 ID, 코드, 역할, 국가, 국가약어, 성명(KOR), 성명(ENG), 이름(First Name), 성(Last Name), 이메일, 전화, 소속(ENG), 과(ENG), 소속(KOR), 과(KOR), 직위, 면허번호, 생년월일, 회원구분, 등록구분, 승인/거절, CV, 사진, PPT, Script, 동의여부, 비고(사용자), 비고(관리자), 체크인, 체크아웃, 거절 사유</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span><strong>필수 컬럼:</strong> 성명(KOR) 또는 이름(First Name) 중 최소 1개</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-lightbulb"></i>
+                    <span><strong>유연한 매핑:</strong> 한글/영문 컬럼명 모두 지원 (예: "이름(First Name)" 또는 "First Name")</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span><strong>생년월일 형식:</strong> YYYY-MM-DD, YYYY/MM/DD, Excel 날짜 등 다양한 형식 지원</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span><strong>주의:</strong> 코드는 자동 생성되므로 비워두거나 생략 가능</span>
+                </div>
             </div>
-            <button type="submit">업로드</button>
-        </form>
-        
-        <div class="template-download">
-            <h4>템플릿 다운로드</h4>
-            <p>올바른 형식의 엑셀 파일을 다운로드하여 참고하세요.</p>
-            <a href="#" onclick="downloadTemplate()" class="template-link">템플릿 다운로드</a>
+        </div>
+
+        <div class="sample-download">
+            <h3>샘플 파일 다운로드</h3>
+            <p>표준 컬럼 구조가 포함된 샘플 Excel 파일을 다운로드하세요</p>
+            <button type="button" class="download-btn" onclick="downloadSample()">
+                <i class="fas fa-download"></i>
+                샘플 Excel 파일 다운로드 (표준 31개 컬럼)
+            </button>
+        </div>
+
+        <div class="upload-section">
+            <h3>파일 업로드</h3>
+            <div class="file-input-area" id="fileInputArea" onclick="document.getElementById('fileInput').click()">
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                <p class="upload-text">클릭하여 파일 선택 또는 드래그 앤 드롭</p>
+                <p class="upload-hint">Excel (.xlsx, .xls) 또는 CSV 파일</p>
+            </div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;" onchange="handleFileSelect(event)">
+            
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <i class="fas fa-file-excel"></i>
+                <span id="fileName"></span>
+                <button type="button" class="remove-file" onclick="removeFile()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <button type="button" class="btn-primary" id="uploadBtn" onclick="uploadFile()" disabled>
+                <i class="fas fa-upload"></i>
+                업로드 시작
+            </button>
+        </div>
+
+        <div class="result-section" id="resultSection" style="display: none;">
+            <div class="result-message">
+                <i class="fas fa-check-circle"></i>
+                <p><strong>업로드가 완료되었습니다!</strong></p>
+                <p class="auto-redirect">참가자 관리 페이지가 즉시 새로고침됩니다. 잠시 후 창이 닫힙니다.</p>
+            </div>
+            <div class="result-stats" id="resultStats"></div>
+        </div>
+
+        <div class="error-section" id="errorSection" style="display: none;">
+            <div class="error-message">
+                <i class="fas fa-exclamation-circle"></i>
+                <p id="errorMessage"></p>
+            </div>
         </div>
     </div>
-    
-    <script src="../static/js/upload_participant.js"></script>
-    <script>
-        function downloadTemplate() {
-            // 간단한 템플릿 생성
-            const template = [
-                ['name (kor)', 'affiliation (kor)', 'department (kor)', 'email', 'phone', 'accept or decline'],
-                ['홍길동', '서울대학교병원', '신경과', 'hong@example.com', '010-1234-5678', 'accept'],
-                ['김철수', '연세대학교병원', '소아과', 'kim@example.com', '010-9876-5432', 'accept']
-            ];
-            
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
-            template.forEach(row => {
-                csvContent += row.join(',') + '\n';
-            });
-            
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "participant_template.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
+
+    <script src="{{ url_for('static', filename='js/upload_participant.js') }}"></script>
 </body>
 </html>

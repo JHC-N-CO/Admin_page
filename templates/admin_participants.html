@@ -5,6 +5,24 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_participants.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    
+    <style>
+        /* 툴바 버튼 hover 효과 */
+        .toolbar-btn:hover {
+            background-color: #e8eaed !important;
+        }
+        
+        /* 툴바 select hover 효과 */
+        .toolbar-select:hover {
+            background-color: #e8eaed !important;
+        }
+        
+        /* 워드 문서 업로드 버튼 hover 효과 */
+        .word-upload-btn:hover {
+            background-color: #1e3d6f !important;
+        }
+    </style>
 </head>
 <body data-event-id="{{ event[0] }}">
     <div class="container">
@@ -36,15 +54,29 @@
             </div>
             <div class="event-info">
                 <h2>행사명: {{ event[1] }}</h2>
-                <p>시작일: {{ event[2] }}</p>
-                <p>종료일: {{ event[3] }}</p>
+                <div class="event-details">
+                    <div class="event-info-actions">
+                        <p>시작일: <span id="event-start-date">{{ event[2] }}</span></p>
+                        <p>종료일: <span id="event-end-date">{{ event[3] }}</span></p>
+                        <div class="location-info">
+                            {% if event[5] %}
+                                <p>장소: <span id="event-location">{{ event[5] }}</span></p>
+                            {% else %}
+                                <p>장소: <span id="event-location" class="no-location">장소가 설정되지 않았습니다</span></p>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="edit-event-info-btn" onclick="editEventInfo()">행사 정보 편집</button>
+                    </div>
+                </div>
             </div>
             <div class="participants-section">
                 <form id="deleteForm" action="/delete_participants/{{ event[0] }}" method="post">
                     <div class="action-buttons">
                         <button type="button" class="secondary" onclick="openPopup('/add_participant/{{ event[0] }}')">참가자 추가</button>
                         <button type="button" class="secondary" onclick="openPopup('/upload_participants/{{ event[0] }}')">참가자 업로드</button>
+                        <button type="button" class="secondary" onclick="openMemberSelector({{ event[0] }})">회원에서 추가</button>
                         <button type="button" class="primary" onclick="openPopupAttn('/track_checkin/{{ event[0] }}')">출결 관리</button>
+                        <button type="button" class="primary" onclick="window.location.href='/event_program/{{ event[0] }}'">행사 프로그램 관리</button>
                     </div>
                     <div class="table-actions">
                         <div class="search-box">
@@ -58,75 +90,87 @@
                                 <div class="column-selector-header">표시할 컬럼 선택</div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-event-id" data-column="event_id" checked>
-                                    <label for="col-event-id">Event ID</label>
+                                    <label for="col-event-id">이벤트 ID</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-code" data-column="code" checked>
-                                    <label for="col-code">Code</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-registration" data-column="registration" checked>
-                                    <label for="col-registration">Registration</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-division" data-column="division" checked>
-                                    <label for="col-division">Division</label>
+                                    <label for="col-code">코드</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-role" data-column="role" checked>
-                                    <label for="col-role">Role</label>
+                                    <label for="col-role">역할</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-country" data-column="country" checked>
-                                    <label for="col-country">Country</label>
+                                    <label for="col-country">국가</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-country-code" data-column="country_code" checked>
+                                    <label for="col-country-code">국가약어</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-name-kor" data-column="name_kor" checked>
-                                    <label for="col-name-kor">Name (KOR)</label>
+                                    <label for="col-name-kor">성명(KOR)</label>
                                 </div>
                                 <div class="column-option">
-                                    <input type="checkbox" id="col-affiliation-kor" data-column="affiliation_kor" checked>
-                                    <label for="col-affiliation-kor">Affiliation (KOR)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-department-kor" data-column="department_kor" checked>
-                                    <label for="col-department-kor">Department (KOR)</label>
+                                    <input type="checkbox" id="col-name-eng" data-column="name_eng" checked>
+                                    <label for="col-name-eng">성명(ENG)</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-first-name" data-column="first_name" checked>
-                                    <label for="col-first-name">First Name</label>
+                                    <label for="col-first-name">이름(First Name)</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-family-name" data-column="family_name" checked>
-                                    <label for="col-family-name">Family Name</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-affiliation-eng" data-column="affiliation_eng" checked>
-                                    <label for="col-affiliation-eng">Affiliation (ENG)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-department-eng" data-column="department_eng" checked>
-                                    <label for="col-department-eng">Department (ENG)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-accept-decline" data-column="accept_decline" checked>
-                                    <label for="col-accept-decline">Accept/Decline</label>
+                                    <label for="col-family-name">성(Last Name)</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-email" data-column="email" checked>
-                                    <label for="col-email">Email</label>
+                                    <label for="col-email">이메일</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-phone" data-column="phone" checked>
-                                    <label for="col-phone">Phone</label>
+                                    <label for="col-phone">전화</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-affiliation-eng" data-column="affiliation_eng" checked>
+                                    <label for="col-affiliation-eng">소속(ENG)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-department-eng" data-column="department_eng" checked>
+                                    <label for="col-department-eng">과(ENG)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-affiliation-kor" data-column="affiliation_kor" checked>
+                                    <label for="col-affiliation-kor">소속(KOR)</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-department-kor" data-column="department_kor" checked>
+                                    <label for="col-department-kor">과(KOR)</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-position" data-column="position" checked>
-                                    <label for="col-position">Position</label>
+                                    <label for="col-position">직위</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-license" data-column="license_number" checked>
-                                    <label for="col-license">License #</label>
+                                    <label for="col-license">면허번호</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-birth-date" data-column="birth_date" checked>
+                                    <label for="col-birth-date">생년월일</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-workplace-type" data-column="workplace_type" checked>
+                                    <label for="col-workplace-type">회원구분</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-registration" data-column="registration" checked>
+                                    <label for="col-registration">등록구분</label>
+                                </div>
+                                <div class="column-option">
+                                    <input type="checkbox" id="col-accept-decline" data-column="accept_decline" checked>
+                                    <label for="col-accept-decline">승인/거절</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-cv" data-column="cv" checked>
@@ -134,7 +178,7 @@
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-photo" data-column="photo" checked>
-                                    <label for="col-photo">Photo</label>
+                                    <label for="col-photo">사진</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-ppt" data-column="ppt" checked>
@@ -146,27 +190,27 @@
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-agree" data-column="agree" checked>
-                                    <label for="col-agree">Agree</label>
+                                    <label for="col-agree">동의여부</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-remark-user" data-column="remark_user" checked>
-                                    <label for="col-remark-user">Remark (User)</label>
+                                    <label for="col-remark-user">비고(사용자)</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-remark-admin" data-column="remark_admin" checked>
-                                    <label for="col-remark-admin">Remark (Admin)</label>
+                                    <label for="col-remark-admin">비고(관리자)</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-check-in" data-column="check_in_time" checked>
-                                    <label for="col-check-in">Check-In</label>
+                                    <label for="col-check-in">체크인</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-check-out" data-column="check_out_time" checked>
-                                    <label for="col-check-out">Check-Out</label>
+                                    <label for="col-check-out">체크아웃</label>
                                 </div>
                                 <div class="column-option">
                                     <input type="checkbox" id="col-actions" data-column="actions" checked>
-                                    <label for="col-actions">Actions</label>
+                                    <label for="col-actions">관리</label>
                                 </div>
                                 <div class="column-selector-actions">
                                     <button type="button" class="select-all-columns">전체 선택</button>
@@ -177,8 +221,8 @@
                         </div>
                         <div class="inline-action-buttons">
                             <button type="button" class="secondary" onclick="submitDeleteForm()">선택 삭제</button>
-                            <button type="button" class="primary" onclick="openEmailPopup()">이메일 발송</button>
                             <button type="button" class="primary" onclick="downloadExcel()">선택 다운로드</button>
+                            <button type="button" class="primary" onclick="openEmailPopup()">이메일 발송</button>
                         </div>
                     </div>
                     
@@ -188,34 +232,37 @@
                             <thead>
                                 <tr>
                                     <th><input type="checkbox" id="select-all"></th>
-                                    <th class="sortable" data-column="event_id" data-sort="event_id">Event ID</th>
-                                    <th class="sortable" data-column="code" data-sort="code">Code</th>
-                                    <th class="sortable" data-column="registration" data-sort="registration">Registration</th>
-                                    <th class="sortable" data-column="division" data-sort="division">Division</th>
-                                    <th class="sortable" data-column="role" data-sort="role">Role</th>
-                                    <th class="sortable" data-column="country" data-sort="country">Country</th>
-                                    <th class="sortable" data-column="name_kor" data-sort="name_kor">Name (KOR)</th>
-                                    <th class="sortable" data-column="affiliation_kor" data-sort="affiliation_kor">Affiliation (KOR)</th>
-                                    <th class="sortable" data-column="department_kor" data-sort="department_kor">Department (KOR)</th>
-                                    <th class="sortable" data-column="first_name" data-sort="first_name">First Name</th>
-                                    <th class="sortable" data-column="family_name" data-sort="family_name">Family Name</th>
-                                    <th class="sortable" data-column="affiliation_eng" data-sort="affiliation_eng">Affiliation (ENG)</th>
-                                    <th class="sortable" data-column="department_eng" data-sort="department_eng">Department (ENG)</th>
-                                    <th class="sortable" data-column="accept_decline" data-sort="accept_decline">Accept/Decline</th>
-                                    <th class="sortable" data-column="email" data-sort="email">Email</th>
-                                    <th class="sortable" data-column="phone" data-sort="phone">Phone</th>
-                                    <th class="sortable" data-column="position" data-sort="position">Position</th>
-                                    <th class="sortable" data-column="license_number" data-sort="license_number">License #</th>
+                                    <th class="sortable" data-column="event_id" data-sort="event_id">이벤트 ID</th>
+                                    <th class="sortable" data-column="code" data-sort="code">코드</th>
+                                    <th class="sortable" data-column="role" data-sort="role">역할</th>
+                                    <th class="sortable" data-column="country" data-sort="country">국가</th>
+                                    <th class="sortable" data-column="country_code" data-sort="country_code">국가약어</th>
+                                    <th class="sortable" data-column="name_kor" data-sort="name_kor">성명(KOR)</th>
+                                    <th class="sortable" data-column="name_eng" data-sort="name_eng">성명(ENG)</th>
+                                    <th class="sortable" data-column="first_name" data-sort="first_name">이름(First Name)</th>
+                                    <th class="sortable" data-column="family_name" data-sort="family_name">성(Last Name)</th>
+                                    <th class="sortable" data-column="email" data-sort="email">이메일</th>
+                                    <th class="sortable" data-column="phone" data-sort="phone">전화</th>
+                                    <th class="sortable" data-column="affiliation_eng" data-sort="affiliation_eng">소속(ENG)</th>
+                                    <th class="sortable" data-column="department_eng" data-sort="department_eng">과(ENG)</th>
+                                    <th class="sortable" data-column="affiliation_kor" data-sort="affiliation_kor">소속(KOR)</th>
+                                    <th class="sortable" data-column="department_kor" data-sort="department_kor">과(KOR)</th>
+                                    <th class="sortable" data-column="position" data-sort="position">직위</th>
+                                    <th class="sortable" data-column="license_number" data-sort="license_number">면허번호</th>
+                                    <th class="sortable" data-column="birth_date" data-sort="birth_date">생년월일</th>
+                                    <th class="sortable" data-column="workplace_type" data-sort="workplace_type">회원구분</th>
+                                    <th class="sortable" data-column="registration" data-sort="registration">등록구분</th>
+                                    <th class="sortable" data-column="accept_decline" data-sort="accept_decline">승인/거절</th>
                                     <th data-column="cv">CV</th>
-                                    <th data-column="photo">Photo</th>
+                                    <th data-column="photo">사진</th>
                                     <th data-column="ppt">PPT</th>
                                     <th data-column="script">Script</th>
-                                    <th class="sortable" data-column="agree" data-sort="agree">Agree</th>
-                                    <th class="sortable" data-column="remark_user" data-sort="remark_user">Remark (User)</th>
-                                    <th class="sortable" data-column="remark_admin" data-sort="remark_admin">Remark (Admin)</th>
-                                    <th>Check-In</th>
-                                    <th>Check-Out</th>
-                                    <th data-column="actions">Actions</th>
+                                    <th class="sortable" data-column="agree" data-sort="agree">동의여부</th>
+                                    <th class="sortable" data-column="remark_user" data-sort="remark_user">비고(사용자)</th>
+                                    <th class="sortable" data-column="remark_admin" data-sort="remark_admin">비고(관리자)</th>
+                                    <th data-column="check_in_time">체크인</th>
+                                    <th data-column="check_out_time">체크아웃</th>
+                                    <th data-column="actions">관리</th>
                                 </tr>
                             </thead>
                             <tbody id="table-body">
@@ -224,61 +271,76 @@
                                     <td><input type="checkbox" name="selected_participants" value="{{ participant[0] }}" class="row-checkbox"></td>
                                     <td data-column="event_id">{{ event[4] }}</td>
                                     <td data-column="code">{{ participant[2] }}</td>
-                                    <td data-column="registration">{{ participant[3] }}</td>
-                                    <td data-column="division">{{ participant[4] }}</td>
-                                    <td data-column="role">{{ participant[5] }}</td>
-                                    <td data-column="country">{{ participant[6] }}</td>
-                                    <td data-column="name_kor">{{ participant[7] }}</td>
-                                    <td data-column="affiliation_kor">{{ participant[8] }}</td>
-                                    <td data-column="department_kor">{{ participant[9] }}</td>
-                                    <td data-column="first_name">{{ participant[10] }}</td>
-                                    <td data-column="family_name">{{ participant[11] }}</td>
+                                    <td data-column="role">{{ participant[3] }}</td>
+                                    <td data-column="country">{{ participant[4] }}</td>
+                                    <td data-column="country_code">{{ participant[5] }}</td>
+                                    <td data-column="name_kor">{{ participant[6] }}</td>
+                                    <td data-column="name_eng">
+                                        {% if participant[7] %}
+                                            {{ participant[7] }}
+                                        {% elif participant[8] and participant[9] %}
+                                            {{ participant[8] }} {{ participant[9] }}
+                                        {% elif participant[8] %}
+                                            {{ participant[8] }}
+                                        {% elif participant[9] %}
+                                            {{ participant[9] }}
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="first_name">{{ participant[8] }}</td>
+                                    <td data-column="family_name">{{ participant[9] }}</td>
+                                    <td data-column="email">{{ participant[10] }}</td>
+                                    <td data-column="phone">{{ participant[11] }}</td>
                                     <td data-column="affiliation_eng">{{ participant[12] }}</td>
                                     <td data-column="department_eng">{{ participant[13] }}</td>
+                                    <td data-column="affiliation_kor">{{ participant[14] }}</td>
+                                    <td data-column="department_kor">{{ participant[15] }}</td>
+                                    <td data-column="position">{{ participant[16] }}</td>
+                                    <td data-column="license_number">{{ participant[17] }}</td>
+                                    <td data-column="birth_date">{{ participant[18].strftime('%Y-%m-%d') if participant[18] else '' }}</td>
+                                    <td data-column="workplace_type">{{ participant[19] }}</td>
+                                    <td data-column="registration">{{ participant[20] }}</td>
                                     <td data-column="accept_decline" class="accept-decline">
-                                        {% if participant[14] == 'Decline' %}
+                                        {% if participant[21] == 'Decline' %}
+                                            {% set decline_reason = participant[31] if participant[31] else '거절 사유 없음' %}
+                                            {% set short_reason = decline_reason[:5] + '...' if decline_reason|length > 5 else decline_reason %}
                                             <span class="decline-status" 
-                                                  data-decline-reason="{{ participant[28] if participant[28] else '' }}"
-                                                  data-participant-name="{{ participant[8] if participant[8] else (participant[11] + ' ' + participant[12] if participant[11] and participant[12] else '참가자') }}"
-                                                  data-tooltip="{{ participant[28][:6] + '...' if participant[28] and participant[28]|length > 6 else participant[28] if participant[28] else '거절 사유 없음' }}"
+                                                  data-decline-reason="{{ short_reason }}"
+                                                  data-full-reason="{{ decline_reason }}"
+                                                  data-participant-name="{{ participant[6] if participant[6] else '참가자' }}"
                                                   onclick="showDeclineReason(this)">
-                                                {{ participant[14] }}
+                                                거절
                                             </span>
-                                        {% elif participant[14] == 'Accept' %}
-                                            <span class="accept-status">{{ participant[14] }}</span>
+                                        {% elif participant[21] == 'Accept' %}
+                                            <span class="accept-status">승인</span>
                                         {% else %}
-                                            {{ participant[14] }}
+                                            {{ participant[21] }}
                                         {% endif %}
                                     </td>
-                                    <td data-column="email">{{ participant[15] }}</td>
-                                    <td data-column="phone">{{ participant[16] }}</td>
-                                    <td data-column="position">{{ participant[17] }}</td>
-                                    <td data-column="license_number">{{ participant[18] }}</td>
                                     <td data-column="cv">
-                                        {% if participant[19] and participant[19] not in ['nan', '', None] and participant[19] | length > 0 %}
-                                            <a href="#" onclick="downloadFile('{{ participant[19] | e }}', event)" class="attachment-icon">📎</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="photo">
-                                        {% if participant[20] and participant[20] not in ['nan', '', None] and participant[20] | length > 0 %}
-                                            <a href="#" onclick="downloadFile('{{ participant[20] | e }}', event)" class="attachment-icon">📎</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="ppt">
-                                        {% if participant[21] and participant[21] not in ['nan', '', None] and participant[21] | length > 0 %}
-                                            <a href="#" onclick="downloadFile('{{ participant[21] | e }}', event)" class="attachment-icon">📎</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="script">
                                         {% if participant[22] and participant[22] not in ['nan', '', None] and participant[22] | length > 0 %}
                                             <a href="#" onclick="downloadFile('{{ participant[22] | e }}', event)" class="attachment-icon">📎</a>
                                         {% endif %}
                                     </td>
-                                    <td data-column="agree">{{ participant[23] }}</td>
-                                    <td data-column="remark_user">{{ participant[24] }}</td>
-                                    <td data-column="remark_admin">{{ participant[25] }}</td>
-                                    <td class="check-in-time">{{ participant[26] }}</td>
-                                    <td class="check-out-time">{{ participant[27] }}</td>
+                                    <td data-column="photo">
+                                        {% if participant[23] and participant[23] not in ['nan', '', None] and participant[23] | length > 0 %}
+                                            <a href="#" onclick="downloadFile('{{ participant[23] | e }}', event)" class="attachment-icon">📎</a>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="ppt">
+                                        {% if participant[24] and participant[24] not in ['nan', '', None] and participant[24] | length > 0 %}
+                                            <a href="#" onclick="downloadFile('{{ participant[24] | e }}', event)" class="attachment-icon">📎</a>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="script">
+                                        {% if participant[25] and participant[25] not in ['nan', '', None] and participant[25] | length > 0 %}
+                                            <a href="#" onclick="downloadFile('{{ participant[25] | e }}', event)" class="attachment-icon">📎</a>
+                                        {% endif %}
+                                    </td>
+                                    <td data-column="agree">{{ participant[26] }}</td>
+                                    <td data-column="remark_user">{{ participant[27] }}</td>
+                                    <td data-column="remark_admin">{{ participant[28] }}</td>
+                                    <td data-column="check_in_time" class="check-in-time">{{ participant[29] }}</td>
+                                    <td data-column="check_out_time" class="check-out-time">{{ participant[30] }}</td>
                                     <td data-column="actions">
                                         <a href="#" onclick="openPopup('/edit_participant/{{ participant[0] }}'); return false;" class="action-link">수정</a>
                                     </td>
@@ -291,6 +353,231 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 행사 정보 편집 모달 -->
+        <div id="eventInfoModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>행사 정보 편집</h3>
+                    <span class="close" onclick="closeEventInfoModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="eventInfoForm">
+                        <div class="form-group">
+                            <label for="startDateInput">시작일:</label>
+                            <input type="text" id="startDateInput" name="start_date" placeholder="YYYY-MM-DD">
+                        </div>
+                        <div class="form-group">
+                            <label for="endDateInput">종료일:</label>
+                            <input type="text" id="endDateInput" name="end_date" placeholder="YYYY-MM-DD">
+                        </div>
+                        <div class="form-group">
+                            <label for="locationInput">장소:</label>
+                            <input type="text" id="locationInput" name="location" placeholder="행사 장소를 입력하세요">
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeEventInfoModal()">취소</button>
+                            <button type="button" class="btn btn-primary" onclick="saveEventInfo()">저장</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 회원 선택 모달 -->
+        <div id="memberSelectorModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>회원 선택</h3>
+                    <span class="close" onclick="closeMemberSelector()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="search-box">
+                        <input type="text" id="member-search" placeholder="회원 검색...">
+                    </div>
+                    <div class="member-list" id="memberList">
+                        <!-- 회원 목록이 여기에 동적으로 로드됩니다 -->
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeMemberSelector()">취소</button>
+                    <button type="button" class="btn btn-primary" onclick="addSelectedMembers()">선택한 회원 추가</button>
+                </div>
+            </div>
+        </div>
+
+    <!-- 이메일 발송 모달 -->
+    <div id="emailComposeModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>이메일 발송</h2>
+                <button class="close-btn" onclick="closeEmailComposeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">수신자 선택</h3>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="recipientSearchInput" placeholder="참가자 이름 또는 이메일로 검색..." style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                        <div id="emailRecipientsList"></div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 13px; color: #666;">
+                        선택된 수신자: <span id="selectedRecipientsCount">0</span>명
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">이메일 작성</h3>
+                    <input type="text" id="emailSubject" placeholder="제목을 입력하세요" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <div id="emailEditorToolbar" style="border: 1px solid #dadce0; border-bottom: none; padding: 4px 8px; background-color: #f8f9fa; border-radius: 4px 4px 0 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                        <button type="button" class="toolbar-btn" onclick="formatText('bold')" title="굵게" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-bold" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" onclick="formatText('italic')" title="기울임" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-italic" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" onclick="formatText('underline')" title="밑줄" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-underline" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <div style="position: relative; display: inline-block;">
+                            <select id="fontFamilySelect" class="toolbar-select" onchange="applyFontFamily(this.value)" title="폰트" style="padding: 6px 24px 6px 8px; border: none; background: transparent; font-size: 13px; color: #202124; cursor: pointer; appearance: none; font-weight: 500; border-radius: 4px; transition: background-color 0.2s;">
+                                <option value="Sans Serif">Sans Serif</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Helvetica">Helvetica</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Palatino">Palatino</option>
+                                <option value="Garamond">Garamond</option>
+                                <option value="Comic Sans MS">Comic Sans MS</option>
+                                <option value="Trebuchet MS">Trebuchet MS</option>
+                                <option value="Arial Black">Arial Black</option>
+                                <option value="Impact">Impact</option>
+                            </select>
+                            <span style="position: absolute; top: 50%; transform: translateY(-50%); right: 6px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368; pointer-events: none;"></span>
+                        </div>
+                        <button type="button" class="toolbar-btn" onclick="showFontSizePicker()" title="글자 크기" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; position: relative; transition: background-color 0.2s;">
+                            <span style="font-size: 14px; color: #5f6368; font-weight: 500; font-family: sans-serif;">
+                                <span style="font-size: 16px; vertical-align: top;">T</span><span style="font-size: 12px; vertical-align: bottom;">T</span>
+                            </span>
+                            <span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368;"></span>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <button type="button" class="toolbar-btn" onclick="showColorPicker(event)" title="글자 색상 및 배경 색상" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; position: relative; transition: background-color 0.2s;">
+                            <span style="font-size: 16px; color: #5f6368; font-weight: bold; font-family: serif;">A</span>
+                            <span style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 14px; height: 2px; background: #202124;"></span>
+                            <span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368;"></span>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <button type="button" class="toolbar-btn" onclick="insertImage()" title="이미지 삽입" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-image" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <button type="button" class="toolbar-btn word-upload-btn" onclick="uploadWordDocuments()" title="워드 문서 업로드 (여러 개 가능)" style="padding: 6px 8px; border: none; background: #2B579A; cursor: pointer; border-radius: 4px; font-size: 13px; color: white; transition: background-color 0.2s;">
+                            <i class="fas fa-file-word" style="font-size: 14px;"></i> 워드 문서
+                        </button>
+                    </div>
+                    <div id="emailEditor" contenteditable="true" style="min-height: 300px; padding: 15px; border: 1px solid #ddd; border-radius: 0 0 4px 4px; background-color: #fff; overflow-y: auto;" placeholder="이메일 내용을 작성하세요..."></div>
+                    <input type="file" id="wordDocumentInput" accept=".doc,.docx" multiple style="display: none;">
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                    <div id="uploadedWordFiles" style="margin-top: 10px; padding: 12px; background-color: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; display: none;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <i class="fas fa-paperclip" style="color: #5f6368;"></i>
+                            <div style="font-size: 14px; font-weight: 600; color: #202124;">첨부된 워드 문서 (Mail merge 후 Word 문서로 첨부)</div>
+                            <span id="wordFilesCount" style="font-size: 12px; color: #5f6368; margin-left: auto;">0개</span>
+                        </div>
+                        <div id="wordFilesList" style="font-size: 12px;"></div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        <i class="fas fa-info-circle"></i> Mail merge를 사용하려면 워드 문서에 *|컬럼명|* 형식으로 플레이스홀더를 입력하세요. 업로드한 워드 문서는 각 수신자별로 Mail merge 처리되어 Word 문서로 첨부됩니다 (원본 포맷팅 보존).
+                    </div>
+                    <div style="margin-top: 12px; padding: 12px; background-color: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePlaceholderList()">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-list" style="color: #5f6368;"></i>
+                                <span style="font-weight: 600; color: #202124;">사용 가능한 Mail merge 플레이스홀더</span>
+                            </div>
+                            <i class="fas fa-chevron-down" id="placeholderListIcon" style="color: #5f6368; transition: transform 0.3s;"></i>
+                        </div>
+                        <div id="placeholderListContent" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
+                            <div style="font-size: 11px; color: #5f6368; margin-bottom: 8px;">클릭하면 복사됩니다:</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; font-size: 11px;">
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|email|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이메일</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|email|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|name|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이름</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|name|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|name_kor|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이름 (한글)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|name_kor|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|name_eng|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이름 (영문)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|name_eng|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|affiliation_kor|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">소속 (한글)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|affiliation_kor|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|affiliation_eng|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">소속 (영문)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|affiliation_eng|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|country|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">국가</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|country|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|phone|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">전화</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|phone|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|position|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">직위</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|position|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|department_eng|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">과 (영문)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|department_eng|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|role|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">역할</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|role|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|code|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">코드</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|code|*</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="emailCC" placeholder="참조 (쉼표로 구분된 이메일 주소)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="includeAcceptButtons" style="width: 16px; height: 16px;">
+                        <span>승인/거절 버튼 포함</span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEmailComposeModal()">취소</button>
+                <button type="button" id="sendEmailButton" class="btn btn-primary" onclick="sendEmailToRecipients()">
+                    <i class="fas fa-paper-plane"></i> 발송
+                </button>
+            </div>
+        </div>
+    </div>
+        
     <script src="../static/js/admin_participants.js"></script>
+    <script src="{{ url_for('static', filename='js/email_compose.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 </body>
 </html>

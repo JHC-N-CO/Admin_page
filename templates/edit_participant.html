@@ -1,146 +1,293 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Edit Participant</title>
+    <title>참가자 수정</title>
     <link rel="stylesheet" href="../static/css/edit_participant.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
-        <h1>Edit Participant</h1>
+        <div class="page-header">
+            <h1><i class="fas fa-user-edit"></i> 참가자 수정</h1>
+        </div>
+        
+        {% if error %}
+        <div class="error-message">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ error }}
+        </div>
+        {% endif %}
+        
         <form action="/edit_participant/{{ participant.id }}" method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <label for="registration">Registration</label>
-                <select id="registration" name="registration">
-                    <option value="" disabled {% if not participant.registration %}selected{% endif %}>선택하세요</option>
-                    <option value="사전등록" {% if participant.registration == '사전등록' %}selected{% endif %}>사전등록</option>
-                    <option value="현장등록" {% if participant.registration == '현장등록' %}selected{% endif %}>현장등록</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="division">Division</label>
-                <select id="division" name="division">
-                    <option value="" disabled {% if not participant.division %}selected{% endif %}>선택하세요</option>
-                    <option value="전공의" {% if participant.division == '전공의' %}selected{% endif %}>전공의</option>
-                    <option value="전문의" {% if participant.division == '전문의' %}selected{% endif %}>전문의</option>
-                    <option value="기타" {% if participant.division == '기타' %}selected{% endif %}>기타</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="role">Role</label>
-                <select id="role" name="role">
-                    <option value="" disabled {% if not participant.role %}selected{% endif %}>선택하세요</option>
-                    <option value="좌장" {% if participant.role == '좌장' %}selected{% endif %}>좌장</option>
-                    <option value="연자" {% if participant.role == '연자' %}selected{% endif %}>연자</option>
-                    <option value="기타" {% if participant.role == '기타' %}selected{% endif %}>기타</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="country">Country</label>
-                <input type="text" id="country" name="country" value="{{ participant.country or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="name_kor">Name (Korean)</label>
-                <input type="text" id="name_kor" name="name_kor" value="{{ participant.name_kor or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="affiliation_kor">Affiliation (Korean)</label>
-                <input type="text" id="affiliation_kor" name="affiliation_kor" value="{{ participant.affiliation_kor or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="department_kor">Department (Korean)</label>
-                <input type="text" id="department_kor" name="department_kor" value="{{ participant.department_kor or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="first_name">First Name</label>
-                <input type="text" id="first_name" name="first_name" value="{{ participant.first_name or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="family_name">Family Name</label>
-                <input type="text" id="family_name" name="family_name" value="{{ participant.family_name or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="affiliation_eng">Affiliation (English)</label>
-                <input type="text" id="affiliation_eng" name="affiliation_eng" value="{{ participant.affiliation_eng or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="department_eng">Department (English)</label>
-                <input type="text" id="department_eng" name="department_eng" value="{{ participant.department_eng or '' }}">
-            </div>
-            <div class="form-group">
-                <label>Accept or Decline</label>
-                <div>
-                    <input type="radio" id="accept" name="accept_or_decline" value="Accept" {% if participant.accept_or_decline == 'Accept' %}checked{% endif %}>
-                    <label for="accept">Accept</label>
+            
+            <!-- 기본 정보 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-info-circle"></i> 기본 정보</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="role">역할 <span class="required">*</span></label>
+                        <select id="role" name="role" required>
+                            <option value="" disabled {% if not participant.role %}selected{% endif %}>선택하세요</option>
+                            <option value="좌장" {% if participant.role == '좌장' %}selected{% endif %}>좌장</option>
+                            <option value="연자" {% if participant.role == '연자' %}selected{% endif %}>연자</option>
+                            <option value="국내 연자" {% if participant.role == '국내 연자' %}selected{% endif %}>국내 연자</option>
+                            <option value="해외 연자" {% if participant.role == '해외 연자' %}selected{% endif %}>해외 연자</option>
+                            <option value="참석자" {% if participant.role == '참석자' %}selected{% endif %}>참석자</option>
+                            <option value="기타" {% if participant.role == '기타' %}selected{% endif %}>기타</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="registration">등록구분</label>
+                        <select id="registration" name="registration">
+                            <option value="">선택하세요</option>
+                            <option value="사전등록" {% if participant.registration == '사전등록' %}selected{% endif %}>사전등록</option>
+                            <option value="현장등록" {% if participant.registration == '현장등록' %}selected{% endif %}>현장등록</option>
+                            <option value="VIP등록" {% if participant.registration == 'VIP등록' %}selected{% endif %}>VIP등록</option>
+                            <option value="일반등록" {% if participant.registration == '일반등록' %}selected{% endif %}>일반등록</option>
+                            <option value="무료" {% if participant.registration == '무료' %}selected{% endif %}>무료</option>
+                        </select>
+                    </div>
                 </div>
-                <div>
-                    <input type="radio" id="decline" name="accept_or_decline" value="Decline" {% if participant.accept_or_decline == 'Decline' %}checked{% endif %}>
-                    <label for="decline">Decline</label>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="country">국가</label>
+                        <input type="text" id="country" name="country" value="{{ participant.country or '' }}" placeholder="예: 대한민국, 미국">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="country_code">국가약어</label>
+                        <input type="text" id="country_code" name="country_code" value="{{ participant.country_code or '' }}" placeholder="예: KR, US, JP" maxlength="10">
+                    </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" value="{{ participant.email or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="phone">Phone</label>
-                <input type="text" id="phone" name="phone" value="{{ participant.phone or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="position">Position</label>
-                <input type="text" id="position" name="position" value="{{ participant.position or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="license_number">License #</label>
-                <input type="text" id="license_number" name="license_number" value="{{ participant.license_number or '' }}">
-            </div>
-            <div class="form-group">
-                <label for="cv">CV</label>
-                <input type="file" id="cv" name="cv" accept=".pdf,.docx">
-                {% if participant.cv %}
-                    <p>Current: {{ participant.cv }} <a href="#" onclick="deleteFile('cv', {{ participant.id }}); return false;">Delete</a></p>
-                {% endif %}
-            </div>
-            <div class="form-group">
-                <label for="photo">Photo</label>
-                <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg">
-                {% if participant.photo %}
-                    <p>Current: {{ participant.photo }} <a href="#" onclick="deleteFile('photo', {{ participant.id }}); return false;">Delete</a></p>
-                {% endif %}
-            </div>
-            <div class="form-group">
-                <label for="ppt">PPT</label>
-                <input type="file" id="ppt" name="ppt" accept=".ppt,.pptx">
-                {% if participant.ppt %}
-                    <p>Current: {{ participant.ppt }} <a href="#" onclick="deleteFile('ppt', {{ participant.id }}); return false;">Delete</a></p>
-                {% endif %}
-            </div>
-            <div class="form-group">
-                <label for="script">Script</label>
-                <input type="file" id="script" name="script" accept=".pdf,.docx,.txt">
-                {% if participant.script %}
-                    <p>Current: {{ participant.script }} <a href="#" onclick="deleteFile('script', {{ participant.id }}); return false;">Delete</a></p>
-                {% endif %}
-            </div>
-            <div class="form-group">
-                <label>Agree</label>
-                <div>
-                    <input type="radio" id="agree_yes" name="agree" value="Yes" {% if participant.agree == 'Yes' %}checked{% endif %}>
-                    <label for="agree_yes">Yes</label>
+            
+            <!-- 이름 정보 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-user"></i> 이름 정보</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name_kor">성명(KOR)</label>
+                        <input type="text" id="name_kor" name="name_kor" value="{{ participant.name_kor or '' }}" placeholder="예: 홍길동">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="first_name">이름(First Name)</label>
+                        <input type="text" id="first_name" name="first_name" value="{{ participant.first_name or '' }}" placeholder="예: Gildong">
+                        <small class="form-hint">성명(ENG)은 이름과 성으로 자동 생성됩니다</small>
+                    </div>
                 </div>
-                <div>
-                    <input type="radio" id="agree_no" name="agree" value="No" {% if participant.agree == 'No' %}checked{% endif %}>
-                    <label for="agree_no">No</label>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="family_name">성(Last Name)</label>
+                        <input type="text" id="family_name" name="family_name" value="{{ participant.family_name or '' }}" placeholder="예: Hong">
+                    </div>
+                    
+                    <div class="form-group">
+                        <!-- 현재 성명(ENG) 표시 (자동 생성값) -->
+                        <label>성명(ENG) (자동생성)</label>
+                        <div class="readonly-field">
+                            {% if participant.name_eng %}
+                                {{ participant.name_eng }}
+                            {% elif participant.first_name and participant.family_name %}
+                                {{ participant.first_name }} {{ participant.family_name }}
+                            {% elif participant.first_name %}
+                                {{ participant.first_name }}
+                            {% elif participant.family_name %}
+                                {{ participant.family_name }}
+                            {% else %}
+                                (이름/성 입력 시 자동 생성)
+                            {% endif %}
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="form-group">
-                <label for="remark_user">Remark (User)</label>
-                <textarea id="remark_user" name="remark_user" class="auto-resize">{{ participant.remark_user or '' }}</textarea>
+            
+            <!-- 연락처 정보 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-address-book"></i> 연락처 정보</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">이메일</label>
+                        <input type="email" id="email" name="email" value="{{ participant.email or '' }}" placeholder="예: hong@example.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">전화</label>
+                        <input type="text" id="phone" name="phone" value="{{ participant.phone or '' }}" placeholder="예: 010-1234-5678">
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="remark_admin">Remark (Admin)</label>
-                <textarea id="remark_admin" name="remark_admin" class="auto-resize">{{ participant.remark_admin or '' }}</textarea>
+            
+            <!-- 소속 정보 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-building"></i> 소속 정보</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="affiliation_eng">소속(ENG)</label>
+                        <input type="text" id="affiliation_eng" name="affiliation_eng" value="{{ participant.affiliation_eng or '' }}" placeholder="예: Seoul National University Hospital">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="department_eng">과(ENG)</label>
+                        <input type="text" id="department_eng" name="department_eng" value="{{ participant.department_eng or '' }}" placeholder="예: Neurology">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="affiliation_kor">소속(KOR)</label>
+                        <input type="text" id="affiliation_kor" name="affiliation_kor" value="{{ participant.affiliation_kor or '' }}" placeholder="예: 서울대학교병원">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="department_kor">과(KOR)</label>
+                        <input type="text" id="department_kor" name="department_kor" value="{{ participant.department_kor or '' }}" placeholder="예: 신경과">
+                    </div>
+                </div>
             </div>
-            <button type="submit">Update Participant</button>
+            
+            <!-- 추가 정보 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-briefcase"></i> 추가 정보</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="position">직위</label>
+                        <input type="text" id="position" name="position" value="{{ participant.position or '' }}" placeholder="예: 교수, 전문의, 전공의">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="license_number">면허번호</label>
+                        <input type="text" id="license_number" name="license_number" value="{{ participant.license_number or '' }}" placeholder="예: 12345">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="birth_date">생년월일</label>
+                        <input type="date" id="birth_date" name="birth_date" value="{{ participant.birth_date.strftime('%Y-%m-%d') if participant.birth_date else '' }}">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="workplace_type">회원구분</label>
+                        <select id="workplace_type" name="workplace_type">
+                            <option value="">선택하세요</option>
+                            <option value="정회원" {% if participant.workplace_type == '정회원' %}selected{% endif %}>정회원</option>
+                            <option value="준회원" {% if participant.workplace_type == '준회원' %}selected{% endif %}>준회원</option>
+                            <option value="종신회원" {% if participant.workplace_type == '종신회원' %}selected{% endif %}>종신회원</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 승인 및 동의 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-check-circle"></i> 승인 및 동의</h3>
+                
+                <div class="form-group">
+                    <label>승인/거절</label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" id="accept" name="accept_or_decline" value="Accept" {% if participant.accept_or_decline == 'Accept' %}checked{% endif %}>
+                            <span>Accept</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" id="decline" name="accept_or_decline" value="Decline" {% if participant.accept_or_decline == 'Decline' %}checked{% endif %}>
+                            <span>Decline</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" id="pending" name="accept_or_decline" value="대기" {% if participant.accept_or_decline == '대기' %}checked{% endif %}>
+                            <span>대기</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>동의여부</label>
+                    <div class="radio-group">
+                        <label class="radio-item">
+                            <input type="radio" id="agree_yes" name="agree" value="Y" {% if participant.agree == 'Y' or participant.agree == 'Yes' %}checked{% endif %}>
+                            <span>동의</span>
+                        </label>
+                        <label class="radio-item">
+                            <input type="radio" id="agree_no" name="agree" value="N" {% if participant.agree == 'N' or participant.agree == 'No' %}checked{% endif %}>
+                            <span>미동의</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 파일 첨부 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-paperclip"></i> 파일 첨부</h3>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="cv">CV</label>
+                        <input type="file" id="cv" name="cv" accept=".pdf,.docx">
+                        {% if participant.cv %}
+                            <p class="current-file">현재: {{ participant.cv }} <a href="#" onclick="deleteFile('cv', {{ participant.id }}); return false;" class="delete-link">삭제</a></p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="photo">사진</label>
+                        <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg">
+                        {% if participant.photo %}
+                            <p class="current-file">현재: {{ participant.photo }} <a href="#" onclick="deleteFile('photo', {{ participant.id }}); return false;" class="delete-link">삭제</a></p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ppt">PPT</label>
+                        <input type="file" id="ppt" name="ppt" accept=".ppt,.pptx">
+                        {% if participant.ppt %}
+                            <p class="current-file">현재: {{ participant.ppt }} <a href="#" onclick="deleteFile('ppt', {{ participant.id }}); return false;" class="delete-link">삭제</a></p>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="script">Script</label>
+                        <input type="file" id="script" name="script" accept=".pdf,.docx,.txt">
+                        {% if participant.script %}
+                            <p class="current-file">현재: {{ participant.script }} <a href="#" onclick="deleteFile('script', {{ participant.id }}); return false;" class="delete-link">삭제</a></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 비고 섹션 -->
+            <div class="form-section">
+                <h3><i class="fas fa-comment"></i> 비고</h3>
+                
+                <div class="form-group">
+                    <label for="remark_user">비고(사용자)</label>
+                    <textarea id="remark_user" name="remark_user" rows="3" placeholder="사용자 비고사항을 입력하세요">{{ participant.remark_user or '' }}</textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="remark_admin">비고(관리자)</label>
+                    <textarea id="remark_admin" name="remark_admin" rows="3" placeholder="관리자 비고사항을 입력하세요">{{ participant.remark_admin or '' }}</textarea>
+                </div>
+            </div>
+            
+            <!-- 버튼 -->
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="window.opener ? window.close() : window.location.href='/event/{{ participant.event_id }}'; return false;">취소</button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i>
+                    수정 완료
+                </button>
+            </div>
         </form>
     </div>
     <script src="../static/js/edit_participant.js"></script>

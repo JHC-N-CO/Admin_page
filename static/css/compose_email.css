@@ -45,7 +45,10 @@ input[type="text"], input[type="email"] {
     font-size: 14px;
     background-color: #fff;
     overflow-y: auto;
+    position: relative;
 }
+
+/* 텍스트 요소들이 이미지 위에 오지 않도록 - 이미지는 인라인 블록으로 텍스트와 같은 레벨에 배치 */
 
 .editor:empty:before {
     content: attr(placeholder);
@@ -56,6 +59,116 @@ input[type="text"], input[type="email"] {
     max-width: 100%;
     height: auto;
     margin: 5px 0;
+    cursor: pointer;
+}
+
+/* 이미지 리사이즈 관련 스타일 */
+.editor .image-wrapper {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    margin: 5px 5px 5px 0;
+    vertical-align: top;
+    user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    z-index: 0;
+    clear: both;
+}
+
+.editor .image-wrapper img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
+    user-select: none;
+    pointer-events: auto;
+    vertical-align: top;
+    position: relative;
+}
+
+.editor .image-wrapper.resizing {
+    pointer-events: auto;
+}
+
+.editor .image-wrapper.resizing img {
+    pointer-events: auto;
+}
+
+.editor .image-wrapper.image-selected {
+    outline: 2px solid #4285f4;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.editor .image-wrapper.image-selected img {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.editor .image-resize-handle {
+    position: absolute;
+    background-color: #4285f4;
+    border: 2px solid white;
+    display: none;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: background-color 0.1s ease;
+}
+
+.editor .image-resize-handle:hover {
+    background-color: #357ae8;
+}
+
+/* 모서리 핸들 */
+.editor .image-resize-handle-top-left,
+.editor .image-resize-handle-top-right,
+.editor .image-resize-handle-bottom-left,
+.editor .image-resize-handle-bottom-right {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+/* 변 핸들 */
+.editor .image-resize-handle-top,
+.editor .image-resize-handle-bottom {
+    width: 24px;
+    height: 6px;
+    border-radius: 3px;
+}
+
+.editor .image-resize-handle-left,
+.editor .image-resize-handle-right {
+    width: 6px;
+    height: 24px;
+    border-radius: 3px;
+}
+
+.editor .image-delete-btn {
+    position: absolute !important;
+    top: -12px !important;
+    right: -12px !important;
+    width: 24px;
+    height: 24px;
+    background-color: #f44336;
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    display: none;
+    z-index: 1001;
+    text-align: center;
+    line-height: 24px;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.1s ease;
+}
+
+.editor .image-delete-btn:hover {
+    transform: scale(1.1);
+    background-color: #d32f2f;
 }
 
 button {

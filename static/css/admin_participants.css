@@ -279,6 +279,8 @@ body {
 .main-content .accept-status {
     color: var(--success-color);
     font-weight: 500;
+    padding: 2px 4px;
+    border-radius: 3px;
 }
 
 .main-content .decline-status {
@@ -286,40 +288,60 @@ body {
     font-weight: 500;
     cursor: pointer;
     position: relative;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
 }
 
 .main-content .decline-status:hover {
     text-decoration: underline;
+    background-color: rgba(231, 76, 60, 0.1);
 }
 
-/* Tooltip for decline status */
+/* 커스텀 툴팁 */
 .main-content .decline-status:hover::after {
-    content: attr(data-tooltip);
+    content: attr(data-decline-reason);
     position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
     background-color: #333;
     color: white;
     padding: 8px 12px;
-    border-radius: 4px;
+    border-radius: 6px;
     font-size: 12px;
     white-space: nowrap;
     z-index: 1000;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    margin-bottom: 5px;
+    margin-left: 10px;
+    opacity: 0;
+    animation: fadeInTooltip 0.3s ease forwards;
+    pointer-events: none;
 }
 
 .main-content .decline-status:hover::before {
     content: '';
     position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
     border: 5px solid transparent;
-    border-top-color: #333;
-    margin-bottom: -5px;
+    border-right-color: #333;
+    margin-left: 5px;
     z-index: 1000;
+    opacity: 0;
+    animation: fadeInTooltip 0.3s ease forwards;
+    pointer-events: none;
+}
+
+@keyframes fadeInTooltip {
+    0% {
+        opacity: 0;
+        transform: translateY(-50%) translateX(-10px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0) scale(1);
+    }
 }
 
 .main-content footer {
@@ -647,4 +669,514 @@ body {
 }
 .inline-action-buttons .secondary:hover {
     background-color: #c83427;
+}
+
+/* Event info with location editing */
+.event-details {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.event-info-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.edit-event-info-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    margin-top: 10px;
+    align-self: flex-start;
+}
+
+.edit-event-info-btn:hover {
+    background: #218838;
+}
+
+.date-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.location-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.edit-date-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.edit-date-btn:hover {
+    background: #218838;
+}
+
+.edit-location-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.edit-location-btn:hover {
+    background: #218838;
+}
+
+.add-location-btn {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.add-location-btn:hover {
+    background: #0056b3;
+}
+
+.no-location {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* 모달 스타일 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    animation: modalSlideIn 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #dadce0;
+    background-color: #f8f9fa;
+    border-radius: 8px 8px 0 0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: #202124;
+    font-size: 20px;
+    font-weight: 500;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #202124;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.close {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.close:hover {
+    color: #000;
+}
+
+.modal-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #333;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.modal-actions .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s;
+}
+
+.modal-actions .btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.modal-actions .btn-primary:hover {
+    background: #0056b3;
+}
+
+.modal-actions .btn-secondary {
+    background: #6c757d;
+    color: white;
+}
+
+.modal-actions .btn-secondary:hover {
+    background: #545b62;
+}
+
+/* 회원 선택 모달 스타일 */
+.member-list {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-top: 15px;
+}
+
+.member-item {
+    border-bottom: 1px solid #eee;
+}
+
+.member-item:last-child {
+    border-bottom: none;
+}
+
+.member-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.member-checkbox:hover {
+    background-color: #f8f9fa;
+}
+
+.member-checkbox input[type="checkbox"] {
+    margin-right: 12px;
+    transform: scale(1.1);
+}
+
+.member-info {
+    flex: 1;
+}
+
+.member-name {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: 4px;
+}
+
+.member-details {
+    font-size: 0.9em;
+    color: var(--text-light);
+    line-height: 1.4;
+}
+
+#member-search {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+#member-search:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* 이메일 작성 모달 스타일 */
+.toolbar-btn {
+    padding: 6px 10px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    margin-right: 5px;
+    transition: background-color 0.2s;
+}
+
+.toolbar-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.toolbar-separator {
+    display: inline-block;
+    width: 1px;
+    height: 20px;
+    background-color: #ddd;
+    margin: 0 5px;
+    vertical-align: middle;
+}
+
+#emailEditor {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    position: relative;
+}
+
+/* 텍스트 요소들이 이미지 위에 오지 않도록 - 이미지는 인라인 블록으로 텍스트와 같은 레벨에 배치 */
+
+#emailEditor:focus {
+    outline: 2px solid #4285F4;
+    outline-offset: -2px;
+}
+
+#emailEditor img {
+    max-width: 100%;
+    height: auto;
+    margin: 5px 0;
+    cursor: pointer;
+}
+
+#emailEditor img:hover {
+    opacity: 0.9;
+}
+
+/* 이미지 리사이즈 관련 스타일 */
+#emailEditor .image-wrapper {
+    position: relative;
+    display: inline-block;
+    max-width: 100%;
+    margin: 5px 5px 5px 0;
+    vertical-align: top;
+    user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    z-index: 0;
+    clear: both;
+}
+
+#emailEditor .image-wrapper img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0;
+    user-select: none;
+    pointer-events: auto;
+    vertical-align: top;
+    position: relative;
+}
+
+#emailEditor .image-wrapper.resizing {
+    pointer-events: auto;
+}
+
+#emailEditor .image-wrapper.resizing img {
+    pointer-events: auto;
+}
+
+#emailEditor .image-wrapper.image-selected {
+    outline: 2px solid #4285f4;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+#emailEditor .image-wrapper.image-selected img {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+#emailEditor .image-resize-handle {
+    position: absolute;
+    background-color: #4285f4;
+    border: 2px solid white;
+    display: none;
+    z-index: 1000;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: background-color 0.1s ease;
+}
+
+#emailEditor .image-resize-handle:hover {
+    background-color: #357ae8;
+}
+
+/* 모서리 핸들 */
+#emailEditor .image-resize-handle-top-left,
+#emailEditor .image-resize-handle-top-right,
+#emailEditor .image-resize-handle-bottom-left,
+#emailEditor .image-resize-handle-bottom-right {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+}
+
+/* 변 핸들 */
+#emailEditor .image-resize-handle-top,
+#emailEditor .image-resize-handle-bottom {
+    width: 24px;
+    height: 6px;
+    border-radius: 3px;
+}
+
+#emailEditor .image-resize-handle-left,
+#emailEditor .image-resize-handle-right {
+    width: 6px;
+    height: 24px;
+    border-radius: 3px;
+}
+
+#emailEditor .image-delete-btn {
+    position: absolute !important;
+    top: -12px !important;
+    right: -12px !important;
+    width: 24px;
+    height: 24px;
+    background-color: #f44336;
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    display: none;
+    z-index: 1001;
+    text-align: center;
+    line-height: 24px;
+    font-size: 18px;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    transition: transform 0.1s ease;
+}
+
+#emailEditor .image-delete-btn:hover {
+    transform: scale(1.1);
+    background-color: #d32f2f;
+}
+
+.close-btn {
+    color: #aaa;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 1;
+    background: none;
+    border: none;
+    padding: 0;
+}
+
+.close-btn:hover {
+    color: #000;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 16px 20px;
+    border-top: 1px solid #dadce0;
+    background-color: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+.modal-footer .btn {
+    padding: 8px 16px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.modal-footer .btn-primary {
+    background-color: #1a73e8;
+    color: white;
+    border-color: #1a73e8;
+}
+
+.modal-footer .btn-primary:hover {
+    background-color: #1765cc;
+    border-color: #1765cc;
+    box-shadow: 0 1px 3px rgba(26, 115, 232, 0.3);
+}
+
+.modal-footer .btn-secondary {
+    background-color: white;
+    color: #5f6368;
+    border-color: #dadce0;
+}
+
+.modal-footer .btn-secondary:hover {
+    background-color: #f8f9fa;
+    border-color: #dadce0;
 }

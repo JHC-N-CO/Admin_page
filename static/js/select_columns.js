@@ -15,16 +15,36 @@ document.getElementById('clear').addEventListener('click', function() {
 // Download Excel 버튼
 document.getElementById('exportForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    console.log('=== EXCEL DOWNLOAD START ===');
+    
     const formData = new FormData(this);
+    console.log('Form action:', this.action);
+    console.log('Form data entries:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}: ${value}`);
+    }
+    
     fetch(this.action, {
         method: 'POST',
         body: formData
     })
     .then(response => {
-        if (!response.ok) throw new Error('Network response was not ok');
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        
+        if (!response.ok) {
+            console.error('Response not OK:', response.status, response.statusText);
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         return response.blob();
     })
     .then(blob => {
+        console.log('Blob received, size:', blob.size, 'type:', blob.type);
+        
+        if (blob.size === 0) {
+            throw new Error('Received empty file');
+        }
+        
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -33,10 +53,12 @@ document.getElementById('exportForm').addEventListener('submit', function(e) {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+        
+        console.log('Download completed successfully');
     })
     .catch(error => {
         console.error('Download Error:', error);
-        alert('Failed to download the file.');
+        alert('Failed to download the file: ' + error.message);
     });
 });
 
@@ -45,10 +67,10 @@ document.getElementById('qrExportBtn').addEventListener('click', function() {
     const pathSelection = document.querySelector('.path-selection');
     if (pathSelection.style.display === 'none') {
         pathSelection.style.display = 'block';
-        this.textContent = 'Excel 다운로드 (QR 코드) - 경로 설정';
+        this.textContent = 'Excel 다운로드 (QR 코드) - 경로 설정 ▲';
     } else {
         pathSelection.style.display = 'none';
-        this.textContent = 'Excel 다운로드 (QR 코드)';
+        this.textContent = 'Excel 다운로드 (QR 코드) ▼';
     }
 });
 
@@ -108,36 +130,37 @@ if (confirmRatingBtn) {
     });
 }
 
-// 폴더 선택 버튼 (브라우저 제한으로 인해 입력만 가능)
-document.getElementById('browsePathBtn').addEventListener('click', function() {
+// QR Excel 저장 버튼 (서버가 입력 경로에 직접 저장)
+document.getElementById('qrExportWithPathBtn').addEventListener('click', async function() {
     const pathInput = document.getElementById('customPath');
-    const currentPath = pathInput.value || '/Users/jhc/Downloads/Excel_QR_Code';
-    const newPath = prompt('저장할 폴더 경로를 입력하세요:', currentPath);
-    if (newPath) {
-        pathInput.value = newPath;
-    }
-});
-
-// 실제 경로로 다운로드 버튼 (ZIP 파일로 다운로드)
-document.getElementById('qrExportWithPathBtn').addEventListener('click', function() {
-    const customPath = document.getElementById('customPath').value.trim();
+    const customPath = pathInput.value.trim();
+    
     if (!customPath) {
-        alert('저장할 폴더 경로를 입력해주세요.');
+        alert('저장할 폴더 경로를 입력해주세요.\n\n예: /Users/jhc/Downloads/QR');
         return;
     }
     
     const formData = new FormData(document.getElementById('exportForm'));
     formData.append('custom_path', customPath);
     
-    fetch(`/download_qr_participants_excel_with_path_zip/${eventId}`, {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => {
+    try {
+        const response = await fetch(`/download_qr_participants_excel_with_path_zip/${eventId}`, {
+            method: 'POST',
+            body: formData
+        });
+        
         if (!response.ok) throw new Error('Network response was not ok');
-        return response.blob();
-    })
-    .then(blob => {
+        
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            const data = await response.json();
+            if (data.success && data.saved_to) {
+                alert(`저장 완료!\n\n${data.saved_to}\n\n압축을 풀면 Excel @Image 경로와 일치합니다.`);
+                return;
+            }
+        }
+        
+        const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -146,9 +169,8 @@ document.getElementById('qrExportWithPathBtn').addEventListener('click', functio
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Download Error:', error);
-        alert('Failed to download the file.');
-    });
+        alert('저장에 실패했습니다: ' + error.message);
+    }
 });

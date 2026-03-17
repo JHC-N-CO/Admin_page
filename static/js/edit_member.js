@@ -46,7 +46,7 @@ document.getElementById('password_confirm').addEventListener('input', function()
     }
 });
 
-// 폼 제출 전 검증
+// 폼 제출 전 검증 및 AJAX 제출
 document.querySelector('form').addEventListener('submit', function(e) {
     const password = document.getElementById('password').value;
     const confirm = document.getElementById('password_confirm').value;
@@ -70,13 +70,42 @@ document.querySelector('form').addEventListener('submit', function(e) {
         alert('비밀번호를 입력해주세요.');
         return false;
     }
+    
+    // 팝업 창에서 열린 경우에만 AJAX로 처리
+    if (window.opener) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        const actionUrl = this.action;
+        
+        fetch(actionUrl, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.redirected) {
+                // 성공적으로 리다이렉트된 경우
+                if (window.opener && !window.opener.closed) {
+                    window.opener.location.reload();
+                }
+                window.close();
+            } else {
+                return response.text();
+            }
+        })
+        .then(html => {
+            if (html) {
+                // 에러가 있는 경우 페이지 다시 로드
+                document.open();
+                document.write(html);
+                document.close();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('회원 정보 수정 중 오류가 발생했습니다.');
+        });
+        
+        return false;
+    }
 }); 
-
-// 사이드바 토글 기능
-const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
-const sidebar = document.getElementById('sidebar');
-if (sidebarToggleBtn && sidebar) {
-    sidebarToggleBtn.addEventListener('click', function() {
-        sidebar.classList.toggle('collapsed');
-    });
-} 

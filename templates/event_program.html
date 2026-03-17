@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>행사 프로그램 관리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/event_program.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* 툴바 버튼 hover 효과 */
+        .toolbar-btn:hover {
+            background-color: #e8eaed !important;
+        }
+        
+        /* 툴바 select hover 효과 */
+        .toolbar-select:hover {
+            background-color: #e8eaed !important;
+        }
+        
+        /* 워드 문서 업로드 버튼 hover 효과 */
+        .word-upload-btn:hover {
+            background-color: #1e3d6f !important;
+        }
+    </style>
+    
+    <!-- SheetJS 라이브러리 (엑셀 처리용) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+    <script src="{{ url_for('static', filename='js/email_compose.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/excel_view_export.js') }}"></script>
+</head>
+<body data-event-id="{{ event.id }}" data-start-date="{{ event.start_date }}" data-end-date="{{ event.end_date }}">
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin</h2>
+                <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="사이드바 토글">
+                    <svg width="28" height="28" viewBox="0 0 32 32">
+                        <rect y="7" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="14.5" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="22" width="32" height="3" rx="1.5" fill="#888"/>
+                    </svg>
+                </button>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="/members" class="nav-link" data-section="members">회원 관리</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/event" class="nav-link" data-section="events">행사 관리</a>
+                </li>
+            </ul>
+            <div class="sidebar-footer">&copy; 2025. JHC Conference</div>
+        </div>
+        <div class="main-content">
+            <div class="page-header">
+                <h1>행사 프로그램 관리</h1>
+                <a href="/event/{{ event.id }}" class="back-link">← 참가자 관리 페이지로</a>
+            </div>
+            
+            <div class="event-info">
+                <h2>행사명: {{ event.name }}</h2>
+                <p>시작일: {{ event.start_date }}</p>
+                <p>종료일: {{ event.end_date }}</p>
+            </div>
+
+            <div class="venue-management">
+                <div class="venue-header">
+                    <h3>강의 장소 관리</h3>
+                    <button type="button" class="btn btn-primary" onclick="addVenue()">
+                        <i class="fas fa-plus"></i> 장소 추가
+                    </button>
+                </div>
+                <div class="venue-list" id="venueList">
+                    <!-- 강의 장소들이 여기에 동적으로 추가됩니다 -->
+                </div>
+            </div>
+
+            <!-- 날짜 선택 탭 (행사가 여러 날일 경우) -->
+            <div id="dateTabs" class="date-tabs" style="display: none;">
+                <!-- 날짜 탭들이 여기에 동적으로 생성됩니다 -->
+            </div>
+
+            <div class="calendar-header">
+                <div class="calendar-controls">
+                    <button type="button" class="btn btn-primary" onclick="addSession()">
+                        <i class="fas fa-plus"></i> 세션 추가
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="openExcelUploadModal()">
+                        <i class="fas fa-file-excel"></i> 엑셀 업로드
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="saveProgram()">
+                        <i class="fas fa-save"></i> 저장
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="exportProgram()">
+                        <i class="fas fa-download"></i> 내보내기
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="openDisplaySettingsModal()">
+                        <i class="fas fa-cog"></i> 표시 설정
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="openEmailComposeModal()">
+                        <i class="fas fa-envelope"></i> 이메일 발송
+                    </button>
+                    <button type="button" id="multiSelectBtn" class="btn btn-warning" onclick="toggleMultiSelectMode()">
+                        <i class="fas fa-mouse-pointer"></i> 다중 선택
+                    </button>
+                    <button type="button" id="selectAllBtn" class="btn btn-info" onclick="toggleSelectAll()" style="display: none;">
+                        <i class="fas fa-check-double"></i> 전체 선택
+                    </button>
+                    <button type="button" id="deleteSelectedBtn" class="btn btn-danger" onclick="deleteSelectedSessions()" style="display: none;">
+                        <i class="fas fa-trash"></i> 선택 삭제 (<span id="selectedCount">0</span>)
+                    </button>
+                    <div class="view-toggle-group" role="group" aria-label="뷰 전환">
+                        <button type="button" class="btn btn-outline-primary view-toggle-btn active" data-view-mode="calendar">
+                            <i class="fas fa-calendar-alt"></i> 캘린더 뷰
+                        </button>
+                        <button type="button" class="btn btn-outline-primary view-toggle-btn" data-view-mode="excel">
+                            <i class="fas fa-table"></i> 엑셀 뷰
+                        </button>
+                    </div>
+                </div>
+                <div class="time-range">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openTimeSettingsModal()" title="프로그램 시작/종료 시간 설정">
+                        <i class="fas fa-clock"></i>
+                    </button>
+                    <span id="currentTimeRange">08:00 - 20:00</span>
+                </div>
+            </div>
+
+            <div class="calendar-container">
+                <!-- 선택 박스 -->
+                <div id="selectionBox" class="selection-box"></div>
+                
+                <div class="time-grid">
+                    <div class="time-column">
+                        <div class="time-header">시간</div>
+                    </div>
+                    <div class="venues-columns" id="venuesColumns">
+                        <!-- 강의 장소 컬럼들이 동적으로 생성됩니다 -->
+                    </div>
+                </div>
+                
+                <!-- 통합 스크롤 컨테이너 -->
+                <div class="scroll-container" id="scrollContainer">
+                    <div class="scroll-content">
+                        <div class="scroll-time-slots" id="scrollTimeSlots">
+                            <!-- 시간 슬롯들이 동적으로 생성됩니다 -->
+                        </div>
+                        <div class="scroll-venues-area" id="scrollVenuesArea">
+                            <!-- 각 장소별 세션들이 여기에 동적으로 추가됩니다 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        <div id="excelViewContainer" class="excel-view-container" style="display: none;">
+            <div class="excel-view-toolbar">
+                <div class="excel-view-summary">
+                    <span id="excelViewRowCount">총 0행</span>
+                </div>
+                <div class="excel-view-controls">
+                    <div class="excel-view-filters" style="display: flex; align-items: center; gap: 15px; margin-right: 15px;">
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666;">
+                            <span style="font-weight: 600;">필터:</span>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="checkbox" id="filterDomesticChair" checked style="width: 16px; height: 16px;">
+                                <span>국내좌장</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="checkbox" id="filterOverseasChair" checked style="width: 16px; height: 16px;">
+                                <span>해외좌장</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="checkbox" id="filterNoChair" checked style="width: 16px; height: 16px;">
+                                <span>좌장없음</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="checkbox" id="filterDomesticSpeaker" checked style="width: 16px; height: 16px;">
+                                <span>국내연자</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="checkbox" id="filterOverseasSpeaker" checked style="width: 16px; height: 16px;">
+                                <span>해외연자</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                                <input type="checkbox" id="filterNoSpeaker" checked style="width: 16px; height: 16px;">
+                                <span>연자없음</span>
+                            </label>
+                            <button type="button" id="resetFiltersBtn" style="margin-left: 10px; padding: 4px 10px; font-size: 12px; background-color: #f0f0f0; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; color: #666;">
+                                <i class="fas fa-redo"></i> 필터 초기화
+                            </button>
+                        </div>
+                    </div>
+                    <div class="excel-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="excelViewSearchInput" placeholder="검색 (세션명, 발표자, 장소 등)">
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="excelViewRefreshBtn">
+                        <i class="fas fa-sync-alt"></i> 새로고침
+                    </button>
+                    <button type="button" class="btn btn-primary" id="excelViewExportBtn" onclick="openExcelViewExportModal()">
+                        <i class="fas fa-download"></i> 내보내기
+                    </button>
+                </div>
+            </div>
+            <div class="excel-table-wrapper">
+                <table class="excel-table" id="excelViewTable">
+                    <thead></thead>
+                    <tbody></tbody>
+                </table>
+                <div class="excel-view-empty" id="excelViewEmptyState" style="display: none;">
+                    <i class="fas fa-folder-open"></i>
+                    <p>표시할 데이터가 없습니다.</p>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+
+    <!-- 세션 추가/편집 모달 -->
+    <div id="sessionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">세션 추가</h3>
+                <span class="close" onclick="closeSessionModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="sessionForm">
+                    <div class="form-group">
+                        <label for="sessionType">세션 종류 (Session Type)</label>
+                        <select id="sessionType" name="sessionType" required>
+                            <option value="">세션 종류를 선택하세요</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="sessionLanguage">언어 (Language) <span style="color: #999; font-size: 12px;">- 선택사항</span></label>
+                        <input type="text" id="sessionLanguage" name="sessionLanguage" placeholder="예: English Session">
+                        <small class="form-text text-muted">입력하면 세션 블록 상단에 붉은색으로 표시됩니다.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sessionTitle">세션명 (Session Topic)</label>
+                        <input type="text" id="sessionTitle" name="sessionTitle" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sessionVenue">강의 장소</label>
+                        <select id="sessionVenue" name="sessionVenue" required>
+                            <option value="">장소를 선택하세요</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>좌장 (Chair) <span style="color: #999; font-size: 12px;">- 선택사항</span></label>
+                        <div id="chairsContainer">
+                            <!-- 좌장들이 여기에 동적으로 추가됩니다 -->
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="addChair()">
+                            <i class="fas fa-plus"></i> 좌장 추가
+                        </button>
+                    </div>
+                    
+                    <div class="time-range-group">
+                        <div class="form-group">
+                            <label for="sessionStartTime">시작 시간</label>
+                            <input type="time" id="sessionStartTime" name="sessionStartTime" step="300" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="sessionEndTime">종료 시간</label>
+                            <input type="time" id="sessionEndTime" name="sessionEndTime" step="300" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>발표자 (Speakers)</label>
+                        <div id="speakersContainer">
+                            <!-- 발표자들이 여기에 동적으로 추가됩니다 -->
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="addSpeaker()">
+                            <i class="fas fa-plus"></i> 발표자 추가
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeSessionModal()">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveSession()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 빠른 세션 추가 모달 -->
+    <div id="quickSessionModal" class="modal">
+        <div class="modal-content quick-modal">
+            <div class="modal-header">
+                <h3>빠른 세션 추가</h3>
+                <span class="close" onclick="closeQuickSessionModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="quickSessionForm">
+                    <div class="form-group">
+                        <label for="quickSessionTitle">세션 제목</label>
+                        <input type="text" id="quickSessionTitle" name="quickSessionTitle" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quickSessionVenue">강의 장소</label>
+                        <select id="quickSessionVenue" name="quickSessionVenue" required>
+                            <option value="">장소를 선택하세요</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="quickSessionChair">좌장</label>
+                        <div class="participant-selector">
+                            <input type="hidden" id="quickSessionChair" name="quickSessionChair" required>
+                            <div class="selected-participant" id="selectedQuickChair">
+                                <span class="placeholder">좌장을 선택하세요</span>
+                            </div>
+                            <button type="button" class="btn btn-secondary participant-search-btn" onclick="openParticipantSearch('quickChair')">
+                                <i class="fas fa-search"></i> 검색
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="time-display">
+                        <span>선택된 시간: <strong id="selectedTimeRange"></strong></span>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeQuickSessionModal()">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveQuickSession()">추가</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 강의 장소 추가/편집 모달 -->
+    <div id="venueModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="venueModalTitle">강의 장소 추가</h3>
+                <span class="close" onclick="closeVenueModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="venueForm">
+                    <div class="form-group">
+                        <label for="venueName">장소명</label>
+                        <input type="text" id="venueName" name="venueName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="venueDescription">설명 (선택사항)</label>
+                        <textarea id="venueDescription" name="venueDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeVenueModal()">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveVenue()">저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 색상 선택 모달 -->
+    <div id="colorPickerModal" class="modal">
+        <div class="modal-content color-modal">
+            <div class="modal-header">
+                <h3>색상 선택</h3>
+                <span class="close" onclick="closeColorPickerModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="color-grid">
+                    <div class="color-option outline" data-color="0" style="background: #ffffff;" onclick="selectColor(0)" title="무채색"></div>
+                    <div class="color-option" data-color="1" style="background: #4285f4;" onclick="selectColor(1)" title="블루"></div>
+                    <div class="color-option" data-color="2" style="background: #34a853;" onclick="selectColor(2)" title="그린"></div>
+                    <div class="color-option light" data-color="3" style="background: #fbbc04;" onclick="selectColor(3)" title="옐로"></div>
+                    <div class="color-option" data-color="4" style="background: #ea4335;" onclick="selectColor(4)" title="레드"></div>
+                    <div class="color-option" data-color="5" style="background: #9c27b0;" onclick="selectColor(5)" title="바이올렛"></div>
+                    <div class="color-option light" data-color="6" style="background: #ff9800;" onclick="selectColor(6)" title="오렌지"></div>
+                    <div class="color-option" data-color="7" style="background: #00bcd4;" onclick="selectColor(7)" title="시안"></div>
+                    <div class="color-option light" data-color="8" style="background: #8bc34a;" onclick="selectColor(8)" title="라이트 그린"></div>
+                    <div class="color-option" data-color="9" style="background: #e91e63;" onclick="selectColor(9)" title="핑크"></div>
+                    <div class="color-option" data-color="10" style="background: #795548;" onclick="selectColor(10)" title="브라운"></div>
+                    <div class="color-option light" data-color="11" style="background: #f6d496;" onclick="selectColor(11)" title="샌드"></div>
+                    <div class="color-option light" data-color="12" style="background: #e9ddc7;" onclick="selectColor(12)" title="웜 베이지"></div>
+                    <div class="color-option light" data-color="13" style="background: #f3e0bf;" onclick="selectColor(13)" title="라이트 베이지"></div>
+                    <div class="color-option light" data-color="14" style="background: #deb765;" onclick="selectColor(14)" title="머스타드"></div>
+                    <div class="color-option light" data-color="15" style="background: #f0e8d7;" onclick="selectColor(15)" title="아이보리"></div>
+                    <div class="color-option light" data-color="16" style="background: #f7e890;" onclick="selectColor(16)" title="페일 옐로"></div>
+                    <div class="color-option light" data-color="17" style="background: #eeffb2;" onclick="selectColor(17)" title="라이트 라임"></div>
+                    <div class="color-option light" data-color="18" style="background: #c5c182;" onclick="selectColor(18)" title="올리브"></div>
+                    <div class="color-option light" data-color="19" style="background: #a6a56c;" onclick="selectColor(19)" title="카키"></div>
+                    <div class="color-option light" data-color="20" style="background: #a3a990;" onclick="selectColor(20)" title="그레이 그린"></div>
+                    <div class="color-option light" data-color="21" style="background: #d6deca;" onclick="selectColor(21)" title="실버 세이지"></div>
+                    <div class="color-option light" data-color="22" style="background: #cfe2c8;" onclick="selectColor(22)" title="민트 그레이"></div>
+                    <div class="color-option light" data-color="23" style="background: #91c2ba;" onclick="selectColor(23)" title="소프트 틸"></div>
+                    <div class="color-option light" data-color="24" style="background: #f8cdc9;" onclick="selectColor(24)" title="라이트 로즈"></div>
+                    <div class="color-option light" data-color="25" style="background: #ffd5e5;" onclick="selectColor(25)" title="파우더 핑크"></div>
+                    <div class="color-option light" data-color="26" style="background: #f4b6c2;" onclick="selectColor(26)" title="로즈 블러쉬"></div>
+                    <div class="color-option light" data-color="27" style="background: #dce9ff;" onclick="selectColor(27)" title="라이트 블루"></div>
+                    <div class="color-option light" data-color="28" style="background: #c3d9ff;" onclick="selectColor(28)" title="파우더 블루"></div>
+                    <div class="color-option light" data-color="29" style="background: #a7c5eb;" onclick="selectColor(29)" title="페일 코발트"></div>
+                    <div class="color-option light" data-color="30" style="background: #b2e2f2;" onclick="selectColor(30)" title="미스트 스카이"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 세션 상세 정보 툴팁 -->
+    <div id="sessionTooltip" class="session-tooltip"></div>
+
+    <!-- 참가자 검색 모달 -->
+    <div id="participantSearchModal" class="modal">
+        <div class="modal-content participant-search-modal">
+            <div class="modal-header">
+                <h3 id="participantSearchTitle">참가자 선택</h3>
+                <span class="close" onclick="closeParticipantSearchModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="search-section">
+                    <div class="search-box">
+                        <input type="text" id="participantSearchInput" placeholder="이름, 소속, 이메일로 검색..." autocomplete="off">
+                        <i class="fas fa-search search-icon"></i>
+                    </div>
+                </div>
+                <div class="participant-list" id="participantSearchResults">
+                    <!-- 검색 결과가 여기에 동적으로 표시됩니다 -->
+                </div>
+                <div class="no-results" id="noResults" style="display: none;">
+                    <i class="fas fa-search"></i>
+                    <p>검색 결과가 없습니다.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeParticipantSearchModal()">취소</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 시간 설정 모달 -->
+    <div id="timeSettingsModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>프로그램 시간 설정</h3>
+                <span class="close" onclick="closeTimeSettingsModal()">&times;</span>
+            </div>
+            <form id="timeSettingsForm" onsubmit="saveTimeSettings(event)">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="programStartTime">시작 시간</label>
+                        <input type="time" id="programStartTime" class="form-control" required step="300">
+                        <small class="form-text text-muted">프로그램이 시작되는 시간 (5분 단위)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="programEndTime">종료 시간</label>
+                        <input type="time" id="programEndTime" class="form-control" required step="300">
+                        <small class="form-text text-muted">프로그램이 종료되는 시간 (5분 단위)</small>
+                    </div>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        시간을 변경하면 캘린더 전체가 새로운 시간 범위로 조정됩니다.
+                        기존 세션들의 시간은 유지되지만, 새 시간 범위를 벗어나는 세션은 표시되지 않을 수 있습니다.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeTimeSettingsModal()">취소</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-check"></i> 적용
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 엑셀 업로드 모달 -->
+    <div id="excelUploadModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>프로그램 엑셀 업로드</h3>
+                <span class="close" onclick="closeExcelUploadModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="upload-section">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>CSV/Excel 파일 형식 안내</strong>
+                        <p style="margin: 8px 0 0 0; font-size: 13px;">
+                            다음 컬럼을 포함한 CSV 또는 Excel 파일을 업로드하세요:
+                        </p>
+                        <ul style="margin: 8px 0 0 20px; font-size: 12px; line-height: 1.6;">
+                            <li><strong>날짜 (Date)</strong>: 세션 날짜 (예: 2026. 6. 19 또는 2026-06-19) - 선택사항</li>
+                            <li><strong>세션종류 (Session Type)</strong>: 세션 종류 (예: Special Interest Group, Parallel Symposium 등)</li>
+                            <li><strong>언어 (Language)</strong>: 세션 언어 표기 (예: English Session) - 선택사항</li>
+                            <li><strong>세션약어 (Session Abbreviation)</strong>: 세션 약어 (예: SIG, PS 등) - 선택사항</li>
+                            <li><strong>세션주제 (Session Topic)</strong>: 세션 제목</li>
+                            <li><strong>발표장소 (Venue)</strong>: 강의 장소명 (예: Hanra A 또는 Hanra ABC로 여러 장소 통합)</li>
+                            <li><strong>세션시간 (Session Time)</strong>: HH:MM-HH:MM 형식 (예: 9:00-10:15 또는 09:00-10:15)</li>
+                            <li><strong>좌장 (Chair)</strong>: 좌장 이름 (여러 명인 경우 "/"로 구분) - 선택사항<br>
+                                <span style="color: #28a745; font-size: 11px;">※ Break, Opening Ceremony, General Assembly 등은 좌장 없이 생성 가능</span>
+                            </li>
+                            <li><strong>발표자 (Speaker)</strong>: 발표자 이름 (여러 명인 경우 "/"로 구분, 예: 김헌민 / 이서영 / 손영민)<br>
+                                <span style="color: #0275d8; font-size: 11px;">※ Discussion, Q&A, Break 등 활동은 그대로 입력 (참가자 검색 안 함)</span>
+                            </li>
+                            <li><strong>발표 주제 (Lecture Title)</strong>: 발표 제목 (선택사항)</li>
+                            <li><strong>발표시간 (Lecture Time)</strong>: HH:MM-HH:MM 형식 (선택사항, 없으면 세션 시간 사용)</li>
+                        </ul>
+                        <p style="margin: 8px 0 0 0; font-size: 12px; color: #d9534f;">
+                            ※ 같은 세션에 여러 발표자가 있는 경우: (1) "/"로 구분하거나 (2) 세션 정보를 동일하게 여러 행에 입력하세요.
+                        </p>
+                        <p style="margin: 8px 0 0 0; font-size: 12px; color: #0275d8;">
+                            ※ 날짜가 없으면 현재 선택된 날짜 탭에 세션이 추가됩니다.
+                        </p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="excelFileInput">파일 선택</label>
+                        <input type="file" id="excelFileInput" accept=".xlsx,.xls,.csv" class="form-control">
+                        <small class="form-text text-muted">Excel 파일 (.xlsx, .xls) 또는 CSV 파일 (.csv) 업로드 가능합니다.</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <button type="button" class="btn btn-secondary" onclick="downloadExcelTemplate()">
+                            <i class="fas fa-download"></i> 템플릿 다운로드
+                        </button>
+                        <small class="form-text text-muted">엑셀 템플릿을 다운로드하여 형식을 확인하세요.</small>
+                    </div>
+                </div>
+                
+                <div id="uploadProgress" style="display: none;">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="progressBarFill"></div>
+                    </div>
+                    <p id="uploadStatus" style="text-align: center; margin-top: 10px;">처리 중...</p>
+                </div>
+                
+                <div id="uploadResult" style="display: none;">
+                    <div class="alert alert-success" id="uploadSuccessMessage"></div>
+                    <div class="alert alert-danger" id="uploadErrorMessage" style="display: none;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeExcelUploadModal()">취소</button>
+                <button type="button" id="excelUploadBtn" class="btn btn-primary" onclick="processExcelUpload()">
+                    <i class="fas fa-upload"></i> 업로드 및 생성
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 표시 설정 모달 -->
+    <div id="displaySettingsModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>세션 블록 표시 설정</h2>
+                <button class="close-btn" onclick="closeDisplaySettingsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px; color: #666;">세션 블록에 표시할 항목을 선택하세요:</p>
+                <div class="display-settings-options">
+                    <div class="settings-section">
+                        <h4 style="font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 600;">세션 정보</h4>
+                        <label class="display-option">
+                            <input type="checkbox" id="displaySessionType" checked>
+                            <span>세션 종류 (Session Type)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="displaySessionTitle" checked>
+                            <span>세션명 (Session Title)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="displaySessionChair" checked>
+                            <span>좌장 (Chair)</span>
+                        </label>
+                        <div class="display-option" style="background-color: #fff; padding: 6px 10px; margin-left: 28px; display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 13px; color: #555;">좌장 이름 표기</span>
+                            <select id="chairNameLanguage" style="flex: 1; padding: 5px 8px; border: 1px solid #d0d0d0; border-radius: 4px;">
+                                <option value="kor">한글</option>
+                                <option value="eng">영문</option>
+                            </select>
+                        </div>
+                        <label class="display-option">
+                            <input type="checkbox" id="displaySessionTime" checked>
+                            <span>세션 시간 (Session Time)</span>
+                        </label>
+                    </div>
+                    <div class="settings-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                        <h4 style="font-size: 13px; color: #888; margin-bottom: 8px; font-weight: 600;">발표자 정보</h4>
+                        <label class="display-option">
+                            <input type="checkbox" id="displaySpeakers">
+                            <span>발표자 목록 표시</span>
+                        </label>
+                        <div id="speakerDetailsOptions" style="margin-left: 28px; margin-top: 8px; display: none;">
+                            <label class="display-option" style="background-color: #fff; padding: 6px 10px;">
+                                <input type="checkbox" id="displaySpeakerName" checked>
+                                <span style="font-size: 13px;">발표자 이름</span>
+                            </label>
+                            <div class="display-option" style="background-color: #fff; padding: 6px 10px; display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 13px; color: #555;">발표자 이름 표기</span>
+                                <select id="speakerNameLanguage" style="flex: 1; padding: 5px 8px; border: 1px solid #d0d0d0; border-radius: 4px;">
+                                    <option value="kor">한글</option>
+                                    <option value="eng">영문</option>
+                                </select>
+                            </div>
+                            <label class="display-option" style="background-color: #fff; padding: 6px 10px;">
+                                <input type="checkbox" id="displaySpeakerTopic" checked>
+                                <span style="font-size: 13px;">발표 주제</span>
+                            </label>
+                            <label class="display-option" style="background-color: #fff; padding: 6px 10px;">
+                                <input type="checkbox" id="displaySpeakerTime" checked>
+                                <span style="font-size: 13px;">발표 시간</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeDisplaySettingsModal()">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveDisplaySettings()">
+                    <i class="fas fa-check"></i> 적용
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 엑셀 내보내기 설정 모달 -->
+    <div id="exportSettingsModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📊 엑셀 내보내기 설정</h2>
+                <button class="close-btn" onclick="closeExportSettingsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- 내보내기 형식 선택 -->
+                <div style="margin-bottom: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 4px;">
+                    <h4 style="font-size: 14px; color: #333; margin-bottom: 10px; font-weight: 600;">내보내기 형식</h4>
+                    <label class="display-option" style="background-color: #fff; padding: 10px; margin-bottom: 8px;">
+                        <input type="radio" name="exportFormat" value="rows" checked>
+                        <span><strong>행 기반 형식</strong> - 각 발표자별로 한 행씩 (데이터 분석용)</span>
+                    </label>
+                    <label class="display-option" style="background-color: #fff; padding: 10px;">
+                        <input type="radio" name="exportFormat" value="calendar">
+                        <span><strong>캘린더 형식</strong> - 프로그램 북 레이아웃 (인쇄용, 날짜별 시트)</span>
+                    </label>
+                </div>
+                
+                <div id="rowFormatOptions">
+                    <p style="margin-bottom: 15px; color: #666;">내보낼 컬럼을 선택하세요:</p>
+                    <div class="display-settings-options">
+                    <!-- 기본 세션 정보 -->
+                    <div class="settings-section">
+                        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px; font-weight: 600;">세션 정보</h4>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportDate" checked disabled>
+                            <span>날짜 (Date)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSessionType" checked disabled>
+                            <span>세션 종류 (Session Type)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSessionLanguage" checked disabled>
+                            <span>언어 (Language)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSessionAbbr" checked disabled>
+                            <span>세션약어 (Session Abbreviation)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSessionTitle" checked disabled>
+                            <span>세션명 (Session Topic)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportVenue" checked disabled>
+                            <span>장소 (Venue)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSessionTime" checked disabled>
+                            <span>세션 시간 (Session Time)</span>
+                        </label>
+                    </div>
+
+                    <!-- 좌장 정보 -->
+                    <div class="settings-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px; font-weight: 600;">좌장 정보</h4>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportChairName" checked disabled>
+                            <span>좌장 이름 (한글/영문)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportChairCountry" checked>
+                            <span>좌장 국가 (Country)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportChairAffiliation" checked>
+                            <span>좌장 소속 (Affiliation)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportChairEmail">
+                            <span>좌장 이메일 (Email)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportChairPosition">
+                            <span>좌장 직위 (Position)</span>
+                        </label>
+                    </div>
+
+                    <!-- 발표자 정보 -->
+                    <div class="settings-section" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                        <h4 style="font-size: 14px; color: #333; margin-bottom: 10px; font-weight: 600;">발표자 정보</h4>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSpeakerName" checked disabled>
+                            <span>발표자 이름 (한글/영문)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSpeakerCountry" checked>
+                            <span>발표자 국가 (Country)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSpeakerAffiliation" checked>
+                            <span>발표자 소속 (Affiliation)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSpeakerEmail">
+                            <span>발표자 이메일 (Email)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSpeakerPosition">
+                            <span>발표자 직위 (Position)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSpeakerTopic" checked disabled>
+                            <span>발표 주제 (Lecture Title)</span>
+                        </label>
+                        <label class="display-option">
+                            <input type="checkbox" id="exportSpeakerTime" checked disabled>
+                            <span>발표 시간 (Lecture Time)</span>
+                        </label>
+                    </div>
+                    </div>
+                    <div style="margin-top: 15px; padding: 10px; background-color: #e3f2fd; border-radius: 4px; font-size: 13px; color: #1976d2;">
+                        <i class="fas fa-info-circle"></i> <strong>참고:</strong> 체크 해제된 항목(회색)은 필수 컬럼으로 항상 내보내집니다.
+                    </div>
+                </div>
+                
+                <div id="calendarFormatOptions" style="display: none;">
+                    <p style="margin-bottom: 15px; color: #666; font-weight: bold;">캘린더 세부화 수준:</p>
+                    <div style="margin-left: 20px; margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="calendarDetailLevel" value="session" checked style="margin-right: 8px;">
+                            <strong>일반 캘린더</strong> - 세션 시간대별 표시
+                        </label>
+                        <ul style="margin-left: 30px; color: #666; font-size: 13px; line-height: 1.6; margin-bottom: 15px;">
+                            <li>세션 시간(예: 09:00-10:15)을 행으로 표시</li>
+                            <li>세션 정보, 좌장, 모든 발표자 한 셀에 표시</li>
+                        </ul>
+                        <div id="calendarSimpleColorOption" style="display: none; margin-top: 14px; padding: 12px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px;">
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #444; margin-bottom: 10px;">
+                                <input type="checkbox" id="calendarSimpleApplySessionColors" style="width: 16px; height: 16px;">
+                                <span>세션 셀에 화면 색상 적용</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #444;">
+                                <input type="checkbox" id="calendarSimpleExcludeNames" style="width: 16px; height: 16px;">
+                                <span>좌장, 발표자 이름 및 발표 제목 제외 (Program at a Glance용)</span>
+                            </label>
+                            <p style="margin: 8px 0 0 26px; font-size: 12px; color: #777; line-height: 1.5;">
+                                세션 정보가 들어간 셀에 선택된 세션 색상을 채워서 내보냅니다.
+                            </p>
+                        </div>
+                        
+                        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+                            <input type="radio" name="calendarDetailLevel" value="speaker" style="margin-right: 8px;">
+                            <strong>세부화된 캘린더</strong> - 발표자 시간대별 표시
+                        </label>
+                        <ul style="margin-left: 30px; color: #666; font-size: 13px; line-height: 1.6;">
+                            <li>세션시간 컬럼과 발표시간 컬럼 분리</li>
+                            <li>각 발표자의 개별 시간(예: 09:00-09:25)을 행으로 표시</li>
+                            <li>발표 주제, 발표자 이름, 국가 정보 상세 표시</li>
+                            <li>프로그램 북 인쇄에 최적화</li>
+                        </ul>
+                        <div id="calendarDetailColorOption" style="display: none; margin-top: 14px; padding: 12px; background-color: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px;">
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #444; margin-bottom: 10px;">
+                                <input type="checkbox" id="calendarDetailedApplySessionColors" style="width: 16px; height: 16px;">
+                                <span>세션 헤더 셀에 화면 색상 적용</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 13px; color: #444;">
+                                <input type="checkbox" id="calendarDetailedUseFullSessionType" style="width: 16px; height: 16px;">
+                                <span>세션 약자 대신 세션 종류 전체 이름 사용</span>
+                            </label>
+                            <p style="margin: 8px 0 0 26px; font-size: 12px; color: #777; line-height: 1.5;">
+                                세션 제목과 좌장 정보가 들어간 셀에만 선택된 세션 색상을 채워서 내보냅니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeExportSettingsModal()">취소</button>
+                <button type="button" class="btn btn-primary" onclick="performExport()">
+                    <i class="fas fa-download"></i> 내보내기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 이메일 발송 모달 -->
+    <div id="emailComposeModal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>이메일 발송</h2>
+                <button class="close-btn" onclick="closeEmailComposeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">수신자 선택</h3>
+                    <div style="display: flex; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="selectAllChairs" style="width: 16px; height: 16px;">
+                            <span>모든 좌장</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="selectAllSpeakers" style="width: 16px; height: 16px;">
+                            <span>모든 연자</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="filterDomestic" style="width: 16px; height: 16px;">
+                            <span>국내</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="filterInternational" style="width: 16px; height: 16px;">
+                            <span>국외</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <input type="text" id="recipientSearchInput" placeholder="이름 또는 이메일로 검색..." style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                    </div>
+                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
+                        <div id="emailRecipientsList"></div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 13px; color: #666;">
+                        선택된 수신자: <span id="selectedRecipientsCount">0</span>명
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px;">이메일 작성</h3>
+                    <input type="text" id="emailSubject" placeholder="제목을 입력하세요" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                    <div id="emailEditorToolbar" style="border: 1px solid #dadce0; border-bottom: none; padding: 4px 8px; background-color: #f8f9fa; border-radius: 4px 4px 0 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                        <button type="button" class="toolbar-btn" onclick="formatText('bold')" title="굵게" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-bold" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" onclick="formatText('italic')" title="기울임" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-italic" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <button type="button" class="toolbar-btn" onclick="formatText('underline')" title="밑줄" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-underline" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <div style="position: relative; display: inline-block;">
+                            <select id="fontFamilySelect" class="toolbar-select" onchange="applyFontFamily(this.value)" title="폰트" style="padding: 6px 24px 6px 8px; border: none; background: transparent; font-size: 13px; color: #202124; cursor: pointer; appearance: none; font-weight: 500; border-radius: 4px; transition: background-color 0.2s;">
+                                <option value="Sans Serif">Sans Serif</option>
+                                <option value="Arial">Arial</option>
+                                <option value="Helvetica">Helvetica</option>
+                                <option value="Times New Roman">Times New Roman</option>
+                                <option value="Courier New">Courier New</option>
+                                <option value="Verdana">Verdana</option>
+                                <option value="Georgia">Georgia</option>
+                                <option value="Palatino">Palatino</option>
+                                <option value="Garamond">Garamond</option>
+                                <option value="Comic Sans MS">Comic Sans MS</option>
+                                <option value="Trebuchet MS">Trebuchet MS</option>
+                                <option value="Arial Black">Arial Black</option>
+                                <option value="Impact">Impact</option>
+                            </select>
+                            <span style="position: absolute; top: 50%; transform: translateY(-50%); right: 6px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368; pointer-events: none;"></span>
+                        </div>
+                        <button type="button" class="toolbar-btn" onclick="showFontSizePicker()" title="글자 크기" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; position: relative; transition: background-color 0.2s;">
+                            <span style="font-size: 14px; color: #5f6368; font-weight: 500; font-family: sans-serif;">
+                                <span style="font-size: 16px; vertical-align: top;">T</span><span style="font-size: 12px; vertical-align: bottom;">T</span>
+                            </span>
+                            <span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368;"></span>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <button type="button" class="toolbar-btn" onclick="showColorPicker(event)" title="글자 색상 및 배경 색상" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; position: relative; transition: background-color 0.2s;">
+                            <span style="font-size: 16px; color: #5f6368; font-weight: bold; font-family: serif;">A</span>
+                            <span style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 14px; height: 2px; background: #202124;"></span>
+                            <span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368;"></span>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <button type="button" class="toolbar-btn" onclick="insertImage()" title="이미지 삽입" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
+                            <i class="fas fa-image" style="font-size: 14px; color: #5f6368;"></i>
+                        </button>
+                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
+                        <button type="button" class="toolbar-btn word-upload-btn" onclick="uploadWordDocuments()" title="워드 문서 업로드 (여러 개 가능)" style="padding: 6px 8px; border: none; background: #2B579A; cursor: pointer; border-radius: 4px; font-size: 13px; color: white; transition: background-color 0.2s;">
+                            <i class="fas fa-file-word" style="font-size: 14px;"></i> 워드 문서
+                        </button>
+                    </div>
+                    <div id="emailEditor" contenteditable="true" style="min-height: 300px; padding: 15px; border: 1px solid #ddd; border-radius: 0 0 4px 4px; background-color: #fff; overflow-y: auto;" placeholder="이메일 내용을 작성하세요..."></div>
+                    <input type="file" id="wordDocumentInput" accept=".doc,.docx" multiple style="display: none;">
+                    <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                    <div id="uploadedWordFiles" style="margin-top: 10px; padding: 12px; background-color: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; display: none;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <i class="fas fa-paperclip" style="color: #5f6368;"></i>
+                            <div style="font-size: 14px; font-weight: 600; color: #202124;">첨부된 워드 문서 (Mail merge 후 Word 문서로 첨부)</div>
+                            <span id="wordFilesCount" style="font-size: 12px; color: #5f6368; margin-left: auto;">0개</span>
+                        </div>
+                        <div id="wordFilesList" style="font-size: 12px;"></div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        <i class="fas fa-info-circle"></i> Mail merge를 사용하려면 워드 문서에 *|컬럼명|* 형식으로 플레이스홀더를 입력하세요. 업로드한 워드 문서는 각 수신자별로 Mail merge 처리되어 Word 문서로 첨부됩니다 (원본 포맷팅 보존).
+                    </div>
+                    <div style="margin-top: 12px; padding: 12px; background-color: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;" onclick="togglePlaceholderList()">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <i class="fas fa-list" style="color: #5f6368;"></i>
+                                <span style="font-weight: 600; color: #202124;">사용 가능한 Mail merge 플레이스홀더</span>
+                            </div>
+                            <i class="fas fa-chevron-down" id="placeholderListIcon" style="color: #5f6368; transition: transform 0.3s;"></i>
+                        </div>
+                        <div id="placeholderListContent" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e0e0e0;">
+                            <div style="font-size: 11px; color: #5f6368; margin-bottom: 8px;">클릭하면 복사됩니다:</div>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; font-size: 11px;">
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|email|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이메일</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|email|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|name|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이름</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|name|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|name_kor|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이름 (한글)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|name_kor|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|name_eng|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">이름 (영문)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|name_eng|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|affiliation_kor|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">소속 (한글)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|affiliation_kor|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|affiliation_eng|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">소속 (영문)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|affiliation_eng|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|country|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">국가</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|country|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|phone|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">전화</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|phone|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|position|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">직위</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|position|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|department_eng|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">과 (영문)</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|department_eng|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|role|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">역할</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|role|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|code|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">코드</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|code|*</code>
+                                </div>
+                                <!-- 세션 관련 플레이스홀더 -->
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|date|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">날짜</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|date|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|session_type|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">세션 종류</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|session_type|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|session_title|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">세션명</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|session_title|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|session_time|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">세션 시간</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|session_time|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|venue|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">장소</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|venue|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|lecture_title|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">발표 주제</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|lecture_title|*</code>
+                                </div>
+                                <div class="placeholder-item" onclick="copyPlaceholder(this)" data-placeholder="*|lecture_time|*" style="padding: 8px 12px; background-color: #fff; border: 1px solid #dadce0; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.backgroundColor='#f1f3f4'; this.style.borderColor='#4285f4';" onmouseout="this.style.backgroundColor='#fff'; this.style.borderColor='#dadce0';">
+                                    <div style="color: #5f6368; font-size: 10px; margin-bottom: 4px;">발표 시간</div>
+                                    <code style="color: #1967d2; font-size: 11px;">*|lecture_time|*</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="emailCC" placeholder="참조 (쉼표로 구분된 이메일 주소)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeEmailComposeModal()">취소</button>
+                <button type="button" id="sendEmailButton" class="btn btn-primary" onclick="sendEmailToRecipients()">
+                    <i class="fas fa-paper-plane"></i> 발송
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 엑셀 뷰 내보내기 모달 -->
+    <div id="excelViewExportModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2>엑셀 뷰 내보내기</h2>
+                <button class="close-btn" onclick="closeExcelViewExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <div style="padding: 12px; background-color: #e8f0fe; border-radius: 4px; margin-bottom: 15px;">
+                        <div style="font-size: 14px; font-weight: 600; color: #1a73e8; margin-bottom: 5px;">
+                            <i class="fas fa-info-circle"></i> 현재 필터링된 데이터만 내보냅니다
+                        </div>
+                        <div style="font-size: 12px; color: #5f6368;">
+                            선택된 필터: <span id="excelViewExportFilterInfo">-</span>
+                        </div>
+                        <div style="font-size: 12px; color: #5f6368; margin-top: 5px;">
+                            내보낼 행 수: <span id="excelViewExportRowCount">0</span>행
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 12px;">내보내기 형식</h3>
+                    <div style="padding: 15px; background-color: #f8f9fa; border-radius: 4px; margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; background-color: #fff; border-radius: 4px; border: 1px solid #ddd;">
+                            <input type="radio" name="excelViewExportFormat" value="normal" checked style="width: 16px; height: 16px;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 14px; color: #202124;">일반 형식</div>
+                                <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">기본 컬럼 선택 방식으로 내보내기</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; background-color: #fff; border-radius: 4px; border: 1px solid #ddd; margin-top: 10px;">
+                            <input type="radio" name="excelViewExportFormat" value="chairEmail" style="width: 16px; height: 16px;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 14px; color: #202124;">좌장 이메일 발송용</div>
+                                <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">날짜 - 시간 - 장소 - 좌장이름 - 세션 제목 - 발표 제목들 - 좌장 이메일 형식</div>
+                            </div>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px; background-color: #fff; border-radius: 4px; border: 1px solid #ddd; margin-top: 10px;">
+                            <input type="radio" name="excelViewExportFormat" value="speakerEmail" style="width: 16px; height: 16px;">
+                            <div>
+                                <div style="font-weight: 600; font-size: 14px; color: #202124;">발표자 이메일 발송용</div>
+                                <div style="font-size: 12px; color: #5f6368; margin-top: 4px;">날짜 - 세션시간 - 장소 - 세션 약어 - 세션 제목 - 발표 제목 - 발표 시간 - 발표자 - 발표자 국가 - 발표자 소속 - 발표자 이메일 형식</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                <div id="excelViewColumnSelectorSection" style="margin-bottom: 20px;">
+                    <h3 style="font-size: 16px; margin-bottom: 12px;">컬럼 선택</h3>
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 15px; border-radius: 4px;">
+                        <div id="excelViewColumnSelector"></div>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; gap: 10px;">
+                        <button type="button" class="btn btn-secondary" onclick="selectAllExcelViewColumns()" style="font-size: 12px; padding: 6px 12px;">
+                            전체 선택
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="deselectAllExcelViewColumns()" style="font-size: 12px; padding: 6px 12px;">
+                            전체 해제
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeExcelViewExportModal()">취소</button>
+                <button type="button" class="btn btn-primary" onclick="exportFilteredExcelView()">
+                    <i class="fas fa-download"></i> 내보내기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 참가자 없음 확인 모달 -->
+    <div id="confirmMissingParticipantModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>⚠️ 참가자를 찾을 수 없습니다</h2>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" style="margin-bottom: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">
+                    <strong>참가자 리스트에 없는 사람입니다</strong>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; font-size: 14px;">
+                        <strong>이름:</strong>
+                        <span id="confirmMissingName" style="font-weight: 600;"></span>
+                        <strong>역할:</strong>
+                        <span id="confirmMissingRole"></span>
+                        <strong>세션:</strong>
+                        <span id="confirmMissingSession"></span>
+                    </div>
+                </div>
+                
+                <div style="margin: 20px 0;">
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; border: 1px solid #dee2e6;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #495057;">
+                            <i class="fas fa-search"></i> 혹시 오타인가요? 기존 참가자 검색
+                        </label>
+                        <input 
+                            type="text" 
+                            id="confirmModalSearchInput" 
+                            class="form-control" 
+                            placeholder="이름, 이메일, 소속으로 검색..." 
+                            oninput="searchInConfirmModal()"
+                            style="margin-bottom: 10px;"
+                        >
+                        <div id="confirmModalSearchResults" style="max-height: 200px; overflow-y: auto; background-color: white; border: 1px solid #dee2e6; border-radius: 4px;">
+                            <!-- 검색 결과가 여기 표시됨 -->
+                        </div>
+                    </div>
+                    
+                    <p style="font-size: 14px; color: #666; text-align: center; margin: 20px 0;">
+                        검색해도 없다면 새로 추가하세요
+                    </p>
+                </div>
+            </div>
+                <div class="modal-footer" style="display: flex; gap: 10px; justify-content: center;">
+                    <button type="button" class="btn btn-secondary" onclick="skipMissingParticipant()">
+                        <i class="fas fa-times"></i> 업로드 취소
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="proceedToAddParticipant()">
+                        <i class="fas fa-user-plus"></i> 새 참가자로 추가
+                    </button>
+                </div>
+        </div>
+    </div>
+
+    <!-- 참가자 검색 모달 (엑셀 업로드용) -->
+    <div id="excelParticipantSearchModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>참가자 검색</h2>
+                <button class="close-btn" onclick="closeExcelParticipantSearchModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info" style="margin-bottom: 20px; padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; color: #0c5460;">
+                    <strong>💡 이름이 잘못 입력된 경우</strong>
+                    <p style="margin-top: 8px; margin-bottom: 0;">올바른 참가자를 검색하여 선택하세요.</p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <div style="font-size: 14px;">
+                        <strong>엑셀에 입력된 이름:</strong> <span id="excelSearchOriginalName" style="color: #dc3545; font-weight: 600;"></span>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="excelParticipantSearchInput">참가자 검색</label>
+                    <input type="text" id="excelParticipantSearchInput" class="form-control" placeholder="이름, 이메일, 소속으로 검색..." oninput="searchExcelParticipants()" autocomplete="off">
+                    <small class="form-text text-muted">입력하는 즉시 검색 결과가 표시됩니다</small>
+                </div>
+                
+                <div id="excelSearchResults" style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+                    <p style="text-align: center; color: #666; padding: 20px;">검색어를 입력하세요</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeExcelParticipantSearchModal()">취소</button>
+                <button type="button" class="btn btn-primary" onclick="switchToAddParticipant()">
+                    <i class="fas fa-user-plus"></i> 참가자로 추가
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 참가자 추가 모달 (엑셀 업로드 중) -->
+    <div id="addParticipantModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>참가자 추가 필요</h2>
+                <button class="close-btn" onclick="closeAddParticipantModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" style="margin-bottom: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">
+                    <strong>⚠️ 참가자 리스트에 없는 사람입니다</strong>
+                    <p style="margin-top: 8px; margin-bottom: 0;">좌장이나 발표자는 반드시 참가자로 등록되어야 합니다.</p>
+                </div>
+                
+                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+                    <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 14px;">
+                        <strong>이름:</strong>
+                        <span id="missingPersonName"></span>
+                        <strong>역할:</strong>
+                        <span id="missingPersonRole"></span>
+                        <strong>세션:</strong>
+                        <span id="missingPersonSession"></span>
+                    </div>
+                </div>
+                
+                <form id="quickAddParticipantForm">
+                    <div class="form-group">
+                        <label for="quickAddEmail">이메일 *</label>
+                        <input type="email" id="quickAddEmail" class="form-control" required placeholder="example@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="quickAddAffiliation">소속</label>
+                        <input type="text" id="quickAddAffiliation" class="form-control" placeholder="소속 기관">
+                    </div>
+                    <div class="form-group">
+                        <label for="quickAddNameEng">영문 이름</label>
+                        <input type="text" id="quickAddNameEng" class="form-control" placeholder="English Name">
+                    </div>
+                </form>
+                
+                <p style="font-size: 12px; color: #666; margin-top: 15px;">
+                    * 나중에 참가자 관리 페이지에서 추가 정보를 입력할 수 있습니다.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="showParticipantSearch()">
+                    <i class="fas fa-search"></i> 참가자 검색
+                </button>
+                <button type="button" class="btn btn-primary" onclick="quickAddParticipant()">
+                    <i class="fas fa-user-plus"></i> 참가자로 추가
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/event_program.js') }}"></script>
+</body>
+</html>

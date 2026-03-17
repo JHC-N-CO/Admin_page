@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Compose Email</title>
+    <title>이메일 작성</title>
     <link rel="stylesheet" href="../static/css/compose_email.css">
 </head>
 <body>
     <div class="container">
-        <h1>Compose Email</h1>
+        <h1>이메일 작성</h1>
         <form action="/send_email" method="post" onsubmit="sendEmail(event)">
             <input type="hidden" name="participant_ids" value="{{ participant_ids }}">
             <input type="hidden" name="body" id="body">
-            <input type="text" name="subject" placeholder="Subject" required>
-            <div id="editor" class="editor" contenteditable="true" placeholder="Compose your email here..."></div>
-            <input type="text" name="cc" class="cc-input" placeholder="CC (comma-separated email addresses)">
+            <input type="text" name="subject" placeholder="제목을 입력하세요" required>
+            <div id="editor" class="editor" contenteditable="true" placeholder="이메일 내용을 작성하세요..."></div>
+            <input type="text" name="cc" class="cc-input" placeholder="참조 (쉼표로 구분된 이메일 주소)">
             <label class="checkbox-label">
-                <input type="checkbox" name="include_buttons" value="yes"> Include Accept/Decline buttons
+                <input type="checkbox" name="include_buttons" value="yes"> 승인/거절 버튼 포함
             </label>
-            <button type="submit">Send Email</button>
+            <button type="submit">이메일 발송</button>
             <div id="loading" class="loading-container">
                 <span id="loading-icon" class="spinner"></span>
                 <span id="loading-text">이메일 발송 중...</span>

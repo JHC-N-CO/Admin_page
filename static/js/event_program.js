@@ -1956,9 +1956,29 @@ function loadProgram() {
             
             // 날짜 탭 다시 초기화 (세션 로드 후)
             // 세션에 날짜 정보가 없으면 현재 선택된 날짜 또는 첫 날짜로 설정
+            // 또한 세션 날짜가 행사 날짜 범위에 속하지 않으면 행사 날짜로 수정
             let hasDateInfo = false;
             sessions.forEach(session => {
                 if (session.date) {
+                    const normalizedSessionDate = normalizeDateValue(session.date);
+                    // 세션 날짜가 행사 날짜 범위에 속하는지 확인 (년도 포함)
+                    let isDateInRange = false;
+                    if (eventDates.length > 0) {
+                        isDateInRange = eventDates.some(eventDate => {
+                            const normalizedEventDate = normalizeDateValue(eventDate);
+                            // 년도까지 정확히 일치하는지 확인
+                            return normalizedSessionDate === normalizedEventDate;
+                        });
+                    }
+                    
+                    if (!isDateInRange && eventDates.length > 0) {
+                        // 행사 날짜 범위에 속하지 않으면 첫 번째 행사 날짜로 수정
+                        const correctedDate = normalizeDateValue(eventDates[0]);
+                        console.log(`⚠️ Session "${session.title}" date ${session.date} is not in event date range (${eventDates.join(', ')}), correcting to ${correctedDate}`);
+                        session.date = correctedDate;
+                    } else {
+                        session.date = normalizedSessionDate || session.date;
+                    }
                     hasDateInfo = true;
                 } else if (!session.date && (currentSelectedDate || eventDates[0])) {
                     const fallbackDate = currentSelectedDate || normalizeDateValue(eventDates[0]);
@@ -3719,14 +3739,34 @@ function saveSession() {
     if (currentSessionIndex !== -1) {
         // 기존 세션 수정 시: 기존 세션의 날짜 유지 (정규화하여 일관성 유지)
         const oldSession = sessions[currentSessionIndex];
-        const existingDate = oldSession.date ? normalizeDateValue(oldSession.date) : null;
-        sessionDate = existingDate || (currentSelectedDate ? normalizeDateValue(currentSelectedDate) : null) || (eventDates[0] ? normalizeDateValue(eventDates[0]) : null) || null;
-        console.log(`📅 Keeping existing date for session update: ${sessionDate} (normalized from: ${oldSession.date})`);
+        // 원본 날짜가 존재하는 경우 (null/undefined가 아닌 경우) 항상 보존
+        if (oldSession.date != null) {
+            // normalizeDateValue는 파싱 가능하면 정규화된 문자열 반환, 
+            // 파싱 불가능하면 원본 문자열 반환, null/undefined/빈 문자열이면 '' 반환
+            const normalized = normalizeDateValue(oldSession.date);
+            // 정규화된 값이 빈 문자열이면 원본 날짜 보존 (파싱 실패 또는 원본이 null/undefined/빈 문자열인 경우)
+            // 정규화된 값이 원본과 다르면 정규화된 값 사용 (성공적으로 파싱된 경우)
+            // 정규화된 값이 원본과 같으면 원본 사용 (파싱 불가능하지만 원본 문자열 반환된 경우)
+            if (normalized === '') {
+                // normalizeDateValue가 빈 문자열을 반환한 경우: 원본이 null/undefined/빈 문자열
+                // 원본 날짜 보존 (null/undefined/빈 문자열도 그대로 보존)
+                sessionDate = oldSession.date;
+            } else {
+                // 정규화된 값이 있으면 사용 (파싱 성공 또는 원본 문자열)
+                sessionDate = normalized;
+            }
+        } else {
+            // 원본 날짜가 null/undefined인 경우 fallback 사용
+            sessionDate = (currentSelectedDate ? normalizeDateValue(currentSelectedDate) : null) || 
+                         (eventDates[0] ? normalizeDateValue(eventDates[0]) : null) || null;
+        }
+        console.log(`📅 Keeping existing date for session update: ${sessionDate} (original: ${oldSession.date})`);
     } else {
         // 새 세션 생성 시: 현재 선택된 날짜 사용 (정규화하여 일관성 유지)
         const selectedDate = currentSelectedDate ? normalizeDateValue(currentSelectedDate) : null;
         const fallbackDate = eventDates[0] ? normalizeDateValue(eventDates[0]) : null;
-        sessionDate = selectedDate || fallbackDate || null;
+        sessionDate = (selectedDate && selectedDate !== '') ? selectedDate : 
+                     ((fallbackDate && fallbackDate !== '') ? fallbackDate : null);
         console.log(`📅 Using current selected date for new session: ${sessionDate} (normalized from: ${currentSelectedDate})`);
     }
     
@@ -4245,45 +4285,54 @@ function generateRowExportData(overrides = null) {
             });
         }
         
-        // 각 좌장 × 각 발표자 조합으로 행 생성
-        for (const chairData of chairsData) {
-            for (const speakerData of speakersData) {
-                const row = [
-                    date,
-                    sessionType,
-                    language,
-                    sessionAbbr,
-                    sessionTitle,
-                    venue,
-                    sessionTime,
-                    chairData.nameKor,
-                    chairData.nameEng
-                ];
-                
-                if (exportSettings.chairCountry) row.push(chairData.country);
-                if (exportSettings.chairAffiliation) row.push(chairData.affiliation);
-                if (exportSettings.chairEmail) row.push(chairData.email);
-                if (exportSettings.chairPhone) row.push(chairData.phone);
-                if (exportSettings.chairAffiliationEng) row.push(chairData.affiliationEng);
-                if (exportSettings.chairDepartmentEng) row.push(chairData.departmentEng);
-                if (exportSettings.chairPosition) row.push(chairData.position);
-                
-                row.push(speakerData.nameKor);
-                row.push(speakerData.nameEng);
-                
-                if (exportSettings.speakerCountry) row.push(speakerData.country);
-                if (exportSettings.speakerAffiliation) row.push(speakerData.affiliation);
-                if (exportSettings.speakerEmail) row.push(speakerData.email);
-                if (exportSettings.speakerPhone) row.push(speakerData.phone);
-                if (exportSettings.speakerAffiliationEng) row.push(speakerData.affiliationEng);
-                if (exportSettings.speakerDepartmentEng) row.push(speakerData.departmentEng);
-                if (exportSettings.speakerPosition) row.push(speakerData.position);
-                
-                row.push(speakerData.topic);
-                row.push(speakerData.time);
-                
-                rows.push(sanitizeRowLanguageMarkers(row, headers));
-            }
+        // 좌장 정보를 하나의 셀에 세로로 결합
+        const chairNameKor = chairsData.map(c => c.nameKor).filter(n => n).join('\n');
+        const chairNameEng = chairsData.map(c => c.nameEng).filter(n => n).join('\n');
+        const chairCountry = chairsData.map(c => c.country).filter(c => c).join('\n');
+        const chairAffiliation = chairsData.map(c => c.affiliation).filter(a => a).join('\n');
+        const chairEmail = chairsData.map(c => c.email).filter(e => e).join('\n');
+        const chairPhone = chairsData.map(c => c.phone).filter(p => p).join('\n');
+        const chairAffiliationEng = chairsData.map(c => c.affiliationEng).filter(a => a).join('\n');
+        const chairDepartmentEng = chairsData.map(c => c.departmentEng).filter(d => d).join('\n');
+        const chairPosition = chairsData.map(c => c.position).filter(p => p).join('\n');
+        
+        // 각 발표자별로 행 생성 (좌장은 하나의 셀에 세로로 표시)
+        for (const speakerData of speakersData) {
+            const row = [
+                date,
+                sessionType,
+                language,
+                sessionAbbr,
+                sessionTitle,
+                venue,
+                sessionTime,
+                chairNameKor,
+                chairNameEng
+            ];
+            
+            if (exportSettings.chairCountry) row.push(chairCountry);
+            if (exportSettings.chairAffiliation) row.push(chairAffiliation);
+            if (exportSettings.chairEmail) row.push(chairEmail);
+            if (exportSettings.chairPhone) row.push(chairPhone);
+            if (exportSettings.chairAffiliationEng) row.push(chairAffiliationEng);
+            if (exportSettings.chairDepartmentEng) row.push(chairDepartmentEng);
+            if (exportSettings.chairPosition) row.push(chairPosition);
+            
+            row.push(speakerData.nameKor);
+            row.push(speakerData.nameEng);
+            
+            if (exportSettings.speakerCountry) row.push(speakerData.country);
+            if (exportSettings.speakerAffiliation) row.push(speakerData.affiliation);
+            if (exportSettings.speakerEmail) row.push(speakerData.email);
+            if (exportSettings.speakerPhone) row.push(speakerData.phone);
+            if (exportSettings.speakerAffiliationEng) row.push(speakerData.affiliationEng);
+            if (exportSettings.speakerDepartmentEng) row.push(speakerData.departmentEng);
+            if (exportSettings.speakerPosition) row.push(speakerData.position);
+            
+            row.push(speakerData.topic);
+            row.push(speakerData.time);
+            
+            rows.push(sanitizeRowLanguageMarkers(row, headers));
         }
     }
     
@@ -4805,12 +4854,20 @@ function renderExcelViewTable() {
             visibleIndices.forEach(originalIndex => {
                 const td = document.createElement('td');
                 const cell = row[originalIndex];
+                const cellDiv = document.createElement('div');
+                
                 if (cell === null || cell === undefined) {
-                    td.textContent = '';
+                    cellDiv.textContent = '';
+                    td.title = '';
                 } else {
-                    td.textContent = String(cell);
+                    const cellStr = String(cell);
+                    // 줄바꿈 문자(\n)를 <br>로 변환하여 표시 (line-clamp와 호환)
+                    cellDiv.innerHTML = cellStr.replace(/\n/g, '<br>');
+                    // 툴팁으로 전체 내용 표시
+                    td.title = cellStr;
                 }
-                td.title = td.textContent;
+                
+                td.appendChild(cellDiv);
                 td.setAttribute('data-col-index', originalIndex);
                 tr.appendChild(td);
             });
@@ -5067,6 +5124,28 @@ function exportProgramRows() {
     }
 }
 
+// 시간을 분으로 변환하는 헬퍼 함수
+function calculateDurationInMinutes(startTime, endTime) {
+    if (!startTime || !endTime) return null;
+    
+    const parseTime = (timeStr) => {
+        const parts = timeStr.split(':');
+        if (parts.length !== 2) return null;
+        const hours = parseInt(parts[0], 10);
+        const minutes = parseInt(parts[1], 10);
+        if (isNaN(hours) || isNaN(minutes)) return null;
+        return hours * 60 + minutes;
+    };
+    
+    const startMinutes = parseTime(startTime);
+    const endMinutes = parseTime(endTime);
+    
+    if (startMinutes === null || endMinutes === null) return null;
+    if (endMinutes < startMinutes) return null; // 잘못된 시간 범위
+    
+    return endMinutes - startMinutes;
+}
+
 // 캘린더 형식 엑셀 내보내기
 function exportProgramCalendar(detailLevel = 'session') {
     try {
@@ -5099,6 +5178,7 @@ function exportProgramCalendarSimple() {
         console.log('📅 Exporting simple calendar format...');
         
         const applySessionColors = document.getElementById('calendarSimpleApplySessionColors')?.checked || false;
+        const excludeNames = document.getElementById('calendarSimpleExcludeNames')?.checked || false;
         const resolveSessionColorId = (sessionObj) => {
             if (!sessionObj) return 1;
             if (sessionObj.color !== undefined && sessionObj.color !== null && sessionObj.color !== '') {
@@ -5131,8 +5211,17 @@ function exportProgramCalendarSimple() {
         const sessionsByDate = {};
         sessions.forEach(session => {
             // 날짜를 정규화하여 형식 차이로 인한 분리 방지
-            const normalizedDate = session.date ? normalizeDateValue(session.date) : null;
-            const date = normalizedDate || 'No Date';
+            // normalizeDateValue는 파싱 가능하면 정규화된 문자열 반환,
+            // 파싱 불가능하면 원본 문자열 반환, null/undefined/빈 문자열이면 '' 반환
+            let date;
+            if (session.date != null) {
+                const normalized = normalizeDateValue(session.date);
+                // 정규화된 값이 빈 문자열이면 원본 날짜 보존 (파싱 실패 또는 원본이 null/undefined/빈 문자열인 경우)
+                // 정규화된 값이 있으면 사용 (파싱 성공 또는 원본 문자열)
+                date = (normalized === '') ? session.date : normalized;
+            } else {
+                date = 'No Date';
+            }
             if (!sessionsByDate[date]) {
                 sessionsByDate[date] = [];
             }
@@ -5191,29 +5280,40 @@ function exportProgramCalendarSimple() {
                             let content = '';
                             
                             // 세션 타입과 제목
-                            const sessionHeader = session.displayAbbreviation 
+                            let sessionHeader = session.displayAbbreviation 
                                 ? `[${session.displayAbbreviation}] ${session.title}`
                                 : session.title;
-                            content += sessionHeader + '\n';
                             
-                            // 좌장 정보
-                            if (session.chairs && session.chairs.length > 0) {
-                                const chairNames = session.chairs.map(chair => {
-                                    const chairInfo = getParticipantInfo(chair.id || chair.participantId);
-                                    if (chairInfo) {
-                                        const name = chairInfo.name_eng || chairInfo.name_kor || chair.name;
-                                        const country = chairInfo.country ? ` (${chairInfo.country})` : '';
-                                        return name + country;
-                                    }
-                                    return chair.name || '';
-                                }).filter(n => n).join(', ');
-                                content += 'Chair: ' + chairNames + '\n';
-                            } else if (session.chair) {
-                                content += 'Chair: ' + session.chair + '\n';
+                            // Program at a Glance 모드일 때 세션 시간(분) 추가
+                            if (excludeNames && session.startTime && session.endTime) {
+                                const durationMinutes = calculateDurationInMinutes(session.startTime, session.endTime);
+                                if (durationMinutes !== null) {
+                                    sessionHeader += ` (${durationMinutes}')`;
+                                }
                             }
                             
-                            // 발표자 정보
-                            if (session.speakers && session.speakers.length > 0) {
+                            content += sessionHeader + '\n';
+                            
+                            // 좌장 정보 (이름 제외 옵션이 체크되지 않은 경우에만)
+                            if (!excludeNames) {
+                                if (session.chairs && session.chairs.length > 0) {
+                                    const chairNames = session.chairs.map(chair => {
+                                        const chairInfo = getParticipantInfo(chair.id || chair.participantId);
+                                        if (chairInfo) {
+                                            const name = chairInfo.name_eng || chairInfo.name_kor || chair.name;
+                                            const country = chairInfo.country ? ` (${chairInfo.country})` : '';
+                                            return name + country;
+                                        }
+                                        return chair.name || '';
+                                    }).filter(n => n).join(', ');
+                                    content += 'Chair: ' + chairNames + '\n';
+                                } else if (session.chair) {
+                                    content += 'Chair: ' + session.chair + '\n';
+                                }
+                            }
+                            
+                            // 발표자 정보 (이름 및 제목 제외 옵션이 체크되지 않은 경우에만)
+                            if (session.speakers && session.speakers.length > 0 && !excludeNames) {
                                 content += '\n';
                                 session.speakers.forEach((speaker, idx) => {
                                     const speakerInfo = getParticipantInfo(speaker.participantId);
@@ -5353,6 +5453,7 @@ function exportProgramCalendarDetailed() {
         console.log('📅 Exporting detailed calendar format...');
         
         const applySessionColors = document.getElementById('calendarDetailedApplySessionColors')?.checked || false;
+        const useFullSessionType = document.getElementById('calendarDetailedUseFullSessionType')?.checked || false;
         const resolveSessionColorId = (sessionObj) => {
             if (!sessionObj) return 1;
             if (sessionObj.color !== undefined && sessionObj.color !== null && sessionObj.color !== '') {
@@ -5385,8 +5486,17 @@ function exportProgramCalendarDetailed() {
         const sessionsByDate = {};
         sessions.forEach(session => {
             // 날짜를 정규화하여 형식 차이로 인한 분리 방지
-            const normalizedDate = session.date ? normalizeDateValue(session.date) : null;
-            const date = normalizedDate || 'No Date';
+            // normalizeDateValue는 파싱 가능하면 정규화된 문자열 반환,
+            // 파싱 불가능하면 원본 문자열 반환, null/undefined/빈 문자열이면 '' 반환
+            let date;
+            if (session.date != null) {
+                const normalized = normalizeDateValue(session.date);
+                // 정규화된 값이 빈 문자열이면 원본 날짜 보존 (파싱 실패 또는 원본이 null/undefined/빈 문자열인 경우)
+                // 정규화된 값이 있으면 사용 (파싱 성공 또는 원본 문자열)
+                date = (normalized === '') ? session.date : normalized;
+            } else {
+                date = 'No Date';
+            }
             if (!sessionsByDate[date]) {
                 sessionsByDate[date] = [];
             }
@@ -5421,10 +5531,25 @@ function exportProgramCalendarDetailed() {
             dateSessions.forEach(session => {
                 const sessionTime = `${session.startTime || ''}-${session.endTime || ''}`;
                 
-                // 세션 정보 (약어 + 제목)
-                const sessionHeader = session.displayAbbreviation 
-                    ? `[${session.displayAbbreviation}] ${session.title}`
-                    : `[${session.title}]`;
+                // 세션 정보 (약어 또는 전체 세션 종류 이름 + 제목)
+                let sessionHeader;
+                if (useFullSessionType) {
+                    // 세션 종류 전체 이름 사용 (예: "Special Interest Group 1")
+                    if (session.displaySessionType) {
+                        sessionHeader = `[${session.displaySessionType}] ${session.title}`;
+                    } else if (session.sessionType) {
+                        // displaySessionType이 없으면 sessionType 사용 (번호 없이)
+                        sessionHeader = `[${session.sessionType}] ${session.title}`;
+                    } else {
+                        sessionHeader = session.title;
+                    }
+                } else if (session.displayAbbreviation) {
+                    // 세션 약자 사용 (예: "SIG 1")
+                    sessionHeader = `[${session.displayAbbreviation}] ${session.title}`;
+                } else {
+                    // 약자나 세션 타입이 없으면 제목만
+                    sessionHeader = session.title;
+                }
                 
                 // 좌장 정보
                 let chairInfo = '';
@@ -5568,13 +5693,14 @@ function exportProgramCalendarDetailed() {
                         content += `"${topic}"`;
                     }
                     
-                        if (speakerName) {
-                            if (content && !content.endsWith('\n')) content += '\n';
-                            content += `Speaker - ${speakerName}`;
-                            if (speakerCountry) {
-                                content += ` (${speakerCountry})`;
-                            }
+                    // 발표자 이름 표시
+                    if (speakerName) {
+                        if (content && !content.endsWith('\n')) content += '\n';
+                        content += `Speaker - ${speakerName}`;
+                        if (speakerCountry) {
+                            content += ` (${speakerCountry})`;
                         }
+                    }
                     
                     // venue에 내용 저장 (기존 내용이 있으면 누적)
                     const existingContent = speakerSlot.venues[session.venue] || '';

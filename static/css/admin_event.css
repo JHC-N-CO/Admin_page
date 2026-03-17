@@ -98,6 +98,16 @@ body {
         text-decoration: underline;
   }
 
+    .register-link {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .register-link:hover {
+        color: #1e7e34;
+        text-decoration: underline;
+    }
+
 .delete-btn {
     margin: 10px;
     padding: 10px 20px;

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>회원 업로드</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/upload_members.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- SheetJS library for Excel file generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>회원 업로드</h1>
+            <p>Excel 파일을 업로드하여 회원을 일괄 등록할 수 있습니다.</p>
+        </div>
+        
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <h3>Excel 파일을 드래그하거나 클릭하여 업로드</h3>
+                <p>지원 형식: .xlsx, .xls, .csv</p>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
+                <button type="button" class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    파일 선택
+                </button>
+            </div>
+            
+            <div class="file-info" id="fileInfo" style="display: none;">
+                <div class="file-details">
+                    <i class="fas fa-file-excel"></i>
+                    <div class="file-text">
+                        <h4 id="fileName"></h4>
+                        <p id="fileSize"></p>
+                    </div>
+                    <button type="button" class="remove-btn" onclick="removeFile()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="instructions">
+            <h3>Excel 파일 형식 안내</h3>
+            <div class="instruction-content">
+                <div class="instruction-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span><strong>표준 16개 컬럼:</strong> 아이디, 성별, 성명(KOR), 성명(ENG), 이름(First Name), 성(Last Name), 이메일, 전화, 소속(ENG), 과(ENG), 소속(KOR), 과(KOR), 직위, 면허번호, 생년월일, 회원구분</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span><strong>필수 정보:</strong> 최소 하나의 식별 정보 필요 (아이디, 성명(KOR), 이메일 중 하나 이상)</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span><strong>컬럼 순서:</strong> 순서는 상관없으며, 첫 번째 행은 헤더로 사용됩니다</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span><strong>유연한 매핑:</strong> 컬럼명의 대소문자와 공백 차이는 무시됩니다 (예: "first name", "First Name", "firstname" 모두 인식)</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span><strong>부분 업로드 가능:</strong> 16개 컬럼 중 일부만 포함해도 됩니다. 없는 컬럼은 빈 값으로 처리됩니다</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span><strong>중복 체크:</strong> 중복된 아이디, 이메일, 면허번호는 자동으로 제외됩니다</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-lightbulb"></i>
+                    <span><strong>추천:</strong> 아래 샘플 파일을 다운로드하여 정확한 형식을 확인하세요</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sample-download">
+            <h3>샘플 파일 다운로드</h3>
+            <p>표준 16개 컬럼 형식으로 회원 정보를 입력하기 위해 샘플 파일을 다운로드하세요.</p>
+            <button type="button" class="download-btn" onclick="downloadSample()">
+                <i class="fas fa-download"></i>
+                샘플 Excel 파일 다운로드 (표준컬럼)
+            </button>
+        </div>
+        
+        <div class="actions">
+            <button type="button" class="btn btn-secondary" onclick="window.close()">취소</button>
+            <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadMembers()" disabled>
+                <i class="fas fa-upload"></i>
+                업로드 시작
+            </button>
+        </div>
+        
+        <div class="progress-section" id="progressSection" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p class="progress-text" id="progressText">업로드 중...</p>
+        </div>
+        
+        <div class="result-section" id="resultSection" style="display: none;">
+            <div class="result-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h3>업로드 완료</h3>
+            <div class="result-message">
+                <p>업로드가 완료되었습니다!</p>
+                <p class="auto-redirect">회원 관리 페이지가 즉시 새로고침됩니다. 3초 후 창이 닫힙니다.</p>
+            </div>
+            <div class="result-details">
+                <p><strong>성공:</strong> <span id="successCount">0</span>명</p>
+                <p><strong>실패:</strong> <span id="failureCount">0</span>명</p>
+            </div>
+            <div class="result-actions">
+                <button type="button" class="btn btn-primary" onclick="goToMembersPage()">회원 관리로 이동</button>
+                <button type="button" class="btn btn-secondary" onclick="window.close()">닫기</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="{{ url_for('static', filename='js/upload_members.js') }}"></script>
+</body>
+</html>
