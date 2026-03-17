@@ -43,9 +43,17 @@ function formatDateTime(dateTimeStr) {
     }
 }
 
-// 참가자 정보 표시 함수
+// 참가자 정보 표시 함수 (이전 타이머 취소하여 항상 5초 동안 표시)
+let hideResultTimeoutId = null;
+
 function displayParticipantInfo(participantName, checkInTime, checkOutTime, action) {
     const resultSection = document.getElementById('resultSection');
+    
+    // 이전 타이머가 있으면 취소
+    if (hideResultTimeoutId) {
+        clearTimeout(hideResultTimeoutId);
+        hideResultTimeoutId = null;
+    }
     
     // 참가자 정보 업데이트
     document.getElementById('participantName').textContent = participantName;
@@ -62,9 +70,10 @@ function displayParticipantInfo(participantName, checkInTime, checkOutTime, acti
     // 결과 섹션 표시
     resultSection.style.display = 'block';
     
-    // 5초 후 결과 숨기기
-    setTimeout(() => {
+    // 5초 후 결과 숨기기 (새 타이머만 유지)
+    hideResultTimeoutId = setTimeout(() => {
         resultSection.style.display = 'none';
+        hideResultTimeoutId = null;
     }, 5000);
 }
 
