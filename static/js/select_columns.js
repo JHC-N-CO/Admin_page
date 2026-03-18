@@ -130,19 +130,18 @@ if (confirmRatingBtn) {
     });
 }
 
-// QR Excel 저장 버튼 (로컬: 서버가 경로에 저장 / 웹: showSaveFilePicker로 저장 위치 선택)
+// QR Excel 저장 버튼 (경로 = Excel @Image에 들어갈 경로. 로컬은 서버가 해당 경로에 저장, 웹은 브라우저 다운로드)
 document.getElementById('qrExportWithPathBtn').addEventListener('click', async function() {
     const pathInput = document.getElementById('customPath');
-    const isLocalMode = !!pathInput;  // 경로 입력란 있음 = 로컬 (서버가 경로에 저장)
     const customPath = (pathInput && pathInput.value.trim()) || '';
     
-    if (isLocalMode && !customPath) {
-        alert('저장할 폴더 경로를 입력해주세요.\n\n예: /Users/jhc/Downloads/QR');
+    if (!customPath) {
+        alert('ZIP 압축 해제할 폴더 경로를 입력해주세요.\n\n이 경로가 Excel @Image에 들어갑니다.\n예: /Users/jhc/Downloads/QR');
         return;
     }
     
     const formData = new FormData(document.getElementById('exportForm'));
-    formData.append('custom_path', customPath || '/Users/jhc/Downloads/Excel_QR_Code');
+    formData.append('custom_path', customPath);
     
     try {
         const response = await fetch(`/download_qr_participants_excel_with_path_zip/${eventId}`, {
@@ -161,26 +160,8 @@ document.getElementById('qrExportWithPathBtn').addEventListener('click', async f
             }
         }
         
+        // 웹: 브라우저 다운로드 (Downloads 폴더). 사용자가 받은 ZIP을 입력한 경로에 풀면 됨
         const blob = await response.blob();
-        
-        // 웹: showSaveFilePicker로 저장 위치 선택 (Chrome, Edge 지원). 미지원 시 기본 다운로드
-        if (typeof window.showSaveFilePicker === 'function') {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: 'Excel_QR_Code.zip',
-                    types: [{ description: 'ZIP 파일', accept: { 'application/zip': ['.zip'] } }]
-                });
-                const writable = await handle.createWritable();
-                await writable.write(blob);
-                await writable.close();
-                alert('저장 완료!\n\n선택한 위치에 Excel_QR_Code.zip이 저장되었습니다.');
-                return;
-            } catch (pickerErr) {
-                if (pickerErr.name === 'AbortError') return; // 사용자가 취소
-            }
-        }
-        
-        // showSaveFilePicker 미지원 시 기본 다운로드 (Downloads 폴더)
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -189,6 +170,7 @@ document.getElementById('qrExportWithPathBtn').addEventListener('click', async f
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+        alert('다운로드 완료!\n\n입력한 경로에 ZIP을 압축 해제하면 Excel @Image가 정상 표시됩니다.');
     } catch (error) {
         console.error('Download Error:', error);
         alert('저장에 실패했습니다: ' + error.message);

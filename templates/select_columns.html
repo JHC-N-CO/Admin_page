@@ -77,15 +77,10 @@
                     </button>
                     
                     <div class="path-selection" style="display: none; margin-top: 10px;">
-                        {% if in_docker %}
-                        <small style="display:block; color:#888; margin: 4px 0 8px;">웹에서는 '저장' 클릭 시 저장 위치를 선택할 수 있습니다. (Chrome, Edge 지원)</small>
-                        <button type="button" id="qrExportWithPathBtn" class="btn btn-primary">저장</button>
-                        {% else %}
-                        <label for="customPath" class="path-label">저장할 폴더 경로:</label>
+                        <label for="customPath" class="path-label">ZIP 압축 해제할 폴더 경로:</label>
                         <input type="text" id="customPath" value="/Users/jhc/Downloads/QR" placeholder="/Users/jhc/Downloads/QR" class="path-input">
-                        <small style="display:block; color:#888; margin: 4px 0 8px;">ZIP 압축 해제 시 Excel @Image 경로와 자동 일치</small>
+                        <small style="display:block; color:#888; margin: 4px 0 8px;">Excel @Image에 이 경로가 들어갑니다. ZIP을 이 경로에 풀면 이미지가 정상 표시됩니다.</small>
                         <button type="button" id="qrExportWithPathBtn" class="btn btn-primary">저장</button>
-                        {% endif %}
                     </div>
                     
                     <button type="button" id="customExportBtn" class="btn btn-secondary">
