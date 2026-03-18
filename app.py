@@ -4128,11 +4128,13 @@ def download_qr_participants_excel_with_path_zip(event_id):
         for filename in os.listdir(qr_dir):
             zipf.write(os.path.join(qr_dir, filename), f"Excel_QR_Code/QR_Codes/{filename}")
 
-    # 사용자 지정 경로에 직접 저장 (localhost이므로 서버가 파일시스템 접근 가능)
-    # Excel @Image: {custom_path}/Excel_QR_Code/QR_Codes/{code}.png
+    # 사용자 지정 경로에 직접 저장 (localhost에서만 유효 - 서버와 사용자가 같은 PC일 때)
+    # Docker/원격 서버에서는 경로가 컨테이너 내부 경로로 해석되어 사용자 PC에 파일이 전달되지 않음
+    # → 원격 환경에서는 항상 브라우저 다운로드로 전송
     save_path = None
+    in_docker = os.path.exists('/.dockerenv')
     is_absolute = custom_path and (custom_path.startswith('/') or (len(custom_path) > 1 and custom_path[1] == ':'))
-    if is_absolute:
+    if is_absolute and not in_docker:
         try:
             save_dir = os.path.normpath(custom_path.rstrip('/\\'))
             os.makedirs(save_dir, exist_ok=True)
