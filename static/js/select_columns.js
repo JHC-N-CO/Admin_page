@@ -130,18 +130,19 @@ if (confirmRatingBtn) {
     });
 }
 
-// QR Excel 저장 버튼 (서버가 입력 경로에 직접 저장)
+// QR Excel 저장 버튼 (로컬: 서버가 경로에 저장 / 웹: showSaveFilePicker로 저장 위치 선택)
 document.getElementById('qrExportWithPathBtn').addEventListener('click', async function() {
     const pathInput = document.getElementById('customPath');
-    const customPath = pathInput.value.trim();
+    const isLocalMode = !!pathInput;  // 경로 입력란 있음 = 로컬 (서버가 경로에 저장)
+    const customPath = (pathInput && pathInput.value.trim()) || '';
     
-    if (!customPath) {
+    if (isLocalMode && !customPath) {
         alert('저장할 폴더 경로를 입력해주세요.\n\n예: /Users/jhc/Downloads/QR');
         return;
     }
     
     const formData = new FormData(document.getElementById('exportForm'));
-    formData.append('custom_path', customPath);
+    formData.append('custom_path', customPath || '/Users/jhc/Downloads/Excel_QR_Code');
     
     try {
         const response = await fetch(`/download_qr_participants_excel_with_path_zip/${eventId}`, {
@@ -161,6 +162,25 @@ document.getElementById('qrExportWithPathBtn').addEventListener('click', async f
         }
         
         const blob = await response.blob();
+        
+        // 웹: showSaveFilePicker로 저장 위치 선택 (Chrome, Edge 지원). 미지원 시 기본 다운로드
+        if (typeof window.showSaveFilePicker === 'function') {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: 'Excel_QR_Code.zip',
+                    types: [{ description: 'ZIP 파일', accept: { 'application/zip': ['.zip'] } }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(blob);
+                await writable.close();
+                alert('저장 완료!\n\n선택한 위치에 Excel_QR_Code.zip이 저장되었습니다.');
+                return;
+            } catch (pickerErr) {
+                if (pickerErr.name === 'AbortError') return; // 사용자가 취소
+            }
+        }
+        
+        // showSaveFilePicker 미지원 시 기본 다운로드 (Downloads 폴더)
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;

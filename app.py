@@ -3463,7 +3463,8 @@ def select_columns():
         'Position', 'License #', 'Agree', 'Remark (User)', 'Remark (Admin)',
         'Check-In Time', 'Check-Out Time', 'Decline Reason'
     ]
-    return render_template('select_columns.html', event_id=event_id, participants=participants, columns=columns)
+    in_docker = os.path.exists('/.dockerenv')
+    return render_template('select_columns.html', event_id=event_id, participants=participants, columns=columns, in_docker=in_docker)
 
 # 참가자 등록 페이지 (관리자용)
 @app.route('/register/<int:event_id>')
