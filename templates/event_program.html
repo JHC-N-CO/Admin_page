@@ -94,6 +94,9 @@
                     <button type="button" class="btn btn-info" onclick="exportProgram()">
                         <i class="fas fa-download"></i> 내보내기
                     </button>
+                    <button type="button" class="btn btn-info" onclick="exportChairsSpeakers()" title="좌장/연자 명단을 순서대로 내보냅니다 (이메일, 등록구분, CV/사진/PPT/Script 제출 여부 포함)">
+                        <i class="fas fa-users"></i> 좌장/연자 명단
+                    </button>
                     <button type="button" class="btn btn-secondary" onclick="openDisplaySettingsModal()">
                         <i class="fas fa-cog"></i> 표시 설정
                     </button>
@@ -832,13 +835,21 @@
                         </label>
                     </div>
                     <div style="margin-bottom: 10px;">
-                        <input type="text" id="recipientSearchInput" placeholder="이름 또는 이메일로 검색..." style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                        <input type="text" id="recipientSearchInput" placeholder="이름·이메일 검색, 또는 이메일 직접 입력 후 Enter" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                        <div id="directEmailChips" style="display: none; flex-wrap: wrap; gap: 6px; margin-top: 8px;"></div>
                     </div>
                     <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
                         <div id="emailRecipientsList"></div>
                     </div>
                     <div style="margin-top: 10px; font-size: 13px; color: #666;">
                         선택된 수신자: <span id="selectedRecipientsCount">0</span>명
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <a id="ccToggleLink" onclick="toggleCcField()" style="font-size: 13px; color: #1967d2; cursor: pointer; user-select: none;">참조</a>
+                        <div id="ccFieldWrapper" style="display: none; margin-top: 6px;">
+                            <label style="display: block; font-size: 13px; color: #666; margin-bottom: 4px;">참조 (CC)</label>
+                            <input type="text" id="emailCC" placeholder="참조로 받을 이메일 주소 (쉼표로 구분)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
                     </div>
                 </div>
                 <div style="margin-bottom: 20px;">
@@ -999,9 +1010,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="emailCC" placeholder="참조 (쉼표로 구분된 이메일 주소)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
             </div>
             <div class="modal-footer">

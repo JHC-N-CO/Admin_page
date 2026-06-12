@@ -1,8 +1,22 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# config.env 파일 로드 (명시적으로 지정)
+# 공통/서버 설정 → 로컬 개발 설정(있으면 덮어씀)
+# 서버: config.env 만 존재 | 로컬: config.env.local 이 DATABASE_URL 등을 override
 load_dotenv('config.env')
+_local_env = Path('config.env.local')
+if _local_env.is_file():
+    load_dotenv(_local_env, override=True)
+
+# 로컬에서 프로덕션 DB에 실수로 연결하는 것 방지
+if os.environ.get('FLASK_ENV', 'development') == 'development':
+    _url = os.environ.get('DATABASE_URL', '')
+    if _url and ('146.190.96.68' in _url or _url.rstrip('/').endswith('jhc_conference_db')):
+        raise ValueError(
+            '로컬 개발 중 프로덕션 DB에 연결되어 있습니다. '
+            'config.env.local.example 을 config.env.local 로 복사하고 로컬 DATABASE_URL을 설정하세요.'
+        )
 
 class Config:
     # Flask 설정

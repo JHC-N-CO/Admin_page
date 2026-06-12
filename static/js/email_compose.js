@@ -14,7 +14,9 @@ function openEmailComposeModal() {
     updateWordFilesList();
     
     modal.style.display = 'flex';
+    directRecipientEmails = [];
     populateEmailRecipients();
+    setupDirectEmailInput();
     
     // ESC 키로 모달 닫기
     const handleEscKey = (e) => {
@@ -33,6 +35,25 @@ function openEmailComposeModal() {
         }
     };
     modal.addEventListener('click', handleModalClick);
+}
+
+// Gmail 스타일: "참조" 클릭 시 CC 입력란 표시/숨김
+function toggleCcField() {
+    const wrapper = document.getElementById('ccFieldWrapper');
+    const link = document.getElementById('ccToggleLink');
+    if (!wrapper) return;
+    const isHidden = wrapper.style.display === 'none' || !wrapper.style.display;
+    if (isHidden) {
+        wrapper.style.display = 'block';
+        if (link) link.style.fontWeight = '600';
+        const cc = document.getElementById('emailCC');
+        if (cc) cc.focus();
+    } else {
+        wrapper.style.display = 'none';
+        if (link) link.style.fontWeight = 'normal';
+        const cc = document.getElementById('emailCC');
+        if (cc) cc.value = '';
+    }
 }
 
 function closeEmailComposeModal() {
@@ -61,6 +82,12 @@ function closeEmailComposeModal() {
     if (subjectInput) subjectInput.value = '';
     if (editor) editor.innerHTML = '';
     if (ccInput) ccInput.value = '';
+    directRecipientEmails = [];
+    renderDirectEmailChips();
+    const ccFieldWrapper = document.getElementById('ccFieldWrapper');
+    if (ccFieldWrapper) ccFieldWrapper.style.display = 'none';
+    const ccToggleLink = document.getElementById('ccToggleLink');
+    if (ccToggleLink) ccToggleLink.style.fontWeight = 'normal';
     if (selectAllChairs) selectAllChairs.checked = false;
     if (selectAllSpeakers) selectAllSpeakers.checked = false;
     const filterDomestic = document.getElementById('filterDomestic');
@@ -111,6 +138,71 @@ let initialSelectedParticipantIds = [];
 
 // 선택된 수신자 ID를 추적하는 전역 Set
 let globalSelectedRecipientIds = new Set();
+
+// 검색창에서 직접 입력한(명단에 없는) 이메일 목록
+let directRecipientEmails = [];
+
+// 검색창을 Gmail처럼 사용: 이메일 입력 후 Enter/콤마로 직접 수신자 추가
+function setupDirectEmailInput() {
+    const searchInput = document.getElementById('recipientSearchInput');
+    if (!searchInput) return;
+    searchInput.onkeydown = function(e) {
+        if (e.key === 'Enter' || e.key === ',') {
+            const val = searchInput.value.trim().replace(/,+$/, '').trim();
+            if (!val) return;
+            if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val)) {
+                e.preventDefault();
+                addDirectRecipientEmail(val);
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input'));
+            } else if (e.key === 'Enter' && val.indexOf('@') !== -1) {
+                e.preventDefault();
+                alert('올바른 이메일 형식이 아닙니다: ' + val);
+            }
+        }
+    };
+    renderDirectEmailChips();
+}
+
+function addDirectRecipientEmail(email) {
+    email = (email || '').trim();
+    if (!email) return;
+    if (directRecipientEmails.some(e => e.toLowerCase() === email.toLowerCase())) return;
+    directRecipientEmails.push(email);
+    renderDirectEmailChips();
+    updateSelectedRecipientsCount();
+}
+
+function removeDirectRecipientEmail(email) {
+    directRecipientEmails = directRecipientEmails.filter(e => e !== email);
+    renderDirectEmailChips();
+    updateSelectedRecipientsCount();
+}
+
+function renderDirectEmailChips() {
+    const container = document.getElementById('directEmailChips');
+    if (!container) return;
+    container.innerHTML = '';
+    if (directRecipientEmails.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+    container.style.display = 'flex';
+    directRecipientEmails.forEach(email => {
+        const chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-flex; align-items:center; gap:6px; background:#e8f0fe; color:#1967d2; border:1px solid #d2e3fc; border-radius:16px; padding:4px 10px; font-size:13px;';
+        const text = document.createElement('span');
+        text.textContent = email;
+        chip.appendChild(text);
+        const close = document.createElement('span');
+        close.textContent = '×';
+        close.style.cssText = 'cursor:pointer; font-weight:bold; line-height:1;';
+        close.title = '삭제';
+        close.onclick = () => removeDirectRecipientEmail(email);
+        chip.appendChild(close);
+        container.appendChild(chip);
+    });
+}
 
 function populateEmailRecipients() {
     const recipientsList = document.getElementById('emailRecipientsList');
@@ -653,7 +745,7 @@ function updateSelectedRecipientsCount() {
     const selected = document.querySelectorAll('.recipient-checkbox:checked').length;
     const countElement = document.getElementById('selectedRecipientsCount');
     if (countElement) {
-        countElement.textContent = selected;
+        countElement.textContent = selected + directRecipientEmails.length;
     }
 }
 
@@ -2101,7 +2193,9 @@ function openEmailComposeModalForParticipants(participantIds) {
     initialSelectedParticipantIds = Array.from(participantIds);
     
     modal.style.display = 'flex';
+    directRecipientEmails = [];
     populateEmailRecipientsFromParticipantIds(participantIds);
+    setupDirectEmailInput();
     
     // ESC 키로 모달 닫기
     const handleEscKey = (e) => {
@@ -2357,8 +2451,22 @@ function addRecipientToList(name, email, participantId, type, isChecked = false)
 
 async function sendEmailToRecipients() {
     const selectedCheckboxes = document.querySelectorAll('.recipient-checkbox:checked');
-    if (selectedCheckboxes.length === 0) {
-        alert('최소 한 명의 수신자를 선택해주세요.');
+
+    // 검색창에서 직접 추가한(명단에 없는) 이메일 수집
+    // 칩으로 추가되지 않고 검색창에 남아있는 이메일도 포함
+    const searchInputEl = document.getElementById('recipientSearchInput');
+    if (searchInputEl) {
+        const leftover = searchInputEl.value.trim().replace(/,+$/, '').trim();
+        if (leftover && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(leftover)) {
+            addDirectRecipientEmail(leftover);
+            searchInputEl.value = '';
+            searchInputEl.dispatchEvent(new Event('input'));
+        }
+    }
+    const directEmails = [...directRecipientEmails];
+
+    if (selectedCheckboxes.length === 0 && directEmails.length === 0) {
+        alert('최소 한 명의 수신자를 선택하거나 받는 사람 이메일을 직접 입력해주세요.');
         return;
     }
     
@@ -2437,13 +2545,14 @@ async function sendEmailToRecipients() {
         }
     });
     
-    if (recipientData.length === 0) {
+    if (recipientData.length === 0 && directEmails.length === 0) {
         alert('유효한 수신자를 선택해주세요.');
         return;
     }
     
     const formData = new FormData();
     formData.append('participant_ids', recipientData.map(r => r.participant_id).join(','));
+    formData.append('extra_emails', directEmails.join(','));
     
     // 세션 정보 전달 (디버깅용 로그 추가)
     const sessionDataJson = JSON.stringify(recipientData);
@@ -2480,7 +2589,8 @@ async function sendEmailToRecipients() {
         const result = await response.json();
         
         if (result.status === 'success') {
-            alert(`이메일이 ${selectedCheckboxes.length}명에게 성공적으로 발송되었습니다.`);
+            const totalCount = selectedCheckboxes.length + directEmails.length;
+            alert(`이메일이 ${totalCount}명에게 성공적으로 발송되었습니다.`);
             closeEmailComposeModal();
         } else {
             alert(result.message || '이메일 발송 실패');

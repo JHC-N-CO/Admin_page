@@ -2099,6 +2099,218 @@ def delete_file(file_id):
         logging.error(f"File deletion failed: {e}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/sync_pre_registration/<int:event_id>', methods=['POST'])
+def sync_pre_registration(event_id):
+    """엑셀의 '사전등록여부'(P/N/Y)로 참가자 등록구분 일괄 업데이트.
+    매칭 기준: 이메일 AND (한글이름 또는 영문이름) 모두 일치 → 매칭된 사람만 업데이트.
+    매핑: P→'무료', Y→'사전등록', N→''(빈칸).
+    응답에 unmatched/invalid 항목 상세 포함.
+    """
+    Event.query.get_or_404(event_id)
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': '파일이 첨부되지 않았습니다.'}), 400
+
+    file = request.files['file']
+    if not file or file.filename == '':
+        return jsonify({'success': False, 'error': '파일이 선택되지 않았습니다.'}), 400
+
+    if not allowed_file(file.filename, {'xlsx', 'xls', 'csv'}):
+        return jsonify({'success': False, 'error': 'xlsx/xls/csv 파일만 업로드할 수 있습니다.'}), 400
+
+    try:
+        from io import BytesIO
+        content = file.read()
+        if file.filename.lower().endswith('.csv'):
+            df = pd.read_csv(BytesIO(content), dtype=str, keep_default_na=False)
+        else:
+            df = pd.read_excel(BytesIO(content), dtype=str, keep_default_na=False)
+    except Exception as e:
+        logging.error(f"sync_pre_registration: failed to read file: {e}")
+        return jsonify({'success': False, 'error': f'파일을 읽을 수 없습니다: {e}'}), 400
+
+    # 컬럼명 정규화 (공백/대소문자 무시)
+    def norm(s):
+        return str(s).strip().lower().replace(' ', '')
+    col_map = {norm(c): c for c in df.columns}
+
+    required_aliases = {
+        'name_kor': ['한글이름', '한글', 'name(kor)', 'name_kor', '성명(kor)', '성명'],
+        'given_name': ['givenname', 'firstname', '이름(eng)', 'first_name'],
+        'family_name': ['familyname', 'lastname', '성(eng)', 'family_name'],
+        'email': ['email', '이메일', 'e-mail', 'mail'],
+        'pre_reg': ['사전등록여부', '사전등록', 'pre_registration', 'preregistration'],
+    }
+
+    def find_col(aliases):
+        for a in aliases:
+            if norm(a) in col_map:
+                return col_map[norm(a)]
+        return None
+
+    found = {k: find_col(v) for k, v in required_aliases.items()}
+    missing = [k for k in ('email', 'pre_reg') if not found[k]]
+    if missing:
+        return jsonify({
+            'success': False,
+            'error': f"필수 컬럼이 없습니다: {', '.join(missing)}. 엑셀에 'email'과 '사전등록여부' 컬럼이 필요합니다."
+        }), 400
+
+    status_map = {'P': '무료', 'Y': '사전등록', 'N': ''}
+
+    participants = Participant.query.filter_by(event_id=event_id).all()
+
+    def lower_strip(v):
+        return (str(v).strip().lower()) if v else ''
+
+    by_email = {}
+    for p in participants:
+        if p.email:
+            by_email.setdefault(lower_strip(p.email), []).append(p)
+
+    updated = 0
+    skipped_unmatched = 0
+    skipped_invalid = 0
+    skipped_unchanged = 0
+    details = []
+    unmatched_list = []
+    invalid_list = []
+
+    for idx, row in df.iterrows():
+        excel_row = int(idx) + 2  # 헤더 1행 + 0-based → 실제 엑셀 행 번호
+        email = lower_strip(row.get(found['email'])) if found['email'] else ''
+        kor = (str(row.get(found['name_kor'])).strip() if found['name_kor'] else '')
+        given = (str(row.get(found['given_name'])).strip() if found['given_name'] else '')
+        family = (str(row.get(found['family_name'])).strip() if found['family_name'] else '')
+        raw_status = (str(row.get(found['pre_reg'])).strip().upper() if found['pre_reg'] else '')
+
+        if not email or raw_status not in status_map:
+            skipped_invalid += 1
+            invalid_list.append({
+                'row': excel_row,
+                'name_kor': kor,
+                'given_name': given,
+                'family_name': family,
+                'email': email,
+                'pre_reg': raw_status,
+                'reason': ('이메일 없음' if not email else f"사전등록여부 값 비정상('{raw_status}')")
+            })
+            continue
+
+        candidates = by_email.get(email, [])
+        match = None
+        name_mismatch = False
+        for p in candidates:
+            p_kor = (p.name_kor or '').strip()
+            p_given = (p.first_name or '').strip()
+            p_family = (p.family_name or '').strip()
+            kor_ok = bool(kor) and bool(p_kor) and (kor == p_kor)
+            eng_ok = (
+                (bool(given) and bool(p_given) and given.lower() == p_given.lower()) and
+                (bool(family) and bool(p_family) and family.lower() == p_family.lower())
+            )
+            if kor_ok or eng_ok:
+                match = p
+                break
+            name_mismatch = True
+
+        if not match:
+            skipped_unmatched += 1
+            target_value = status_map[raw_status]
+            if candidates:
+                reason = '이메일은 일치하지만 이름이 일치하지 않음'
+                cand_list = [{
+                    'id': p.id,
+                    'name_kor': (p.name_kor or '').strip(),
+                    'name_eng': f"{(p.first_name or '').strip()} {(p.family_name or '').strip()}".strip(),
+                    'current_registration': p.registration or '',
+                } for p in candidates]
+            else:
+                reason = '이메일이 참가자 목록에 없음'
+                cand_list = []
+            unmatched_list.append({
+                'row': excel_row,
+                'name_kor': kor,
+                'given_name': given,
+                'family_name': family,
+                'email': email,
+                'pre_reg': raw_status,
+                'target_value': target_value,
+                'reason': reason,
+                'candidates': cand_list,
+            })
+            continue
+
+        new_value = status_map[raw_status]
+        if (match.registration or '') == new_value:
+            skipped_unchanged += 1
+            continue
+
+        prev_value = match.registration if match.registration else ''
+        match.registration = new_value
+        updated += 1
+        details.append({
+            'name_kor': match.name_kor,
+            'email': match.email,
+            'from': prev_value,
+            'to': new_value,
+            'excel_status': raw_status,
+        })
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"sync_pre_registration: commit failed: {e}")
+        return jsonify({'success': False, 'error': f'DB 저장 실패: {e}'}), 500
+
+    return jsonify({
+        'success': True,
+        'updated': updated,
+        'skipped_unmatched': skipped_unmatched,
+        'skipped_invalid': skipped_invalid,
+        'skipped_unchanged': skipped_unchanged,
+        'total_rows': int(len(df)),
+        'details': details[:500],
+        'unmatched': unmatched_list[:500],
+        'invalid': invalid_list[:500],
+    })
+
+
+@app.route('/update_participant_registration/<int:participant_id>', methods=['POST'])
+def update_participant_registration(participant_id):
+    """단일 참가자의 등록구분(registration)을 업데이트.
+    사전등록 동기화 결과 모달에서 수동으로 적용할 때 사용.
+    """
+    allowed = {'사전등록', '현장등록', 'VIP등록', '일반등록', '무료', ''}
+    if request.is_json:
+        payload = request.get_json(silent=True) or {}
+        new_value = payload.get('value', '')
+    else:
+        new_value = request.form.get('value', '')
+    new_value = str(new_value or '').strip()
+    if new_value not in allowed:
+        return jsonify({'success': False, 'error': f"허용되지 않는 값: '{new_value}'"}), 400
+
+    p = Participant.query.get_or_404(participant_id)
+    prev = p.registration or ''
+    p.registration = new_value
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'participant_id': p.id,
+        'name_kor': p.name_kor,
+        'email': p.email,
+        'previous': prev,
+        'current': new_value,
+    })
+
+
 @app.route('/delete_participants/<int:event_id>', methods=['POST'])
 def delete_participants(event_id):
     """참가자 삭제"""
@@ -2240,12 +2452,16 @@ def send_email():
     except Exception as e:
         logging.error(f"세션 데이터 JSON 파싱 오류: {e}")
     
-    if not participant_ids or not subject or not body:
+    # 명단에 없는 직접 입력 이메일 (쉼표로 구분)
+    extra_emails_raw = request.form.get('extra_emails', '')
+    extra_emails = [e.strip() for e in extra_emails_raw.split(',') if e.strip()]
+
+    if (not participant_ids and not extra_emails) or not subject or not body:
         return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
     
-    participants = Participant.query.filter(Participant.id.in_(participant_ids)).all()
+    participants = Participant.query.filter(Participant.id.in_(participant_ids)).all() if participant_ids else []
     recipient_emails = [p.email for p in participants if p.email]
-    if not recipient_emails:
+    if not recipient_emails and not extra_emails:
         return jsonify({'status': 'error', 'message': 'No valid recipient emails found.'}), 400
     
     def replace_img_src(match):
@@ -2418,7 +2634,43 @@ def send_email():
                     import traceback
                     traceback.print_exc()
                     raise
-        return jsonify({'status': 'success', 'message': f'Email sent to {len(recipient_emails)} participants'})
+
+        # 명단에 없는 직접 입력 이메일로 발송 (Mail merge / 승인·거절 버튼 / 워드 첨부 없이 기본 발송)
+        sender_email = app.config.get('MAIL_DEFAULT_SENDER') or 'koreaepilepsy@kes.or.kr'
+        for extra_email in extra_emails:
+            msg = Message(
+                subject=subject,
+                recipients=[extra_email],
+                html=body,
+                sender=sender_email,
+                reply_to='koreaepilepsy@kes.or.kr'
+            )
+            if cc:
+                msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
+            for img_match in re.finditer(r'<img[^>]+src="([^"]+)"[^>]*>', body):
+                img_path = img_match.group(1)
+                if img_path.startswith('/uploads/images/'):
+                    full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
+                    if os.path.exists(full_path):
+                        with open(full_path, 'rb') as img_file:
+                            msg.attach(
+                                f'image_{hash(img_path)}.png',
+                                'image/png',
+                                img_file.read(),
+                                'inline',
+                                headers=[('Content-ID', f'<image_{hash(img_path)}>')]
+                            )
+            try:
+                mail.send(msg)
+                logging.info(f"✅ 직접 입력 이메일 발송 성공: {extra_email}")
+            except Exception as email_error:
+                logging.error(f"❌ 직접 입력 이메일 발송 실패: {extra_email}, {email_error}")
+                import traceback
+                traceback.print_exc()
+                raise
+
+        total_sent = len(recipient_emails) + len(extra_emails)
+        return jsonify({'status': 'success', 'message': f'Email sent to {total_sent} recipients'})
     except Exception as e:
         logging.error(f"Email sending failed: {e}")
         import traceback
@@ -4356,6 +4608,293 @@ def save_event_program(event_id):
     except Exception as e:
         logging.error(f"Error saving event program: {str(e)}")
         return jsonify({'error': '프로그램 저장 중 오류가 발생했습니다.'}), 500
+
+@app.route('/api/event_program/<int:event_id>/chairs_speakers_excel')
+def export_chairs_speakers_excel(event_id):
+    """행사 프로그램의 좌장/연자 명단을 순서대로 엑셀로 내보내기. (chair/speaker export)
+    컬럼: 순번, 역할, 세션 약어, 세션명, 발표명, 한글이름, 영문이름, 이메일, 등록구분, CV, 사진, PPT, Script
+    파일 제출 여부: O / X
+    """
+    logging.info(f"[chairs_speakers_excel] start event_id={event_id}")
+    try:
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify({'error': '행사를 찾을 수 없습니다.'}), 404
+
+        program_file = f'uploads/event_program_{event_id}.json'
+        if not os.path.exists(program_file):
+            return jsonify({'error': '프로그램 데이터가 없습니다.'}), 404
+
+        import json as _json
+        with open(program_file, 'r', encoding='utf-8') as f:
+            data = _json.load(f)
+        sessions = data.get('sessions', [])
+
+        # 날짜 + 시작시간 기준으로 세션 정렬
+        def session_sort_key(s):
+            return (s.get('date') or '', s.get('startTime') or '')
+        sessions = sorted(sessions, key=session_sort_key)
+
+        # === 캘린더 뷰와 동일하게 세션 약어에 번호 부여 ===
+        # 원본 JS: assignSessionNumbers() in static/js/event_program.js
+        no_numbering_keywords = [
+            'break', 'coffee break', 'lunch', 'lunch break',
+            'opening ceremony', 'closing ceremony',
+            'general assembly', 'press conference',
+            'presidential dinner', 'dinner', 'reception',
+            'preparing dinner', '상임운영위원회',
+            'poster', 'e-poster', 'eposter',
+        ]
+
+        import re as _re
+
+        def _strip_trailing_number(abbr):
+            if not abbr:
+                return ''
+            m = _re.match(r'^(.+?)\s*\d+$', abbr)
+            return m.group(1).strip() if m else abbr.strip()
+
+        def _base_abbr(s):
+            base = (s.get('sessionAbbreviation') or '').strip()
+            if not base and s.get('displayAbbreviation'):
+                base = _strip_trailing_number(s.get('displayAbbreviation'))
+            return base
+
+        # 세션 타입별로 그룹화 (번호가 필요 없는 세션은 제외)
+        sessions_by_type = {}
+        numbered_abbr = {}  # id(session) → 번호 포함 약어
+        for s in sessions:
+            stype = s.get('sessionType') or ''
+            title_l = (s.get('title') or '').lower()
+            type_l = stype.lower()
+            no_num = any(k in title_l or k in type_l for k in no_numbering_keywords)
+            if stype and not no_num:
+                sessions_by_type.setdefault(stype, []).append(s)
+            else:
+                numbered_abbr[id(s)] = _base_abbr(s)
+
+        for stype, type_sessions in sessions_by_type.items():
+            # 고유 그룹 수: (title, startTime, date, chair) 단위
+            unique_groups = set()
+            for s in type_sessions:
+                gkey = (
+                    s.get('title') or '',
+                    s.get('startTime') or '',
+                    s.get('date') or 'no-date',
+                    s.get('chair') or 'no-chair',
+                )
+                unique_groups.add(gkey)
+
+            if len(unique_groups) <= 1:
+                # 번호 없이 약어만
+                for s in type_sessions:
+                    numbered_abbr[id(s)] = _base_abbr(s)
+                continue
+
+            # 날짜 → 시작시간 → 장소 순으로 정렬 후 번호 부여
+            def _sort_key(s):
+                return (
+                    s.get('date') or '9999-12-31',
+                    s.get('startTime') or '',
+                    s.get('venue') or '',
+                )
+            sorted_sessions = sorted(type_sessions, key=_sort_key)
+
+            group_to_number = {}
+            next_number = 1
+            for s in sorted_sessions:
+                gkey = (
+                    s.get('title') or '',
+                    s.get('startTime') or '',
+                    s.get('date') or 'no-date',
+                    s.get('chair') or 'no-chair',
+                )
+                if gkey in group_to_number:
+                    n = group_to_number[gkey]
+                else:
+                    n = next_number
+                    group_to_number[gkey] = n
+                    next_number += 1
+                base = _base_abbr(s)
+                numbered_abbr[id(s)] = f"{base} {n}" if base else ''
+
+        # 참가자 ID 모아서 일괄 조회
+        ids = set()
+        for s in sessions:
+            for ch in s.get('chairs') or []:
+                if isinstance(ch, dict) and ch.get('id'):
+                    ids.add(int(ch['id']))
+            for sp in s.get('speakers') or []:
+                if isinstance(sp, dict) and sp.get('participantId'):
+                    ids.add(int(sp['participantId']))
+
+        participants_by_id = {}
+        if ids:
+            for p in Participant.query.filter(Participant.id.in_(ids)).all():
+                participants_by_id[p.id] = p
+
+        def yn(v):
+            return 'O' if v else 'X'
+
+        # 좌장: 인물 단위로 중복 제거 (강의를 하지 않으므로 1인 1행, 세션명은 합침)
+        # 연자: 발표 슬롯마다 별도 행 (강의별로 제출 자료가 다르므로)
+        chair_rows = {}      # key → row dict (with 세션명 누적)
+        chair_order = []     # 등장 순서 보존
+        speaker_rows = []    # 매 등장마다 한 행
+
+        for s in sessions:
+            session_title = s.get('title') or ''
+            session_abbr = numbered_abbr.get(id(s)) or s.get('displayAbbreviation') or s.get('sessionAbbreviation') or ''
+
+            for ch in s.get('chairs') or []:
+                if not isinstance(ch, dict):
+                    continue
+                pid = ch.get('id')
+                p = participants_by_id.get(int(pid)) if pid else None
+                key = ('id', int(pid)) if pid else (
+                    'kn', (ch.get('email') or '').strip().lower(),
+                    (ch.get('name_kor') or ch.get('name') or '').strip(),
+                    (ch.get('name_eng') or '').strip(),
+                )
+                role = ch.get('role') or '좌장'
+                if key in chair_rows:
+                    rec = chair_rows[key]
+                    if session_title and session_title not in rec['_sessions']:
+                        rec['_sessions'].append(session_title)
+                    if session_abbr and session_abbr not in rec['_abbrs']:
+                        rec['_abbrs'].append(session_abbr)
+                    if role and role not in rec['_roles']:
+                        rec['_roles'].append(role)
+                    continue
+                name_kor = (p.name_kor if p else '') or ch.get('name_kor') or ch.get('name') or ''
+                name_eng = (
+                    f"{(p.first_name or '').strip()} {(p.family_name or '').strip()}".strip()
+                    if p else ''
+                ) or ch.get('name_eng') or ''
+                email = (p.email if p else '') or ch.get('email') or ''
+                rec = {
+                    '_roles': [role] if role else [],
+                    '_sessions': [session_title] if session_title else [],
+                    '_abbrs': [session_abbr] if session_abbr else [],
+                    '세션 약어': '',
+                    '세션명': '',
+                    '발표명': '',
+                    '한글이름': name_kor,
+                    '영문이름': name_eng,
+                    '이메일': email,
+                    '등록구분': (p.registration if p else '') or '',
+                    'CV': yn(p.cv if p else False),
+                    '사진': yn(p.photo if p else False),
+                    'PPT': yn(p.ppt if p else False),
+                    'Script': yn(p.script if p else False),
+                }
+                chair_rows[key] = rec
+                chair_order.append(key)
+
+            for sp in s.get('speakers') or []:
+                if not isinstance(sp, dict):
+                    continue
+                pid = sp.get('participantId')
+                p = participants_by_id.get(int(pid)) if pid else None
+                name_kor = (p.name_kor if p else '') or sp.get('name') or ''
+                name_eng = (
+                    f"{(p.first_name or '').strip()} {(p.family_name or '').strip()}".strip()
+                    if p else ''
+                ) or ''
+                email = (p.email if p else '') or ''
+                # 국내/해외 구분: country_code가 KOR/KR이면 국내, 그 외(값이 있으면)는 해외, 없으면 그냥 '연자'
+                cc = ((p.country_code if p else '') or sp.get('country_code') or '').strip().upper()
+                country_name = ((p.country if p else '') or sp.get('country') or '').strip().lower()
+                if cc in ('KOR', 'KR') or country_name in ('korea', 'south korea', '대한민국', '한국'):
+                    speaker_role = '국내 연자'
+                elif cc or country_name:
+                    speaker_role = '해외 연자'
+                else:
+                    speaker_role = '연자'
+                speaker_rows.append({
+                    '역할': speaker_role,
+                    '세션 약어': session_abbr,
+                    '세션명': session_title,
+                    '발표명': sp.get('topic') or '',
+                    '한글이름': name_kor,
+                    '영문이름': name_eng,
+                    '이메일': email,
+                    '등록구분': (p.registration if p else '') or '',
+                    'CV': yn(p.cv if p else False),
+                    '사진': yn(p.photo if p else False),
+                    'PPT': yn(p.ppt if p else False),
+                    'Script': yn(p.script if p else False),
+                })
+
+        if not chair_order and not speaker_rows:
+            return jsonify({'error': '좌장/연자 데이터가 없습니다.'}), 404
+
+        # 출력: 좌장(중복 제거) → 연자(중복 허용)
+        rows = []
+        seq = 0
+        for key in chair_order:
+            rec = chair_rows[key]
+            roles = rec.pop('_roles', [])
+            sess = rec.pop('_sessions', [])
+            abbrs = rec.pop('_abbrs', [])
+            rec['역할'] = ', '.join(roles) if roles else '좌장'
+            rec['세션명'] = ', '.join(sess) if sess else ''
+            rec['세션 약어'] = ', '.join(abbrs) if abbrs else ''
+            seq += 1
+            rows.append({'순번': seq, **rec})
+
+        for sp_row in speaker_rows:
+            seq += 1
+            rows.append({'순번': seq, **sp_row})
+
+        df = pd.DataFrame(rows, columns=[
+            '순번', '역할', '세션 약어', '세션명', '발표명',
+            '한글이름', '영문이름', '이메일', '등록구분',
+            'CV', '사진', 'PPT', 'Script'
+        ])
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='좌장_연자')
+            wb = writer.book
+            ws = writer.sheets['좌장_연자']
+
+            header_fmt = wb.add_format({'bold': True, 'bg_color': '#f2f2f2', 'border': 1, 'align': 'center'})
+            for col_idx, col_name in enumerate(df.columns):
+                ws.write(0, col_idx, col_name, header_fmt)
+
+            widths = {
+                '순번': 6, '역할': 12, '세션 약어': 12, '세션명': 30, '발표명': 36,
+                '한글이름': 12, '영문이름': 20, '이메일': 30, '등록구분': 12,
+                'CV': 6, '사진': 6, 'PPT': 6, 'Script': 8,
+            }
+            for col_idx, col_name in enumerate(df.columns):
+                ws.set_column(col_idx, col_idx, widths.get(col_name, 14))
+
+            # O = 초록, X = 빨강 강조 (조건부 서식)
+            ok_fmt = wb.add_format({'bg_color': '#e6f4ea', 'font_color': '#1e7e34', 'align': 'center'})
+            ng_fmt = wb.add_format({'bg_color': '#fdecea', 'font_color': '#c62828', 'align': 'center'})
+            file_cols = ['CV', '사진', 'PPT', 'Script']
+            for col_name in file_cols:
+                col_idx = df.columns.get_loc(col_name)
+                col_letter = chr(ord('A') + col_idx) if col_idx < 26 else None
+                if col_letter:
+                    rng = f"{col_letter}2:{col_letter}{len(df) + 1}"
+                    ws.conditional_format(rng, {'type': 'cell', 'criteria': '==', 'value': '"O"', 'format': ok_fmt})
+                    ws.conditional_format(rng, {'type': 'cell', 'criteria': '==', 'value': '"X"', 'format': ng_fmt})
+
+        output.seek(0)
+        filename = f"chairs_speakers_{event.event_id or event_id}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename,
+        )
+    except Exception as e:
+        logging.error(f"Error exporting chairs/speakers excel: {e}")
+        return jsonify({'error': f'엑셀 내보내기 중 오류: {e}'}), 500
+
 
 @app.route('/api/event_program/<int:event_id>/export')
 def export_event_program(event_id):

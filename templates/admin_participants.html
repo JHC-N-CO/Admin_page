@@ -74,6 +74,8 @@
                     <div class="action-buttons">
                         <button type="button" class="secondary" onclick="openPopup('/add_participant/{{ event[0] }}')">참가자 추가</button>
                         <button type="button" class="secondary" onclick="openPopup('/upload_participants/{{ event[0] }}')">참가자 업로드</button>
+                        <button type="button" class="secondary" onclick="document.getElementById('preRegFile').click()" title="엑셀(한글이름, given name, family name, email, 사전등록여부)을 업로드하면 매칭된 참가자의 등록구분을 P→무료, Y→사전등록, N→빈칸으로 업데이트합니다.">사전등록 동기화</button>
+                        <input type="file" id="preRegFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="syncPreRegistration(this, {{ event[0] }})">
                         <button type="button" class="secondary" onclick="openMemberSelector({{ event[0] }})">회원에서 추가</button>
                         <button type="button" class="primary" onclick="openPopupAttn('/track_checkin/{{ event[0] }}')">출결 관리</button>
                         <button type="button" class="primary" onclick="window.location.href='/event_program/{{ event[0] }}'">행사 프로그램 관리</button>
@@ -417,13 +419,21 @@
                 <div style="margin-bottom: 20px;">
                     <h3 style="font-size: 16px; margin-bottom: 10px;">수신자 선택</h3>
                     <div style="margin-bottom: 10px;">
-                        <input type="text" id="recipientSearchInput" placeholder="참가자 이름 또는 이메일로 검색..." style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                        <input type="text" id="recipientSearchInput" placeholder="이름·이메일 검색, 또는 이메일 직접 입력 후 Enter" style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
+                        <div id="directEmailChips" style="display: none; flex-wrap: wrap; gap: 6px; margin-top: 8px;"></div>
                     </div>
                     <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; border-radius: 4px;">
                         <div id="emailRecipientsList"></div>
                     </div>
                     <div style="margin-top: 10px; font-size: 13px; color: #666;">
                         선택된 수신자: <span id="selectedRecipientsCount">0</span>명
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <a id="ccToggleLink" onclick="toggleCcField()" style="font-size: 13px; color: #1967d2; cursor: pointer; user-select: none;">참조</a>
+                        <div id="ccFieldWrapper" style="display: none; margin-top: 6px;">
+                            <label style="display: block; font-size: 13px; color: #666; margin-bottom: 4px;">참조 (CC)</label>
+                            <input type="text" id="emailCC" placeholder="참조로 받을 이메일 주소 (쉼표로 구분)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+                        </div>
                     </div>
                 </div>
                 <div style="margin-bottom: 20px;">
@@ -555,9 +565,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <input type="text" id="emailCC" placeholder="참조 (쉼표로 구분된 이메일 주소)" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
                 </div>
                 <div style="margin-bottom: 20px;">
                     <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">

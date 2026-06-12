@@ -4,21 +4,32 @@ Flask 기반 관리자 페이지 애플리케이션
 
 ## 환경 설정
 
-### 로컬 환경
-1. `config.env` 파일에서 데이터베이스 연결 정보 확인
-2. Docker 컨테이너 실행:
+### 로컬 개발 (Mac에서 코드 수정)
+
+1. `config.env` — 서버용(또는 공통) 설정
+2. **`config.env.local`** — 로컬 DB로 덮어쓰기 (필수)
+
 ```bash
-docker run -d --name admin-page-local -p 5000:5000 --env-file config.env admin-page-new
+cp config.env.local.example config.env.local
+python3 scripts/setup_local_db.py   # 로컬 DB·테이블 생성
+python3 app.py
 ```
 
-### 서버 환경
-1. `config.env.server` 파일을 `config.env`로 복사
-2. Docker 컨테이너 실행:
+로컬 DB: `postgresql://<mac사용자>@127.0.0.1:5432/admin_page` (Homebrew Postgres 기본 사용자는 `postgres`가 아님)
+
+### 서버 배포
+
+1. 서버에 `config.env` 만 두고 (`config.env.local` 없음)
+2. `config.env.server` 참고해 프로덕션 `DATABASE_URL` 설정
+3. Docker:
+
 ```bash
-docker run -d --name admin-page-new --network host --env-file config.env admin-page-new
+docker compose up -d --build
 ```
+
+자세한 흐름은 [WORKFLOW.md](WORKFLOW.md) 참고.
 
 ## 주의사항
+- `config.env.local` 없이 로컬 실행 시 **프로덕션 DB에 연결**될 수 있음
 - 환경 변수 파일들은 Git에 포함되지 않습니다
-- 각 환경에 맞는 설정 파일을 사용하세요
 - 데이터베이스 비밀번호는 안전하게 관리하세요 

@@ -10,9 +10,9 @@
         <form action="/send_email" method="post" onsubmit="sendEmail(event)">
             <input type="hidden" name="participant_ids" value="{{ participant_ids }}">
             <input type="hidden" name="body" id="body">
+            <input type="text" name="cc" class="cc-input" placeholder="참조 (CC) - 쉼표로 구분된 이메일 주소">
             <input type="text" name="subject" placeholder="제목을 입력하세요" required>
             <div id="editor" class="editor" contenteditable="true" placeholder="이메일 내용을 작성하세요..."></div>
-            <input type="text" name="cc" class="cc-input" placeholder="참조 (쉼표로 구분된 이메일 주소)">
             <label class="checkbox-label">
                 <input type="checkbox" name="include_buttons" value="yes"> 승인/거절 버튼 포함
             </label>

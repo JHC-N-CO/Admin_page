@@ -3876,6 +3876,19 @@ function exportProgram() {
     openExportSettingsModal();
 }
 
+function exportChairsSpeakers() {
+    if (!sessions || sessions.length === 0) {
+        alert('내보낼 세션 데이터가 없습니다.');
+        return;
+    }
+    const eventId = document.body.getAttribute('data-event-id');
+    if (!eventId) {
+        alert('이벤트 ID를 찾을 수 없습니다.');
+        return;
+    }
+    window.location.href = `/api/event_program/${eventId}/chairs_speakers_excel`;
+}
+
 // 엑셀 내보내기 설정 모달 열기
 function openExportSettingsModal() {
     const modal = document.getElementById('exportSettingsModal');

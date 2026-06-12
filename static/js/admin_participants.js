@@ -140,6 +140,304 @@ function openPopup(url) {
     window.open(url, '_blank', 'width=500,height=800,scrollbars=yes,resizable=yes');
 }
 
+async function syncPreRegistration(input, eventId) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+
+    const ok = confirm(
+        '엑셀의 사전등록여부로 참가자 등록구분을 업데이트합니다.\n\n' +
+        '매핑: P → 무료, Y → 사전등록, N → 빈칸\n' +
+        '매칭 기준: 이메일 AND (한글이름 또는 영문이름) 일치\n\n' +
+        '진행할까요?'
+    );
+    if (!ok) {
+        input.value = '';
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+        const res = await fetch(`/sync_pre_registration/${eventId}`, {
+            method: 'POST',
+            body: fd
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+            alert('실패: ' + (data && data.error ? data.error : '알 수 없는 오류'));
+            return;
+        }
+
+        showSyncResultModal(data);
+    } catch (e) {
+        console.error(e);
+        alert('업로드 중 오류가 발생했습니다: ' + e.message);
+    } finally {
+        input.value = '';
+    }
+}
+
+function showSyncResultModal(data) {
+    console.log('[syncPreRegistration] response:', data);
+
+    closeSyncResultModal();
+
+    const esc = (s) => String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const overlay = document.createElement('div');
+    overlay.id = 'syncResultModal';
+    Object.assign(overlay.style, {
+        position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.5)',
+        zIndex: '10000', display: 'flex', alignItems: 'center', justifyContent: 'center'
+    });
+
+    const card = document.createElement('div');
+    Object.assign(card.style, {
+        background: '#fff', width: 'min(1100px, 95vw)', maxHeight: '90vh',
+        borderRadius: '8px', boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+        display: 'flex', flexDirection: 'column'
+    });
+
+    const header = document.createElement('div');
+    Object.assign(header.style, {
+        padding: '16px 20px', borderBottom: '1px solid #eee',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+    });
+    header.innerHTML = `
+        <h3 style="margin:0;">사전등록 동기화 결과</h3>
+        <button type="button" id="syncModalCloseBtn" style="border:none; background:transparent; font-size:22px; cursor:pointer;">&times;</button>
+    `;
+
+    const body = document.createElement('div');
+    Object.assign(body.style, { padding: '16px 20px', overflow: 'auto' });
+
+    const summary = document.createElement('div');
+    summary.style.cssText = 'display:grid; grid-template-columns:repeat(2, 1fr); gap:8px 16px; margin-bottom:16px;';
+    summary.innerHTML = `
+        <div>엑셀 행: <b>${data.total_rows}</b></div>
+        <div>업데이트: <b style="color:#2e7d32;">${data.updated}</b></div>
+        <div>매칭 안됨: <b style="color:#c62828;">${data.skipped_unmatched}</b></div>
+        <div>값이 같아 변경 없음: <b>${data.skipped_unchanged}</b></div>
+        <div>잘못된 데이터: <b style="color:#c62828;">${data.skipped_invalid}</b></div>
+    `;
+    body.appendChild(summary);
+
+    const tableCSS = document.createElement('style');
+    tableCSS.textContent = `
+        #syncResultModal table { width:100%; border-collapse:collapse; font-size:13px; }
+        #syncResultModal th { text-align:left; padding:6px 8px; border-bottom:2px solid #ddd; background:#f7f7f7; position:sticky; top:0; }
+        #syncResultModal td { padding:6px 8px; border-bottom:1px solid #eee; vertical-align:top; word-break:break-word; }
+    `;
+    overlay.appendChild(tableCSS);
+
+    function buildSection(title, items, columns) {
+        const section = document.createElement('div');
+        const h4 = document.createElement('h4');
+        h4.style.cssText = 'margin:12px 0 6px;';
+        h4.textContent = `${title} (${items.length})`;
+        section.appendChild(h4);
+
+        if (items.length === 0) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'color:#888; padding:8px 0;';
+            empty.textContent = '없음';
+            section.appendChild(empty);
+            return section;
+        }
+
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'max-height:340px; overflow:auto; border:1px solid #eee; border-radius:6px;';
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const trh = document.createElement('tr');
+        columns.forEach(c => {
+            const th = document.createElement('th');
+            th.textContent = c.label;
+            trh.appendChild(th);
+        });
+        thead.appendChild(trh);
+        table.appendChild(thead);
+        const tbody = document.createElement('tbody');
+        items.forEach(it => {
+            const tr = document.createElement('tr');
+            columns.forEach(c => {
+                const td = document.createElement('td');
+                td.innerHTML = esc(c.get(it));
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        wrap.appendChild(table);
+        section.appendChild(wrap);
+        return section;
+    }
+
+    const unmatched = data.unmatched || [];
+    const invalid = data.invalid || [];
+
+    body.appendChild(buildUnmatchedSection('매칭 안 된 항목', unmatched, esc));
+
+    body.appendChild(buildSection('잘못된 데이터', invalid, [
+        { label: '엑셀 행', get: u => u.row },
+        { label: '한글이름', get: u => u.name_kor },
+        { label: '영문이름', get: u => `${u.given_name || ''} ${u.family_name || ''}`.trim() },
+        { label: '이메일', get: u => u.email },
+        { label: '사전등록여부', get: u => u.pre_reg },
+        { label: '사유', get: u => u.reason },
+    ]));
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'padding:12px 20px; border-top:1px solid #eee; display:flex; justify-content:flex-end; gap:8px;';
+    footer.innerHTML = `<button type="button" class="primary" id="syncModalReloadBtn">닫고 새로고침</button>`;
+
+    card.appendChild(header);
+    card.appendChild(body);
+    card.appendChild(footer);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+
+    document.getElementById('syncModalCloseBtn').addEventListener('click', closeSyncResultModal);
+    document.getElementById('syncModalReloadBtn').addEventListener('click', closeSyncResultModalAndReload);
+}
+
+function closeSyncResultModal() {
+    const m = document.getElementById('syncResultModal');
+    if (m) m.remove();
+}
+
+function closeSyncResultModalAndReload() {
+    closeSyncResultModal();
+    window.location.reload();
+}
+
+function buildUnmatchedSection(title, items, esc) {
+    const section = document.createElement('div');
+    const h4 = document.createElement('h4');
+    h4.style.cssText = 'margin:12px 0 6px;';
+    h4.textContent = `${title} (${items.length})`;
+    section.appendChild(h4);
+
+    if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'color:#888; padding:8px 0;';
+        empty.textContent = '없음';
+        section.appendChild(empty);
+        return section;
+    }
+
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'max-height:420px; overflow:auto; border:1px solid #eee; border-radius:6px;';
+    const table = document.createElement('table');
+
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+        <tr>
+            <th>엑셀 행</th>
+            <th>엑셀 정보</th>
+            <th>이메일</th>
+            <th>사전등록여부 → 적용값</th>
+            <th>사유</th>
+            <th>DB의 동일 이메일 후보 / 적용</th>
+        </tr>
+    `;
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    items.forEach(u => {
+        const tr = document.createElement('tr');
+
+        const tdRow = document.createElement('td');
+        tdRow.textContent = u.row;
+        tr.appendChild(tdRow);
+
+        const tdInfo = document.createElement('td');
+        const eng = `${u.given_name || ''} ${u.family_name || ''}`.trim();
+        tdInfo.innerHTML = `<div><b>${esc(u.name_kor || '')}</b></div><div style="color:#666;">${esc(eng)}</div>`;
+        tr.appendChild(tdInfo);
+
+        const tdEmail = document.createElement('td');
+        tdEmail.textContent = u.email || '';
+        tr.appendChild(tdEmail);
+
+        const tdStatus = document.createElement('td');
+        const targetLabel = u.target_value === '' ? '빈칸' : u.target_value;
+        tdStatus.innerHTML = `<span>${esc(u.pre_reg)}</span> → <b>${esc(targetLabel)}</b>`;
+        tr.appendChild(tdStatus);
+
+        const tdReason = document.createElement('td');
+        tdReason.textContent = u.reason || '';
+        tr.appendChild(tdReason);
+
+        const tdCandidates = document.createElement('td');
+        if (Array.isArray(u.candidates) && u.candidates.length > 0) {
+            const list = document.createElement('div');
+            list.style.cssText = 'display:flex; flex-direction:column; gap:6px;';
+            u.candidates.forEach(c => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex; align-items:center; gap:8px; flex-wrap:wrap;';
+                const cur = c.current_registration || '빈칸';
+                row.innerHTML = `
+                    <div style="flex:1; min-width:160px;">
+                        <div><b>${esc(c.name_kor || '')}</b> <span style="color:#666;">${esc(c.name_eng || '')}</span></div>
+                        <div style="color:#888; font-size:12px;">현재 등록구분: ${esc(cur)}</div>
+                    </div>
+                `;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'primary';
+                btn.style.cssText = 'padding:4px 10px; font-size:12px; white-space:nowrap;';
+                btn.textContent = `이 사람에게 '${targetLabel}' 적용`;
+                btn.dataset.participantId = String(c.id);
+                btn.dataset.value = u.target_value || '';
+                btn.addEventListener('click', () => applyRegistrationToCandidate(btn, c.id, u.target_value || ''));
+                row.appendChild(btn);
+                list.appendChild(row);
+            });
+            tdCandidates.appendChild(list);
+        } else {
+            tdCandidates.innerHTML = '<span style="color:#888;">DB에 동일 이메일 없음</span>';
+        }
+        tr.appendChild(tdCandidates);
+
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    section.appendChild(wrap);
+    return section;
+}
+
+async function applyRegistrationToCandidate(btn, participantId, value) {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '적용 중...';
+    try {
+        const fd = new FormData();
+        fd.append('value', value);
+        const res = await fetch(`/update_participant_registration/${participantId}`, {
+            method: 'POST',
+            body: fd,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data && data.error ? data.error : '실패');
+        }
+        btn.textContent = '✓ 적용됨';
+        btn.style.background = '#2e7d32';
+        btn.style.color = '#fff';
+        btn.style.borderColor = '#2e7d32';
+    } catch (e) {
+        console.error(e);
+        alert('적용 실패: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
 function openPopupAttn(url) {
     window.open(url, '_blank', 'width=1600,height=1200,scrollbars=yes,resizable=yes');
 }
