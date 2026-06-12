@@ -280,6 +280,73 @@
                 </div>
             </div>
             
+            <!-- 명찰 인쇄 -->
+            <div class="form-section badge-section">
+                <h3><i class="fas fa-id-badge"></i> 명찰 인쇄</h3>
+
+                <div class="badge-settings">
+                    <div class="badge-settings-lang">
+                        <span class="badge-settings-lang-label">언어</span>
+                        <div class="radio-group badge-lang-group">
+                            <label class="radio-item">
+                                <input type="radio" name="badge_lang" value="kor" checked>
+                                <span>한글</span>
+                            </label>
+                            <label class="radio-item">
+                                <input type="radio" name="badge_lang" value="eng">
+                                <span>영문</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="badge-settings-grid">
+                        <label class="badge-field" for="badge_name_size">
+                            <span>이름 크기 (pt)</span>
+                            <input type="number" class="badge-input" id="badge_name_size" value="48" min="20" max="72" step="1">
+                        </label>
+                        <label class="badge-field" for="badge_affiliation_size">
+                            <span>소속 크기 (pt)</span>
+                            <input type="number" class="badge-input" id="badge_affiliation_size" value="24" min="12" max="48" step="1">
+                        </label>
+                        <label class="badge-field" for="badge_block_offset_y">
+                            <span>전체 위치 (mm)</span>
+                            <input type="number" class="badge-input" id="badge_block_offset_y" value="12" min="-20" max="40" step="1" title="양수일수록 아래로 이동">
+                        </label>
+                        <label class="badge-field" for="badge_name_affiliation_gap">
+                            <span>이름·소속 간격 (mm)</span>
+                            <input type="number" class="badge-input" id="badge_name_affiliation_gap" value="6" min="0" max="30" step="1">
+                        </label>
+                        <label class="badge-field" for="badge_name_offset_y">
+                            <span>이름 위치 (mm)</span>
+                            <input type="number" class="badge-input" id="badge_name_offset_y" value="0" min="-20" max="20" step="1" title="음수=위, 양수=아래">
+                        </label>
+                        <label class="badge-field" for="badge_affiliation_offset_y">
+                            <span>소속 위치 (mm)</span>
+                            <input type="number" class="badge-input" id="badge_affiliation_offset_y" value="0" min="-20" max="20" step="1" title="음수=위, 양수=아래">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="badge-preview-wrap">
+                    <div class="badge-preview-label">미리보기 (105 × 135mm)</div>
+                    <div class="badge-preview-scale">
+                        <div class="badge-print-area badge-preview-area" id="badgePreviewArea">
+                            <div class="badge-content">
+                                <div class="badge-name" id="badgePreviewName"></div>
+                                <div class="badge-affiliation" id="badgePreviewAffiliation"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="badge-print-actions">
+                    <button type="button" class="btn-print" onclick="printNameBadge()">
+                        <i class="fas fa-print"></i>
+                        명찰 인쇄
+                    </button>
+                </div>
+            </div>
+
             <!-- 버튼 -->
             <div class="form-actions">
                 <button type="button" class="btn-secondary" onclick="window.opener ? window.close() : window.location.href='/event/{{ participant.event_id }}'; return false;">취소</button>
@@ -290,6 +357,17 @@
             </div>
         </form>
     </div>
+
+    <!-- 인쇄 전용 시트 (화면에는 숨김) -->
+    <div id="badgePrintSheet" class="badge-print-sheet" aria-hidden="true">
+        <div class="badge-print-area">
+            <div class="badge-content">
+                <div class="badge-name" id="badgePrintName"></div>
+                <div class="badge-affiliation" id="badgePrintAffiliation"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="../static/js/edit_participant.js"></script>
 </body>
 </html>

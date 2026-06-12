@@ -4099,6 +4099,24 @@ function collectRowExportSettings(overrides = null) {
     };
 }
 
+// 엑셀/캘린더 뷰보내기용 세션 필드 (캘린더 뷰와 동일하게 번호 반영)
+function getExportSessionFields(session) {
+    const sessionType = session.sessionType || '';
+    const sessionAbbr = session.displayAbbreviation || session.sessionAbbreviation || '';
+    const numberedType = session.displaySessionType || session.sessionType || '';
+    const topic = session.title || '';
+
+    // 세션명: 캘린더 뷰처럼 번호가 붙은 세션 종류 + 주제 (예: "Special Interest Group 4 - AI 기술 동향")
+    let sessionTitle = topic;
+    if (numberedType && topic) {
+        sessionTitle = `${numberedType} - ${topic}`;
+    } else if (numberedType) {
+        sessionTitle = numberedType;
+    }
+
+    return { sessionType, sessionAbbr, sessionTitle };
+}
+
 function generateRowExportData(overrides = null) {
     const exportSettings = collectRowExportSettings(overrides);
     
@@ -4153,10 +4171,8 @@ function generateRowExportData(overrides = null) {
     });
     
     for (const session of sortedSessions) {
-        const sessionType = session.sessionType || '';
+        const { sessionType, sessionAbbr, sessionTitle } = getExportSessionFields(session);
         const language = session.language || '';
-        const sessionAbbr = session.displayAbbreviation || '';
-        const sessionTitle = session.title || '';
         const venue = session.venue || '';
         const sessionTime = `${session.startTime || ''}-${session.endTime || ''}`;
         const date = session.date || '';
@@ -4521,6 +4537,10 @@ function refreshExcelViewData(forceRegenerate = false) {
     
     try {
         if (!excelViewState.initialized || forceRegenerate) {
+            // 캘린더 뷰와 동일한 세션 번호를보내기 데이터에 반영
+            if (typeof assignSessionNumbers === 'function' && Array.isArray(sessions) && sessions.length > 0) {
+                assignSessionNumbers();
+            }
             // 엑셀 뷰에서는 모든 컬럼을 포함하도록 설정
             const allColumnsSettings = {
                 date: true,

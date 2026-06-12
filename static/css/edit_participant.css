@@ -490,6 +490,239 @@ textarea.auto-resize:focus {
     align-items: center;
 }
 
+/* 명찰 인쇄 */
+.badge-section {
+    border: 2px dashed #d0d7de;
+    background: #fafbfc;
+}
+
+.badge-settings {
+    background: #fff;
+    border: 1px solid #e4e9ef;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+
+.badge-settings-lang {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #eef1f5;
+}
+
+.badge-settings-lang-label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #5a6a7a;
+    min-width: 32px;
+}
+
+.badge-lang-group {
+    gap: 10px;
+}
+
+.badge-lang-group .radio-item {
+    padding: 6px 14px;
+    font-size: 0.9rem;
+}
+
+.badge-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+}
+
+.badge-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    cursor: default;
+}
+
+.badge-field > span {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #5a6a7a;
+    line-height: 1.2;
+}
+
+.badge-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #d5dde6;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    background: #f9fbfd;
+    color: var(--main-blue);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.badge-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.15);
+    background: #fff;
+}
+
+.badge-preview-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 16px 0;
+}
+
+.badge-preview-label {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin-bottom: 10px;
+}
+
+.badge-preview-scale {
+    transform: scale(0.55);
+    transform-origin: top center;
+    margin-bottom: -50px;
+}
+
+.badge-print-area {
+    width: 105mm;
+    height: 135mm;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 0 8mm;
+    background: #fff;
+}
+
+.badge-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    max-width: 100%;
+    transform: translateY(var(--badge-block-offset-y, 12mm));
+}
+
+.badge-preview-area {
+    border: 1px dashed #b0b8c1;
+    box-shadow: 0 2px 8px rgba(50, 64, 82, 0.08);
+}
+
+.badge-name {
+    font-size: var(--badge-name-size, 48pt);
+    font-weight: 700;
+    line-height: 1.15;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    transform: translateY(var(--badge-name-offset-y, 0mm));
+}
+
+.badge-affiliation {
+    font-size: var(--badge-affiliation-size, 24pt);
+    font-weight: 400;
+    line-height: 1.25;
+    margin-top: var(--badge-name-affiliation-gap, 6mm);
+    transform: translateY(var(--badge-affiliation-offset-y, 0mm));
+    white-space: pre-line;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    max-width: 100%;
+}
+
+.badge-print-area.lang-kor .badge-name,
+.badge-print-area.lang-kor .badge-affiliation {
+    font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', 'Noto Sans KR', Calibri, sans-serif;
+}
+
+.badge-print-area.lang-eng .badge-name,
+.badge-print-area.lang-eng .badge-affiliation {
+    font-family: Calibri, Arial, 'Helvetica Neue', sans-serif;
+}
+
+.badge-print-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.btn-print {
+    padding: 14px 32px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: linear-gradient(135deg, #2c3e50, #34495e);
+    color: white;
+}
+
+.btn-print:hover {
+    background: linear-gradient(135deg, #34495e, #2c3e50);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(44, 62, 80, 0.35);
+}
+
+/* 인쇄 전용 시트 */
+.badge-print-sheet {
+    position: fixed;
+    left: -9999px;
+    top: 0;
+    width: 210mm;
+    height: 297mm;
+    background: #fff;
+}
+
+.badge-print-sheet .badge-print-area {
+    position: absolute;
+    left: 52.5mm;
+    top: 81mm;
+    border: none;
+    box-shadow: none;
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 0;
+    }
+
+    body {
+        margin: 0;
+        padding: 0;
+        background: #fff;
+    }
+
+    body * {
+        visibility: hidden;
+    }
+
+    .badge-print-sheet,
+    .badge-print-sheet * {
+        visibility: visible;
+    }
+
+    .badge-print-sheet {
+        position: fixed;
+        left: 0;
+        top: 0;
+        width: 210mm;
+        height: 297mm;
+        background: #fff;
+    }
+}
+
 /* 폼 힌트 */
 .form-hint {
     display: block;

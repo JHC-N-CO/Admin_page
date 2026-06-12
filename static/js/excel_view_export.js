@@ -194,9 +194,22 @@ function exportFilteredExcelView() {
         } else {
             // 일반 형식
             // 선택된 컬럼 인덱스 가져오기
-            const selectedColumns = Array.from(document.querySelectorAll('.excel-view-column-checkbox:checked'))
+            let selectedColumns = Array.from(document.querySelectorAll('.excel-view-column-checkbox:checked'))
                 .map(cb => parseInt(cb.getAttribute('data-column-index')))
                 .sort((a, b) => a - b);
+
+            // 세션약어를 선택했으면 세션명도 약어 옆에 포함 (캘린더 뷰와 동일한 번호 반영)
+            const headers = excelViewState.headers || [];
+            const abbrIdx = headers.findIndex(h =>
+                h && (h.includes('세션약어') || h.includes('Session Abbreviation'))
+            );
+            const titleIdx = headers.findIndex(h =>
+                h && (h.includes('세션명') || h.includes('Session Topic'))
+            );
+            if (abbrIdx >= 0 && selectedColumns.includes(abbrIdx) && titleIdx >= 0 && !selectedColumns.includes(titleIdx)) {
+                selectedColumns.push(titleIdx);
+                selectedColumns.sort((a, b) => a - b);
+            }
             
             if (selectedColumns.length === 0) {
                 alert('최소 하나의 컬럼을 선택해주세요.');
@@ -482,13 +495,19 @@ function generateChairEmailFormat() {
                 });
             }
             
+            const exportFields = typeof getExportSessionFields === 'function'
+                ? getExportSessionFields(session)
+                : {
+                    sessionAbbr: session.displayAbbreviation || session.sessionAbbreviation || '',
+                    sessionTitle: session.title || ''
+                };
             // 세션 정보 추가 (모든 좌장 정보 포함)
             chairMap.get(key).sessions.push({
                 date: session.date || '',
                 time: session.startTime ? `${session.startTime}-${session.endTime || ''}` : '',
                 venue: session.venue || '',
-                sessionAbbr: session.displayAbbreviation || session.sessionAbbreviation || '',
-                sessionTitle: session.title || '',
+                sessionAbbr: exportFields.sessionAbbr,
+                sessionTitle: exportFields.sessionTitle,
                 chairsDisplay: chairsDisplayString, // 모든 좌장 정보
                 lectures: lectures
             });
@@ -628,8 +647,14 @@ function generateSpeakerEmailFormat() {
         const sessionDate = session.date || '';
         const sessionTime = session.startTime ? `${session.startTime}-${session.endTime || ''}` : '';
         const venue = session.venue || '';
-        const sessionAbbr = session.displayAbbreviation || session.sessionAbbreviation || '';
-        const sessionTitle = session.title || '';
+        const exportFields = typeof getExportSessionFields === 'function'
+            ? getExportSessionFields(session)
+            : {
+                sessionAbbr: session.displayAbbreviation || session.sessionAbbreviation || '',
+                sessionTitle: session.title || ''
+            };
+        const sessionAbbr = exportFields.sessionAbbr;
+        const sessionTitle = exportFields.sessionTitle;
         
         // 세션 언어 확인 (English Session 여부)
         // 캘린더 뷰에서 사용하는 로직과 동일하게 판단
