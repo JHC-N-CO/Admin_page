@@ -91,15 +91,9 @@ function applyBadgeLayout(area) {
 
 function getBadgeAffiliation(lang) {
     if (lang === 'eng') {
-        const aff = (document.getElementById('affiliation_eng')?.value || '').trim();
-        const dept = (document.getElementById('department_eng')?.value || '').trim();
-        if (aff && dept) return `${aff}\n${dept}`;
-        return aff || dept;
+        return (document.getElementById('affiliation_eng')?.value || '').trim();
     }
-    const aff = (document.getElementById('affiliation_kor')?.value || '').trim();
-    const dept = (document.getElementById('department_kor')?.value || '').trim();
-    if (aff && dept) return `${aff}\n${dept}`;
-    return aff || dept;
+    return (document.getElementById('affiliation_kor')?.value || '').trim();
 }
 
 function updateBadgePreview() {
@@ -155,8 +149,7 @@ function initBadgePrint() {
 
     const watchIds = [
         'name_kor', 'first_name', 'family_name',
-        'affiliation_kor', 'department_kor',
-        'affiliation_eng', 'department_eng'
+        'affiliation_kor', 'affiliation_eng'
     ];
     watchIds.forEach(id => {
         const el = document.getElementById(id);
