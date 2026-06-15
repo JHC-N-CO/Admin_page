@@ -47,6 +47,7 @@ class Config:
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
     MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'False').lower() == 'true'
     MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
+    MAIL_TIMEOUT = int(os.environ.get('MAIL_TIMEOUT', '30'))
 
 class DevelopmentConfig(Config):
     DEBUG = True

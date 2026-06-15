@@ -16,4 +16,5 @@ COPY . .
 ENV FLASK_APP=app.py
 
 # Gunicorn으로 실행 (프로덕션)
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "-w", "4", "app:app"] 
+# --timeout: /send_email 등 SMTP 동기 처리 시 기본 30초로 워커가 죽는 문제 방지
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "-w", "4", "--timeout", "120", "--graceful-timeout", "30", "app:app"] 

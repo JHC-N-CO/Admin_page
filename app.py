@@ -92,6 +92,25 @@ os.makedirs(app.config['WORD_UPLOAD_FOLDER'], exist_ok=True)
 # Email Configuration
 mail = Mail(app)
 
+# Flask-Mail 0.9.1은 SMTP socket timeout 미지원 → hang 시 Gunicorn WORKER TIMEOUT 유발
+import smtplib
+import flask_mail as _flask_mail
+
+def _configure_mail_host_with_timeout(self):
+    timeout = app.config.get('MAIL_TIMEOUT', 30)
+    if self.mail.use_ssl:
+        host = smtplib.SMTP_SSL(self.mail.server, self.mail.port, timeout=timeout)
+    else:
+        host = smtplib.SMTP(self.mail.server, self.mail.port, timeout=timeout)
+    host.set_debuglevel(int(self.mail.debug))
+    if self.mail.use_tls:
+        host.starttls()
+    if self.mail.username and self.mail.password:
+        host.login(self.mail.username, self.mail.password)
+    return host
+
+_flask_mail.Connection.configure_host = _configure_mail_host_with_timeout
+
 def allowed_file(filename, allowed_extensions=ALLOWED_EXTENSIONS):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
