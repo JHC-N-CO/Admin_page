@@ -2587,6 +2587,10 @@ async function sendEmailToRecipients() {
         });
         
         const result = await response.json();
+
+        if (!response.ok) {
+            console.error('이메일 발송 서버 응답:', response.status, result);
+        }
         
         if (result.status === 'success') {
             const totalCount = selectedCheckboxes.length + directEmails.length;

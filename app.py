@@ -94,14 +94,29 @@ mail = Mail(app)
 
 # Flask-Mail 0.9.1은 SMTP socket timeout 미지원 → hang 시 Gunicorn WORKER TIMEOUT 유발
 import smtplib
+import socket
 import flask_mail as _flask_mail
+
+def _smtp_connect(server, port, use_ssl, timeout):
+    """SMTP 연결. VPS에 IPv6 경로가 없을 때 Errno 101 방지를 위해 IPv4 우선."""
+    _orig_getaddrinfo = socket.getaddrinfo
+
+    def _ipv4_getaddrinfo(host, port, family=0, type=0, proto=0, flags=0):
+        return _orig_getaddrinfo(
+            host, port, socket.AF_INET, type or socket.SOCK_STREAM, proto, flags
+        )
+
+    socket.getaddrinfo = _ipv4_getaddrinfo
+    try:
+        if use_ssl:
+            return smtplib.SMTP_SSL(server, port, timeout=timeout)
+        return smtplib.SMTP(server, port, timeout=timeout)
+    finally:
+        socket.getaddrinfo = _orig_getaddrinfo
 
 def _configure_mail_host_with_timeout(self):
     timeout = app.config.get('MAIL_TIMEOUT', 30)
-    if self.mail.use_ssl:
-        host = smtplib.SMTP_SSL(self.mail.server, self.mail.port, timeout=timeout)
-    else:
-        host = smtplib.SMTP(self.mail.server, self.mail.port, timeout=timeout)
+    host = _smtp_connect(self.mail.server, self.mail.port, self.mail.use_ssl, timeout)
     host.set_debuglevel(int(self.mail.debug))
     if self.mail.use_tls:
         host.starttls()
