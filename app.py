@@ -26,6 +26,7 @@ import zipfile
 from flask_sqlalchemy import SQLAlchemy
 from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings
 from config import config
+from gmail_sender import send_outbound_email
 
 app = Flask(__name__, static_folder='static')
 
@@ -34,9 +35,9 @@ config_name = os.environ.get('FLASK_ENV', 'development')
 app.config.from_object(config[config_name])
 
 # 이메일 설정 디버깅 (실제 설정값 확인)
-logging.info(f"Email Config - MAIL_SERVER: {app.config.get('MAIL_SERVER')}")
-logging.info(f"Email Config - MAIL_USERNAME: {app.config.get('MAIL_USERNAME')}")
+logging.info(f"Email Config - MAIL_TRANSPORT: {app.config.get('MAIL_TRANSPORT')}")
 logging.info(f"Email Config - MAIL_DEFAULT_SENDER: {app.config.get('MAIL_DEFAULT_SENDER')}")
+logging.info(f"Email Config - Gmail API configured: {bool(app.config.get('GMAIL_REFRESH_TOKEN'))}")
 
 # SQLAlchemy 초기화
 db.init_app(app)
@@ -2560,6 +2561,7 @@ def send_email():
                 
                 # 발신자 설정 - config에서 가져오거나 명시적으로 설정
                 sender_email = app.config.get('MAIL_DEFAULT_SENDER') or 'koreaepilepsy@kes.or.kr'
+                reply_to = app.config.get('MAIL_REPLY_TO') or sender_email
                 
                 # 수신자 이메일 (참가자 또는 직접 추가한 이메일)
                 recipient_email = participant.email if participant else None
@@ -2572,7 +2574,7 @@ def send_email():
                     recipients=[recipient_email],
                     html=email_body,
                     sender=sender_email,
-                    reply_to='koreaepilepsy@kes.or.kr'
+                    reply_to=reply_to
                 )
                 if cc:
                     msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
@@ -2658,7 +2660,7 @@ def send_email():
                 
                 # 이메일 발송 (PDF 첨부 실패해도 발송)
                 try:
-                    mail.send(msg)
+                    send_outbound_email(mail, msg)
                     if attachment_errors:
                         logging.warning(f"⚠️ 이메일 발송 성공 (첨부 파일 오류 있음): {participant.email}, 오류: {attachment_errors}")
                     else:
@@ -2671,13 +2673,14 @@ def send_email():
 
         # 명단에 없는 직접 입력 이메일로 발송 (Mail merge / 승인·거절 버튼 / 워드 첨부 없이 기본 발송)
         sender_email = app.config.get('MAIL_DEFAULT_SENDER') or 'koreaepilepsy@kes.or.kr'
+        reply_to = app.config.get('MAIL_REPLY_TO') or sender_email
         for extra_email in extra_emails:
             msg = Message(
                 subject=subject,
                 recipients=[extra_email],
                 html=body,
                 sender=sender_email,
-                reply_to='koreaepilepsy@kes.or.kr'
+                reply_to=reply_to
             )
             if cc:
                 msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
@@ -2695,7 +2698,7 @@ def send_email():
                                 headers=[('Content-ID', f'<image_{hash(img_path)}>')]
                             )
             try:
-                mail.send(msg)
+                send_outbound_email(mail, msg)
                 logging.info(f"✅ 직접 입력 이메일 발송 성공: {extra_email}")
             except Exception as email_error:
                 logging.error(f"❌ 직접 입력 이메일 발송 실패: {extra_email}, {email_error}")

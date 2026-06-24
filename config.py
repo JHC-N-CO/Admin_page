@@ -40,13 +40,22 @@ class Config:
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
     
     # 이메일 설정
+    MAIL_TRANSPORT = os.environ.get('MAIL_TRANSPORT', 'gmail_api')
+    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
+    MAIL_REPLY_TO = os.environ.get('MAIL_REPLY_TO') or MAIL_DEFAULT_SENDER
+
+    # Gmail API (MAIL_TRANSPORT=gmail_api)
+    GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID')
+    GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET')
+    GMAIL_REFRESH_TOKEN = os.environ.get('GMAIL_REFRESH_TOKEN')
+
+    # SMTP fallback (MAIL_TRANSPORT=smtp)
     MAIL_SERVER = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = int(os.environ.get('MAIL_PORT', 587))
     MAIL_USERNAME = os.environ.get('MAIL_USERNAME')
     MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD')
     MAIL_USE_TLS = os.environ.get('MAIL_USE_TLS', 'True').lower() == 'true'
     MAIL_USE_SSL = os.environ.get('MAIL_USE_SSL', 'False').lower() == 'true'
-    MAIL_DEFAULT_SENDER = os.environ.get('MAIL_DEFAULT_SENDER')
     MAIL_TIMEOUT = int(os.environ.get('MAIL_TIMEOUT', '30'))
 
 class DevelopmentConfig(Config):
