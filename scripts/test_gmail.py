@@ -4,6 +4,10 @@
 import os
 import sys
 
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, ROOT)
+os.chdir(ROOT)
+
 from dotenv import load_dotenv
 
 load_dotenv('config.env')
@@ -11,7 +15,7 @@ if os.path.isfile('config.env.local'):
     load_dotenv('config.env.local', override=True)
 
 from flask import Flask
-from flask_mail import Message
+from flask_mail import Mail, Message
 
 from config import config
 from gmail_sender import send_via_gmail_api, is_gmail_api_configured
@@ -19,6 +23,7 @@ from gmail_sender import send_via_gmail_api, is_gmail_api_configured
 app = Flask(__name__)
 config_name = os.environ.get('FLASK_ENV', 'development')
 app.config.from_object(config[config_name])
+Mail(app)  # Message.as_bytes() 에 필요
 
 
 def main():
