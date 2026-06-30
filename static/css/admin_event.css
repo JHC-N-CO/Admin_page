@@ -22,6 +22,22 @@ body {
     margin-bottom: 10px;
 }
 
+.history-list-link {
+    display: inline-block;
+    padding: 10px 16px;
+    background-color: #17a2b8;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.history-list-link:hover {
+    background-color: #138496;
+    color: #fff;
+}
+
     .event-form {
     background-color: white;
         padding: 20px;

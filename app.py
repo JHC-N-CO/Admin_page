@@ -27,6 +27,12 @@ from flask_sqlalchemy import SQLAlchemy
 from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings
 from config import config
 from gmail_sender import send_outbound_email
+from chairs_speakers_history import (
+    load_aggregated_history,
+    save_uploaded_csv,
+    ensure_sessions_template,
+    delete_people_by_keys,
+)
 
 app = Flask(__name__, static_folder='static')
 
@@ -4605,6 +4611,118 @@ def event_program(event_id):
     except Exception as e:
         logging.error(f"Error loading event program page: {str(e)}")
         return "페이지 로드 중 오류가 발생했습니다.", 500
+
+
+@app.route('/chairs_speakers_history')
+def chairs_speakers_history_page_global():
+    """역대 좌장/연자/패널 리스트 (행사 관리에서 진입)"""
+    try:
+        ensure_sessions_template()
+        return render_template('chairs_speakers_history.html', event=None)
+    except Exception as e:
+        logging.error(f"Error loading chairs/speakers history page: {str(e)}")
+        return "페이지 로드 중 오류가 발생했습니다.", 500
+
+
+@app.route('/event_program/<int:event_id>/chairs_speakers_history')
+def chairs_speakers_history_page(event_id):
+    """역대 좌장/연자/패널 리스트 (행사 프로그램에서 진입)"""
+    try:
+        event = Event.query.get(event_id)
+        if not event:
+            return "행사를 찾을 수 없습니다.", 404
+        ensure_sessions_template()
+        return render_template('chairs_speakers_history.html', event=event)
+    except Exception as e:
+        logging.error(f"Error loading chairs/speakers history page: {str(e)}")
+        return "페이지 로드 중 오류가 발생했습니다.", 500
+
+
+@app.route('/api/chairs_speakers_history', methods=['GET'])
+def get_chairs_speakers_history():
+    """역대 좌장/연자/패널 집계 데이터"""
+    try:
+        ensure_sessions_template()
+        data = load_aggregated_history()
+        return jsonify({'status': 'success', 'count': len(data), 'people': data})
+    except Exception as e:
+        logging.error(f"Error loading chairs/speakers history: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/chairs_speakers_history/upload', methods=['POST'])
+def upload_chairs_speakers_history():
+    """역대 명단 또는 세션/발표 CSV 업로드"""
+    try:
+        upload_type = request.form.get('type', 'history')
+        if upload_type not in ('history', 'sessions'):
+            return jsonify({'status': 'error', 'message': 'type은 history 또는 sessions 여야 합니다.'}), 400
+        if 'file' not in request.files:
+            return jsonify({'status': 'error', 'message': '파일이 없습니다.'}), 400
+        file = request.files['file']
+        if not file or not file.filename:
+            return jsonify({'status': 'error', 'message': '파일이 없습니다.'}), 400
+        if not allowed_file(file.filename, {'csv'}):
+            return jsonify({'status': 'error', 'message': 'CSV 파일만 업로드할 수 있습니다.'}), 400
+
+        tmp_path = os.path.join(tempfile.gettempdir(), secure_filename(file.filename))
+        file.save(tmp_path)
+        try:
+            save_uploaded_csv(tmp_path, upload_type)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+
+        data = load_aggregated_history()
+        label = '역대 명단' if upload_type == 'history' else '세션/발표 이력'
+        return jsonify({
+            'status': 'success',
+            'message': f'{label} 파일이 업데이트되었습니다.',
+            'count': len(data),
+            'people': data,
+        })
+    except Exception as e:
+        logging.error(f"Error uploading chairs/speakers history: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/chairs_speakers_history/delete', methods=['POST'])
+def delete_chairs_speakers_history():
+    """선택한 역대 좌장/연자/패널 삭제"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        person_keys = payload.get('person_keys') or []
+        if not isinstance(person_keys, list) or not person_keys:
+            return jsonify({'status': 'error', 'message': '삭제할 항목을 선택하세요.'}), 400
+
+        removed = delete_people_by_keys(person_keys)
+        if removed == 0:
+            return jsonify({'status': 'error', 'message': '삭제된 항목이 없습니다.'}), 400
+
+        data = load_aggregated_history()
+        return jsonify({
+            'status': 'success',
+            'message': f'{removed}명이 삭제되었습니다.',
+            'removed': removed,
+            'count': len(data),
+            'people': data,
+        })
+    except Exception as e:
+        logging.error(f"Error deleting chairs/speakers history: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/chairs_speakers_history/sessions_template')
+def download_sessions_template():
+    """세션/발표 이력 업로드용 CSV 템플릿"""
+    ensure_sessions_template()
+    from chairs_speakers_history import SESSIONS_CSV
+    return send_file(
+        SESSIONS_CSV,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='chairs_speakers_sessions_template.csv',
+    )
 
 @app.route('/api/event_program/<int:event_id>', methods=['GET'])
 def get_event_program(event_id):
