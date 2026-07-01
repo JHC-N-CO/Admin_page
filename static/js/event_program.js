@@ -208,8 +208,8 @@ let displaySettings = {
     showSpeakerName: true,
     showSpeakerTopic: true,
     showSpeakerTime: true,
-    chairNameLanguage: 'kor',
-    speakerNameLanguage: 'kor'
+    chairNameLanguage: 'eng',
+    speakerNameLanguage: 'eng'
 };
 
 let currentViewMode = 'calendar';
@@ -3674,8 +3674,6 @@ function saveSession() {
                 return;
             }
             
-            const name = participant.name;
-            
             // 발표자 데이터 검증
             if (topic.length === 0) {
                 alert('발표 주제를 입력해주세요.');
@@ -3691,13 +3689,11 @@ function saveSession() {
                 return;
             }
             
-            speakers.push({
-                participantId: participantId,
-                name: name,
+            speakers.push(buildProgramSpeakerSlot(participant, {
                 topic: topic,
                 startTime: snappedSpeakerStart,
                 endTime: snappedSpeakerEnd
-            });
+            }));
         }
     }
     
@@ -3961,8 +3957,84 @@ function closeExportSettingsModal() {
 
 // 참가자 정보 조회 헬퍼 함수
 function getParticipantInfo(participantId) {
-    if (!participantId) return null;
-    return participants.find(p => p.id === participantId);
+    if (participantId === null || participantId === undefined || participantId === '') return null;
+    return participants.find(p => p.id == participantId) || null;
+}
+
+/** 프로그램에 배치된 좌장/연자의 연락처·이름 정보 (참가자 DB + 인물 풀 + 세션 객체) */
+function resolveProgramPersonContact(entity) {
+    if (!entity) return null;
+
+    const participantId = entity.participantId ?? entity.id;
+    let info = null;
+
+    if (participantId && Number(participantId) > 0) {
+        info = getParticipantInfo(participantId);
+    }
+
+    if (!info && entity.email) {
+        info = lookupPersonByEmail(entity.email);
+    }
+
+    if (!info) {
+        info = lookupPersonForNameFields(entity);
+    }
+
+    if (!info && entity.poolRef) {
+        info = findPersonByPoolRef(entity.poolRef);
+    }
+
+    if (!info && entity.pool_id) {
+        info = findPersonByPoolRef(entity.pool_id);
+    }
+
+    const email = pickFirstNonEmpty([entity.email, info?.email]);
+    const nameKor = pickFirstNonEmpty([entity.name_kor, info?.name_kor, entity.name, info?.name]);
+    const nameEng = pickFirstNonEmpty([
+        composeNameFromParts(entity.first_name || entity.firstName, entity.family_name || entity.familyName),
+        entity.name_eng,
+        info?.name_eng,
+        composeNameFromParts(info?.first_name, info?.family_name)
+    ]);
+    const displayName = nameKor || nameEng || entity.name || info?.name || '';
+
+    if (!displayName && !email) {
+        return null;
+    }
+
+    const stableId = (info?.id && Number(info.id) > 0)
+        ? info.id
+        : (participantId || entity.poolRef || entity.pool_id || `tmp:${displayName}`);
+
+    return {
+        id: stableId,
+        email,
+        name: displayName,
+        name_kor: nameKor,
+        name_eng: nameEng,
+        affiliation: pickFirstNonEmpty([
+            entity.affiliation_kor,
+            entity.affiliation,
+            info?.affiliation_kor,
+            info?.affiliation,
+            entity.workplace_name,
+            info?.workplace_name,
+            entity.affiliation_eng,
+            info?.affiliation_eng,
+            info?.workplace_name_eng
+        ]),
+        department: pickFirstNonEmpty([
+            entity.department_kor,
+            entity.department,
+            info?.department_kor,
+            info?.department,
+            entity.department_eng,
+            info?.department_eng
+        ]),
+        country: pickFirstNonEmpty([entity.country, info?.country]),
+        country_code: pickFirstNonEmpty([entity.country_code, info?.country_code]),
+        poolRef: entity.poolRef || entity.pool_id || info?.pool_id || ''
+    };
 }
 
 function pickFirstNonEmpty(values) {
@@ -3988,6 +4060,83 @@ function composeNameFromParts(first, family) {
     return parts.join(' ').trim();
 }
 
+function normalizePersonSearchName(str) {
+    if (!str) return '';
+    return str.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function lookupPersonByEmail(email) {
+    if (!email) return null;
+    const normalized = email.trim().toLowerCase();
+    if (!normalized) return null;
+    return buildSearchablePeople().find(
+        (person) => (person.email || '').trim().toLowerCase() === normalized
+    ) || null;
+}
+
+function lookupPersonForNameFields(entity) {
+    if (!entity) return null;
+
+    if (entity.poolRef) {
+        const byRef = findPersonByPoolRef(entity.poolRef);
+        if (byRef) return byRef;
+    }
+
+    const emailHint = (entity.email || '').trim().toLowerCase();
+    if (emailHint) {
+        const byEmail = lookupPersonByEmail(emailHint);
+        if (byEmail) return byEmail;
+    }
+
+    const korName = (entity.name_kor || entity.name || '').trim();
+    if (!korName) return null;
+
+    const normalized = normalizePersonSearchName(korName);
+    const matches = buildSearchablePeople().filter((person) => {
+        const personKor = (person.name_kor || person.name || '').trim();
+        return personKor && normalizePersonSearchName(personKor) === normalized;
+    });
+
+    if (matches.length > 1 && emailHint) {
+        const byEmail = matches.find(
+            (person) => (person.email || '').trim().toLowerCase() === emailHint
+        );
+        if (byEmail) return byEmail;
+    }
+
+    return matches.length === 1 ? matches[0] : null;
+}
+
+function buildProgramSpeakerSlot(person, sessionFields = {}) {
+    if (!person) {
+        return { ...sessionFields };
+    }
+
+    const participantId = person.participantId ?? person.id ?? null;
+    return {
+        participantId,
+        id: person.id ?? participantId,
+        name: person.name || person.name_kor || person.name_eng || '',
+        name_kor: person.name_kor || '',
+        name_eng: person.name_eng || '',
+        first_name: person.first_name || person.firstName || '',
+        family_name: person.family_name || person.familyName || '',
+        email: person.email || '',
+        affiliation: person.affiliation || person.affiliation_kor || '',
+        affiliation_kor: person.affiliation_kor || person.affiliation || '',
+        affiliation_eng: person.affiliation_eng || '',
+        department_kor: person.department_kor || '',
+        department_eng: person.department_eng || '',
+        country: person.country || '',
+        poolRef: person.poolRef || person.pool_id || '',
+        poolSource: person.poolSource || person.source || '',
+        isPoolReference: Boolean(person.isPoolReference),
+        isTemporary: Boolean(person.isTemporary),
+        isSpecialKeyword: Boolean(person.isSpecialKeyword),
+        ...sessionFields,
+    };
+}
+
 function getPreferredNameForEntity(entity, preference = 'kor') {
     if (!entity) return '';
     
@@ -4004,14 +4153,22 @@ function getPreferredNameForEntity(entity, preference = 'kor') {
         entity.name
     ]);
     
-    const engName = pickFirstNonEmpty([
+    let engName = pickFirstNonEmpty([
         participantFirstLast,
         entityFirstLast,
         entity.name_eng,
-        participantInfo?.name_eng,
-        participantInfo?.name,
-        entity.name
+        participantInfo?.name_eng
     ]);
+
+    if (!engName) {
+        const poolPerson = lookupPersonForNameFields(entity);
+        if (poolPerson) {
+            engName = pickFirstNonEmpty([
+                composeNameFromParts(poolPerson.first_name, poolPerson.family_name),
+                poolPerson.name_eng
+            ]);
+        }
+    }
     
     const primary = preference === 'eng' ? engName : korName;
     const secondary = preference === 'eng' ? korName : engName;
@@ -4208,8 +4365,9 @@ function generateRowExportData(overrides = null) {
                     chairData.departmentEng = chairInfo.department_eng || '';
                     chairData.position = chairInfo.position || '';
                 } else {
-                    chairData.nameKor = chair.name || chair.name_kor || '';
-                    chairData.nameEng = chair.name_eng || '';
+                    chairData.nameKor = chair.name_kor || chair.name || '';
+                    chairData.nameEng = getPreferredNameForEntity(chair, 'eng');
+                    chairData.country = chair.country || '';
                     chairData.email = chair.email || '';
                 }
                 
@@ -4291,8 +4449,9 @@ function generateRowExportData(overrides = null) {
                     speakerData.departmentEng = speakerInfo.department_eng || '';
                     speakerData.position = speakerInfo.position || '';
                 } else {
-                    speakerData.nameKor = speaker.name || '';
-                    speakerData.nameEng = speaker.name || '';
+                    speakerData.nameKor = speaker.name_kor || speaker.name || '';
+                    speakerData.nameEng = getSpeakerDisplayName(speaker, 'eng');
+                    speakerData.country = speaker.country || '';
                 }
                 
                 speakersData.push(speakerData);
@@ -5331,13 +5490,10 @@ function exportProgramCalendarSimple() {
                             if (!excludeNames) {
                                 if (session.chairs && session.chairs.length > 0) {
                                     const chairNames = session.chairs.map(chair => {
+                                        const name = getPreferredNameForEntity(chair, 'eng');
                                         const chairInfo = getParticipantInfo(chair.id || chair.participantId);
-                                        if (chairInfo) {
-                                            const name = chairInfo.name_eng || chairInfo.name_kor || chair.name;
-                                            const country = chairInfo.country ? ` (${chairInfo.country})` : '';
-                                            return name + country;
-                                        }
-                                        return chair.name || '';
+                                        const country = (chair.country || chairInfo?.country) ? ` (${chair.country || chairInfo.country})` : '';
+                                        return name + country;
                                     }).filter(n => n).join(', ');
                                     content += 'Chair: ' + chairNames + '\n';
                                 } else if (session.chair) {
@@ -5350,15 +5506,8 @@ function exportProgramCalendarSimple() {
                                 content += '\n';
                                 session.speakers.forEach((speaker, idx) => {
                                     const speakerInfo = getParticipantInfo(speaker.participantId);
-                                    let speakerName = '';
-                                    let speakerCountry = '';
-                                    
-                                    if (speakerInfo) {
-                                        speakerName = speakerInfo.name_eng || speakerInfo.name_kor || speaker.name;
-                                        speakerCountry = speakerInfo.country || '';
-                                    } else {
-                                        speakerName = speaker.name || '';
-                                    }
+                                    const speakerName = getSpeakerDisplayName(speaker, 'eng');
+                                    const speakerCountry = speaker.country || speakerInfo?.country || '';
                                     
                                     const topic = speaker.topic || '';
                                     const time = speaker.startTime && speaker.endTime 
@@ -5588,13 +5737,10 @@ function exportProgramCalendarDetailed() {
                 let chairInfo = '';
                 if (session.chairs && session.chairs.length > 0) {
                     const chairNames = session.chairs.map(chair => {
+                        const name = getPreferredNameForEntity(chair, 'eng');
                         const participantInfo = getParticipantInfo(chair.id || chair.participantId);
-                        if (participantInfo) {
-                            const name = participantInfo.name_eng || participantInfo.name_kor || chair.name;
-                            const country = participantInfo.country ? ` (${participantInfo.country})` : '';
-                            return name + country;
-                        }
-                        return chair.name || '';
+                        const country = (chair.country || participantInfo?.country) ? ` (${chair.country || participantInfo.country})` : '';
+                        return name + country;
                     }).filter(n => n).join(', ');
                     chairInfo = `Chair - ${chairNames}`;
                 } else if (session.chair) {
@@ -5702,15 +5848,8 @@ function exportProgramCalendarDetailed() {
                         : '';
                     
                     const speakerInfo = getParticipantInfo(speaker.participantId);
-                    let speakerName = '';
-                    let speakerCountry = '';
-                    
-                    if (speakerInfo) {
-                        speakerName = speakerInfo.name_eng || speakerInfo.name_kor || speaker.name;
-                        speakerCountry = speakerInfo.country || '';
-                    } else {
-                        speakerName = speaker.name || '';
-                    }
+                    const speakerName = getSpeakerDisplayName(speaker, 'eng');
+                    const speakerCountry = speaker.country || speakerInfo?.country || '';
                     
                     const topic = speaker.topic || '';
                     
@@ -6167,26 +6306,182 @@ function loadVenues() {
         });
 }
 
-// 참가자 목록 로드
+// 참가자·회원·역대 좌장/연자 인물 풀
 let participants = [];
+let personPoolMembers = [];
+let personPoolHistory = [];
+
+const PERSON_SOURCE_LABELS = {
+    participant: '참가자',
+    member: '회원',
+    history: '역대 좌장/연자',
+};
 
 function loadParticipants() {
     const eventId = document.body.getAttribute('data-event-id');
-    
-    fetch(`/api/event_program/${eventId}/participants`)
+
+    return fetch(`/api/event_program/${eventId}/person_pool`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 participants = data.participants || [];
+                personPoolMembers = data.members || [];
+                personPoolHistory = data.history_people || [];
+                console.log(`✅ Person pool loaded: participants=${participants.length}, members=${personPoolMembers.length}, history=${personPoolHistory.length}`);
             } else {
-                console.log('No participants found, starting with empty list');
+                console.log('No person pool found, starting with empty lists');
                 participants = [];
+                personPoolMembers = [];
+                personPoolHistory = [];
             }
         })
         .catch(error => {
-            console.error('Error loading participants:', error);
+            console.error('Error loading person pool:', error);
             participants = [];
+            personPoolMembers = [];
+            personPoolHistory = [];
         });
+}
+
+function buildSearchablePeople() {
+    const people = [];
+    const participantEmails = new Set();
+
+    participants.forEach((p) => {
+        people.push({ ...p, source: p.source || 'participant', pool_id: p.pool_id || `participant:${p.id}` });
+        if (p.email) {
+            participantEmails.add(p.email.toLowerCase());
+        }
+    });
+
+    personPoolMembers.forEach((m) => {
+        const email = (m.email || '').toLowerCase();
+        if (email && participantEmails.has(email)) {
+            return;
+        }
+        people.push(m);
+    });
+
+    const memberEmails = new Set(
+        personPoolMembers.map((m) => (m.email || '').toLowerCase()).filter(Boolean)
+    );
+
+    personPoolHistory.forEach((h) => {
+        const email = (h.email || '').toLowerCase();
+        if (email && (participantEmails.has(email) || memberEmails.has(email))) {
+            return;
+        }
+        people.push(h);
+    });
+
+    return people;
+}
+
+function findPersonByPoolRef(poolRef) {
+    if (!poolRef) {
+        return null;
+    }
+    const ref = String(poolRef);
+    return buildSearchablePeople().find((p) => String(p.pool_id) === ref || String(p.id) === ref) || null;
+}
+
+function getPersonSourceLabel(person) {
+    return person?.source_label || PERSON_SOURCE_LABELS[person?.source] || '인물';
+}
+
+/** 엑셀 업로드: 인물 풀에서 찾아 프로그램에만 배치 (참가자 목록에는 추가하지 않음) */
+function resolvePersonForProgram(person) {
+    if (!person) {
+        return person;
+    }
+
+    if (person.source === 'participant' || (!person.source && person.id && Number(person.id) > 0)) {
+        return {
+            ...person,
+            participantId: person.id,
+            id: person.id,
+            poolSource: 'participant',
+        };
+    }
+
+    const name = person.name || person.name_kor || person.name_eng || '';
+    const tempId = -(Date.now() + Math.random() * 1000);
+    return {
+        participantId: tempId,
+        id: tempId,
+        name,
+        name_kor: person.name_kor || '',
+        name_eng: person.name_eng || '',
+        first_name: person.first_name || '',
+        family_name: person.family_name || '',
+        email: person.email || '',
+        affiliation: person.affiliation || person.affiliation_kor || '',
+        affiliation_kor: person.affiliation_kor || '',
+        affiliation_eng: person.affiliation_eng || '',
+        phone: person.phone || '',
+        poolSource: person.source || 'pool',
+        poolRef: person.pool_id || '',
+        isPoolReference: true,
+    };
+}
+
+/** 수동 좌장/연자 선택: 회원·역대 명단 → 이 행사 참가자로 등록 */
+async function ensureEventParticipant(person) {
+    if (!person) {
+        return person;
+    }
+
+    if (person.source === 'participant' || (!person.source && Number(person.id) > 0)) {
+        return { ...person, participantId: person.id };
+    }
+
+    const eventId = document.body.getAttribute('data-event-id');
+    const payload = { source: person.source };
+
+    if (person.source === 'member') {
+        payload.member_id = person.member_id || Number(String(person.pool_id).replace('member:', ''));
+    } else if (person.source === 'history') {
+        payload.history_key = person.history_key || String(person.pool_id).replace('history:', '');
+        payload.name_kor = person.name_kor || '';
+        payload.name_eng = person.name_eng || '';
+        payload.first_name = person.first_name || '';
+        payload.family_name = person.family_name || '';
+        payload.email = person.email || '';
+        payload.phone = person.phone || '';
+        payload.affiliation = person.affiliation || person.affiliation_kor || '';
+        payload.affiliation_kor = person.affiliation_kor || '';
+        payload.affiliation_eng = person.affiliation_eng || '';
+        payload.department_kor = person.department_kor || '';
+        payload.department_eng = person.department_eng || '';
+        payload.position = person.position || '';
+        payload.license_number = person.license_number || '';
+    } else {
+        return person;
+    }
+
+    const response = await fetch(`/api/event_program/${eventId}/resolve_person`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+        throw new Error(data.error || '참가자 연결에 실패했습니다.');
+    }
+
+    const resolved = {
+        ...data.participant,
+        participantId: data.participant.id,
+    };
+
+    const existingIndex = participants.findIndex((p) => p.id === resolved.id);
+    if (existingIndex >= 0) {
+        participants[existingIndex] = resolved;
+    } else {
+        participants.push(resolved);
+    }
+
+    return resolved;
 }
 
 // 참가자 검색 관련 변수
@@ -6214,7 +6509,7 @@ function openParticipantSearch(type) {
     searchInput.focus();
     
     // 검색 결과 초기화
-    displayParticipantSearchResults(participants);
+    displayParticipantSearchResults(buildSearchablePeople());
     
     modal.style.display = 'block';
 }
@@ -6230,12 +6525,12 @@ function closeParticipantSearchModal() {
 // 참가자 검색 실행
 function searchParticipants(query) {
     if (!query || query.trim() === '') {
-        displayParticipantSearchResults(participants);
+        displayParticipantSearchResults(buildSearchablePeople());
         return;
     }
     
     const searchTerm = query.toLowerCase().trim();
-    const filteredParticipants = participants.filter(participant => {
+    const filteredParticipants = buildSearchablePeople().filter(participant => {
         const name = (participant.name || '').toLowerCase();
         const nameKor = (participant.name_kor || '').toLowerCase();
         const nameEng = (participant.name_eng || '').toLowerCase();
@@ -6274,13 +6569,14 @@ function displayParticipantSearchResults(participantsList) {
     noResults.style.display = 'none';
     
     resultsContainer.innerHTML = participantsList.map(participant => {
-        const affiliation = participant.affiliation_kor || participant.affiliation_eng || '소속 없음';
-        const role = participant.role || '참가자';
+        const affiliation = participant.affiliation_kor || participant.affiliation_eng || participant.affiliation || '소속 없음';
+        const role = participant.role || getPersonSourceLabel(participant);
+        const poolRef = encodeURIComponent(participant.pool_id || `participant:${participant.id}`);
         
         return `
-            <div class="participant-item" onclick="selectParticipant(${participant.id})" data-participant-id="${participant.id}">
+            <div class="participant-item" onclick="selectParticipant('${poolRef}')" data-pool-id="${poolRef}">
                 <div class="participant-main-info">
-                    <div class="participant-name">${participant.name}</div>
+                    <div class="participant-name">${participant.name} <span class="pool-source-badge">${getPersonSourceLabel(participant)}</span></div>
                     <div class="participant-details">
                         ${affiliation}<br>
                         ${participant.email || '이메일 없음'}
@@ -6293,8 +6589,8 @@ function displayParticipantSearchResults(participantsList) {
 }
 
 // 참가자 선택
-function selectParticipant(participantId) {
-    const participant = participants.find(p => p.id == participantId);
+function selectParticipant(poolRef) {
+    const participant = findPersonByPoolRef(decodeURIComponent(poolRef));
     if (!participant) return;
     
     selectedParticipant = participant;
@@ -6304,7 +6600,7 @@ function selectParticipant(participantId) {
         item.classList.remove('selected');
     });
     
-    const selectedItem = document.querySelector(`[data-participant-id="${participantId}"]`);
+    const selectedItem = document.querySelector(`[data-pool-id="${poolRef}"]`);
     if (selectedItem) {
         selectedItem.classList.add('selected');
     }
@@ -6328,10 +6624,12 @@ function showConfirmButton() {
     }
 }
 // 참가자 선택 확인
-function confirmParticipantSelection() {
+async function confirmParticipantSelection() {
     if (!selectedParticipant || !currentSearchType) return;
     
-    const affiliation = selectedParticipant.affiliation_kor || selectedParticipant.affiliation_eng || '소속 없음';
+    try {
+        const resolved = await ensureEventParticipant(selectedParticipant);
+        const affiliation = resolved.affiliation_kor || resolved.affiliation_eng || resolved.affiliation || '소속 없음';
     
     if (currentSearchType.startsWith('chair_')) {
         // 좌장 선택 (여러 좌장 지원)
@@ -6340,22 +6638,22 @@ function confirmParticipantSelection() {
         const displayDiv = document.getElementById(`selectedChair${chairId}`);
         
         if (hiddenInput && displayDiv) {
-            hiddenInput.value = selectedParticipant.id;
+            hiddenInput.value = resolved.id;
             
             displayDiv.innerHTML = `
             <div class="participant-info">
-                <div class="participant-name">${selectedParticipant.name}</div>
+                <div class="participant-name">${resolved.name}</div>
                 <div class="participant-details">${affiliation}</div>
             </div>
         `;
-            console.log(`✅ Chair ${chairId} selected:`, selectedParticipant.name);
+            console.log(`✅ Chair ${chairId} selected:`, resolved.name);
         }
     } else if (currentSearchType === 'quickChair') {
         // 빠른 세션 좌장
-        document.getElementById('quickSessionChair').value = selectedParticipant.id;
+        document.getElementById('quickSessionChair').value = resolved.id;
         document.getElementById('selectedQuickChair').innerHTML = `
             <div class="participant-info">
-                <div class="participant-name">${selectedParticipant.name}</div>
+                <div class="participant-name">${resolved.name}</div>
                 <div class="participant-details">${affiliation}</div>
             </div>
         `;
@@ -6366,12 +6664,11 @@ function confirmParticipantSelection() {
         const displayDiv = document.getElementById(`selectedSpeaker${speakerId}`);
         
         if (hiddenInput && displayDiv) {
-            hiddenInput.value = selectedParticipant.id;
-            const affiliation = selectedParticipant.affiliation_kor || selectedParticipant.affiliation_eng || '소속 없음';
+            hiddenInput.value = resolved.id;
             
             displayDiv.innerHTML = `
                 <div class="participant-info">
-                    <div class="participant-name">${selectedParticipant.name}</div>
+                    <div class="participant-name">${resolved.name}</div>
                     <div class="participant-details">${affiliation}</div>
                 </div>
             `;
@@ -6379,6 +6676,10 @@ function confirmParticipantSelection() {
     }
     
     closeParticipantSearchModal();
+    } catch (error) {
+        console.error('Error resolving participant:', error);
+        alert(error.message || '참가자 연결 중 오류가 발생했습니다.');
+    }
 }
 // 참가자 옵션 HTML 생성
 function generateParticipantOptions(selectedId = null) {
@@ -7208,7 +7509,7 @@ function findParticipantsByName(name) {
     const isEnglish = /^[a-zA-Z\s\.\-]+$/.test(trimmedName);
     const isKorean = /[가-힣]/.test(trimmedName);
     
-    const results = participants.filter(p => {
+    const results = buildSearchablePeople().filter(p => {
         if (isEnglish) {
             // 영문 검색이지만 한글 이름을 가진 참가자도 체크해야 함
             // (예: "Ki hyung Lee" 검색 시 한글 이름 "이기형"의 name_eng도 매칭)
@@ -7365,24 +7666,29 @@ function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, role
                         세션: <strong>"${sessionTitle}"</strong><br>
                         ${roleLabel}: <strong>"${name}"</strong>${roleLabel === '발표자' ? ` (${roleDescription})` : ''}
                     </div>
-                    <p>아래에서 올바른 참가자를 선택해주세요:</p>
+                    <p>아래에서 올바른 인물을 선택해주세요 (참가자 / 회원 / 역대 좌장·연자):</p>
                     <div class="duplicate-participants-list">
-                        ${matches.map((participant, index) => `
-                            <div class="duplicate-participant-item" data-participant-id="${participant.id}">
+                        ${matches.map((participant) => {
+                            const poolRef = encodeURIComponent(participant.pool_id || `participant:${participant.id}`);
+                            const affiliation = participant.affiliation_kor || participant.affiliation_eng || participant.affiliation || '소속 정보 없음';
+                            const sourceLabel = getPersonSourceLabel(participant);
+                            return `
+                            <div class="duplicate-participant-item" data-pool-id="${poolRef}">
                                 <div class="participant-card">
                                     <div class="participant-info">
-                                        <div class="participant-name">${participant.name}</div>
+                                        <div class="participant-name">${participant.name} <span class="pool-source-badge">${sourceLabel}</span></div>
                                         <div class="participant-email">${participant.email || '이메일 없음'}</div>
-                                        <div class="participant-affiliation">${participant.affiliation || '소속 정보 없음'}</div>
-                                        ${participant.nameEng ? `<div class="participant-name-eng">${participant.nameEng}</div>` : ''}
+                                        <div class="participant-affiliation">${affiliation}</div>
+                                        ${participant.name_eng ? `<div class="participant-name-eng">${participant.name_eng}</div>` : ''}
                                     </div>
                                     <button type="button" class="btn btn-primary select-participant-btn" 
-                                            onclick="selectDuplicateParticipant(${participant.id}, '${name}', '${sessionTitle}', ${speakerIndex}, '${roleLabel}')">
+                                            onclick="selectDuplicatePerson('${poolRef}', '${name}', '${sessionTitle}', ${speakerIndex}, '${roleLabel}')">
                                         선택
                                     </button>
                                 </div>
                             </div>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </div>
                     <div class="modal-footer" style="margin-top: 20px; text-align: center;">
                         <button type="button" class="btn btn-secondary" onclick="skipDuplicateParticipant('${name}', '${sessionTitle}', ${speakerIndex}, '${roleLabel}')">
@@ -7437,19 +7743,22 @@ function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, role
     };
 }
 
-function selectDuplicateParticipant(participantId, name, sessionTitle, speakerIndex, roleLabel = '발표자') {
-    console.log(`✅ Selected participant ${participantId} for duplicate name "${name}"`);
+async function selectDuplicatePerson(poolRefEncoded, name, sessionTitle, speakerIndex, roleLabel = '발표자') {
+    console.log(`✅ Selected person ${poolRefEncoded} for duplicate name "${name}"`);
     console.log(`🔍 Current duplicate modal state:`, currentDuplicateModal);
     
-    // Store the selection
+    const person = findPersonByPoolRef(decodeURIComponent(poolRefEncoded));
+    if (!person) {
+        alert('선택한 인물을 찾을 수 없습니다.');
+        return;
+    }
+
+    const selectedParticipant = resolvePersonForProgram(person);
+
     const key = `${sessionTitle}_${speakerIndex}_${name}_${roleLabel}`;
-    duplicateNameSelections.set(key, participantId);
-    
-    // Find the selected participant
-    const selectedParticipant = participants.find(p => p.id == participantId);
+    duplicateNameSelections.set(key, selectedParticipant.id);
     console.log(`🔍 Found selected participant:`, selectedParticipant);
     
-    // Call the callback with the selected participant BEFORE closing modal
     if (currentDuplicateModal && currentDuplicateModal.callback) {
         console.log(`🎯 Calling callback for ${name} with participant:`, selectedParticipant);
         try {
@@ -7462,8 +7771,11 @@ function selectDuplicateParticipant(participantId, name, sessionTitle, speakerIn
         console.error(`❌ No callback available for ${name}. Current modal:`, currentDuplicateModal);
     }
     
-    // Close modal AFTER calling callback
     closeDuplicateNameModal();
+}
+
+function selectDuplicateParticipant(participantId, name, sessionTitle, speakerIndex, roleLabel = '발표자') {
+    selectDuplicatePerson(encodeURIComponent(`participant:${participantId}`), name, sessionTitle, speakerIndex, roleLabel);
 }
 
 function skipDuplicateParticipant(name, sessionTitle, speakerIndex, roleLabel = '발표자') {
@@ -8296,19 +8608,20 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
             console.log(`✅ Participant resolved:`, participant);
             return participant;
         } else if (userChoice && typeof userChoice === 'object' && userChoice.id) {
-            // 기존 참가자 검색에서 선택한 경우 (참가자 객체가 반환됨)
-            console.log(`🔍 User selected existing participant from search:`, userChoice);
-            return userChoice;
+            // 기존 인물 검색에서 선택한 경우 (프로그램에만 반영, 참가자 자동 등록 없음)
+            console.log(`🔍 User selected existing person from search:`, userChoice);
+            return resolvePersonForProgram(userChoice);
         } else if (userChoice === 'skip') {
             // 건너뛰기 - 업로드 취소
             console.log(`⏭️ User chose to skip "${speaker.name}"`);
             throw new Error(`"${speaker.name}" 참가자 추가를 건너뛰었습니다.`);
         }
     } else if (matches.length === 1) {
-        // 정확히 1명 - 바로 매칭
-        console.log(`✅ Found unique participant: ${speaker.name}`);
-        console.log(`✅ Returning unique participant:`, matches[0]);
-        return matches[0];
+        // 정확히 1명 - 프로그램에만 배치 (참가자 자동 등록 없음)
+        console.log(`✅ Found unique person: ${speaker.name}`);
+        const resolved = resolvePersonForProgram(matches[0]);
+        console.log(`✅ Returning program person:`, resolved);
+        return resolved;
     } else {
         // 동명이인 - 사용자 선택 필요
         console.log(`🔄 Found ${matches.length} participants with name "${speaker.name}" - showing selection modal`);
@@ -8346,11 +8659,13 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
             }, roleLabel);
         });
         
-        return selectedParticipant;
+        return resolvePersonForProgram(selectedParticipant);
     }
 }
 
 async function createSessionsFromExcel(parsedSessions) {
+    await loadParticipants();
+
     const result = {
         created: 0,
         warnings: [],
@@ -8473,13 +8788,11 @@ async function createSessionsFromExcel(parsedSessions) {
                         console.log(`✅ Found speaker: ${speakerParticipant.name} (ID: ${speakerParticipant.id})`);
                     }
                     
-                    processedSpeakers.push({
-                        participantId: speakerParticipant.participantId || speakerParticipant.id,
-                        name: speakerParticipant.name,
+                    processedSpeakers.push(buildProgramSpeakerSlot(speakerParticipant, {
                         topic: speaker.topic,
                         startTime: speaker.startTime,
                         endTime: speaker.endTime
-                    });
+                    }));
                     
                     console.log(`✅ Speaker ${speakerIdx + 1} processed successfully. Moving to next speaker...`);
                 } catch (error) {
@@ -8578,10 +8891,10 @@ function openDisplaySettingsModal() {
     displaySpeakerTimeCheckbox.checked = displaySettings.showSpeakerTime;
     
     if (chairNameLanguageSelect) {
-        chairNameLanguageSelect.value = displaySettings.chairNameLanguage || 'kor';
+        chairNameLanguageSelect.value = displaySettings.chairNameLanguage || 'eng';
     }
     if (speakerNameLanguageSelect) {
-        speakerNameLanguageSelect.value = displaySettings.speakerNameLanguage || 'kor';
+        speakerNameLanguageSelect.value = displaySettings.speakerNameLanguage || 'eng';
     }
     
     displaySpeakersCheckbox.onchange = () => {
@@ -8826,6 +9139,8 @@ function searchInConfirmModal() {
             
             const email = p.email || '';
             const affiliation = p.affiliation || p.affiliation_kor || '';
+            const sourceLabel = getPersonSourceLabel(p);
+            const poolRef = encodeURIComponent(p.pool_id || `participant:${p.id}`);
             
             // 검색어 하이라이트
             const highlightText = (text) => {
@@ -8835,9 +9150,9 @@ function searchInConfirmModal() {
             };
             
             return `
-                <div class="confirm-search-result-item" onclick="selectFromConfirmModal(${p.id || p.participantId})">
+                <div class="confirm-search-result-item" onclick="selectFromConfirmModal('${poolRef}')">
                     <div style="font-weight: 600; color: #333; margin-bottom: 4px;">
-                        ${highlightText(primaryName)}
+                        ${highlightText(primaryName)} <span class="pool-source-badge">${sourceLabel}</span>
                     </div>
                     ${secondaryName ? `<div style="font-size: 13px; color: #555; margin-bottom: 2px;">${highlightText(secondaryName)}</div>` : ''}
                     ${email ? `<div style="font-size: 12px; color: #666;">${highlightText(email)}</div>` : ''}
@@ -8848,27 +9163,25 @@ function searchInConfirmModal() {
     }
 }
 
-// 확인 모달에서 검색 결과 선택
-function selectFromConfirmModal(participantId) {
-    const participant = participants.find(p => p.id === participantId || p.participantId === participantId);
+// 확인 모달에서 검색 결과 선택 (엑셀 업로드 — 참가자 자동 등록 없음)
+function selectFromConfirmModal(poolRefEncoded) {
+    const person = findPersonByPoolRef(decodeURIComponent(poolRefEncoded));
     
-    if (!participant) {
-        console.error('Participant not found:', participantId);
+    if (!person) {
+        console.error('Person not found:', poolRefEncoded);
         return;
     }
     
-    console.log(`✅ User selected participant from confirm modal search:`, participant);
+    console.log(`✅ User selected person from confirm modal search:`, person);
     
-    // 확인 모달 닫기
+    const resolved = resolvePersonForProgram(person);
     document.getElementById('confirmMissingParticipantModal').style.display = 'none';
-    
-    // currentConfirmResolve로 참가자 전달
+
     if (currentConfirmResolve) {
-        currentConfirmResolve(participant);
+        currentConfirmResolve(resolved);
         currentConfirmResolve = null;
     }
-    
-    // currentMissingPerson 초기화
+
     currentMissingPerson = null;
 }
 
@@ -9069,15 +9382,14 @@ function searchExcelParticipants() {
     let results;
     
     if (!searchTerm) {
-        // 검색어가 없으면 전체 참가자 표시 (이름순 정렬)
-        results = [...participants].sort((a, b) => {
+        results = [...buildSearchablePeople()].sort((a, b) => {
             const nameA = (a.name_kor || a.name_eng || a.name || '').toLowerCase();
             const nameB = (b.name_kor || b.name_eng || b.name || '').toLowerCase();
             return nameA.localeCompare(nameB);
         });
     } else {
         // 검색어가 있으면 필터링 (언어별)
-        results = participants.filter(p => {
+        results = buildSearchablePeople().filter(p => {
             if (isEnglish) {
                 // 영문 검색: name_eng, first_name, family_name
                 const engName = (p.name_eng || '').toLowerCase();
@@ -9142,14 +9454,14 @@ function searchExcelParticipants() {
         });
     }
     
-    console.log(`🔍 Found ${results.length} participants matching "${searchTerm || '(all)'}"`);
+    console.log(`🔍 Found ${results.length} people matching "${searchTerm || '(all)'}"`);
     
     if (results.length === 0) {
         resultsContainer.innerHTML = `
             <div class="search-no-results">
                 <i class="fas fa-user-slash"></i>
                 <p>검색 결과가 없습니다</p>
-                <small>"${searchTerm}" 와 일치하는 참가자가 없습니다</small>
+                <small>"${searchTerm}" 와 일치하는 인물이 없습니다</small>
                 <div style="margin-top: 20px;">
                     <button class="btn btn-primary" onclick="switchToAddParticipant()">
                         <i class="fas fa-user-plus"></i> 새 참가자로 추가하기
@@ -9168,6 +9480,8 @@ function searchExcelParticipants() {
         const name = p.name || p.name_kor || '이름 없음';
         const email = p.email || '이메일 없음';
         const affiliation = p.affiliation_kor || p.affiliation || '';
+        const sourceLabel = getPersonSourceLabel(p);
+        const poolRef = encodeURIComponent(p.pool_id || `participant:${p.id}`);
         
         // 검색어 하이라이트
         let highlightedName = name;
@@ -9177,8 +9491,8 @@ function searchExcelParticipants() {
         }
         
         return `
-            <div class="search-result-item" onclick="selectExcelSearchedParticipant(${p.id})">
-                <div class="search-result-name">${highlightedName}</div>
+            <div class="search-result-item" onclick="selectExcelSearchedParticipant('${poolRef}')">
+                <div class="search-result-name">${highlightedName} <span class="pool-source-badge">${sourceLabel}</span></div>
                 <div class="search-result-email">${email}</div>
                 ${affiliation ? `<div class="search-result-affiliation">${affiliation}</div>` : ''}
             </div>
@@ -9186,30 +9500,26 @@ function searchExcelParticipants() {
     }).join('') + (hasMore ? `<p style="text-align: center; color: #999; padding: 10px; font-size: 12px;">더 많은 결과가 있습니다 (${results.length}명 중 50명 표시)</p>` : '');
 }
 
-// 검색된 참가자 선택 (엑셀 업로드용)
-function selectExcelSearchedParticipant(participantId) {
-    const participant = participants.find(p => p.id === participantId || p.participantId === participantId);
+// 검색된 인물 선택 (엑셀 업로드용 — 참가자 자동 등록 없음)
+function selectExcelSearchedParticipant(poolRefEncoded) {
+    const person = findPersonByPoolRef(decodeURIComponent(poolRefEncoded));
     
-    if (!participant) {
-        console.error('Participant not found:', participantId);
+    if (!person) {
+        console.error('Person not found:', poolRefEncoded);
         return;
     }
     
-    console.log(`✅ User selected participant from excel search:`, participant);
+    console.log(`✅ User selected person from excel search:`, person);
     
-    // 모달 닫기
+    const resolved = resolvePersonForProgram(person);
     closeExcelParticipantSearchModal();
-    
-    // 참가자 추가 모달도 닫기 (만약 열려있다면)
     closeAddParticipantModal();
-    
-    // currentConfirmResolve가 있으면 바로 resolve (참가자 객체 전달)
+
     if (currentConfirmResolve) {
-        console.log('✅ Resolving with selected participant from search');
-        currentConfirmResolve(participant);
+        console.log('✅ Resolving with selected person from search');
+        currentConfirmResolve(resolved);
         currentConfirmResolve = null;
     }
-    
-    // currentMissingPerson 초기화
+
     currentMissingPerson = null;
 }

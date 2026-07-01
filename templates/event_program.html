@@ -97,9 +97,6 @@
                     <button type="button" class="btn btn-info" onclick="exportChairsSpeakers()" title="좌장/연자 명단을 순서대로 내보냅니다 (이메일, 등록구분, CV/사진/PPT/Script 제출 여부 포함)">
                         <i class="fas fa-users"></i> 좌장/연자 명단
                     </button>
-                    <a href="/chairs_speakers_history" target="_blank" class="btn btn-info" title="역대 좌장/연자/패널 리스트">
-                        <i class="fas fa-history"></i> 역대 좌장/연자 리스트
-                    </a>
                     <button type="button" class="btn btn-secondary" onclick="openDisplaySettingsModal()">
                         <i class="fas fa-cog"></i> 표시 설정
                     </button>
@@ -1161,7 +1158,7 @@
             <div class="modal-body">
                 <div class="alert alert-info" style="margin-bottom: 20px; padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 4px; color: #0c5460;">
                     <strong>💡 이름이 잘못 입력된 경우</strong>
-                    <p style="margin-top: 8px; margin-bottom: 0;">올바른 참가자를 검색하여 선택하세요.</p>
+                    <p style="margin-top: 8px; margin-bottom: 0;">참가자·회원·역대 좌장/연자 명단에서 검색하여 선택하세요.</p>
                 </div>
                 
                 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
@@ -1171,7 +1168,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="excelParticipantSearchInput">참가자 검색</label>
+                    <label for="excelParticipantSearchInput">인물 검색 (참가자 / 회원 / 역대 좌장·연자)</label>
                     <input type="text" id="excelParticipantSearchInput" class="form-control" placeholder="이름, 이메일, 소속으로 검색..." oninput="searchExcelParticipants()" autocomplete="off">
                     <small class="form-text text-muted">입력하는 즉시 검색 결과가 표시됩니다</small>
                 </div>
@@ -1198,8 +1195,8 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning" style="margin-bottom: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">
-                    <strong>⚠️ 참가자 리스트에 없는 사람입니다</strong>
-                    <p style="margin-top: 8px; margin-bottom: 0;">좌장이나 발표자는 반드시 참가자로 등록되어야 합니다.</p>
+                    <strong>⚠️ 이 행사 참가자 목록에 없는 사람입니다</strong>
+                    <p style="margin-top: 8px; margin-bottom: 0;">회원·역대 명단에서 찾아 프로그램에 배치하거나, 「새 참가자로 추가」를 눌러 참가자 목록에 등록하세요.</p>
                 </div>
                 
                 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">

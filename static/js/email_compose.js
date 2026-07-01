@@ -15,8 +15,17 @@ function openEmailComposeModal() {
     
     modal.style.display = 'flex';
     directRecipientEmails = [];
-    populateEmailRecipients();
     setupDirectEmailInput();
+
+    const initRecipients = () => {
+        populateEmailRecipients();
+    };
+
+    if (typeof loadParticipants === 'function') {
+        loadParticipants().then(initRecipients).catch(initRecipients);
+    } else {
+        initRecipients();
+    }
     
     // ESC 키로 모달 닫기
     const handleEscKey = (e) => {
@@ -204,6 +213,48 @@ function renderDirectEmailChips() {
     });
 }
 
+function formatAffiliationDepartmentDisplay(affiliation, department) {
+    const aff = (affiliation || '').trim();
+    const dept = (department || '').trim();
+    if (aff && dept) return `${aff} | ${dept}`;
+    return aff || dept || '';
+}
+
+function addProgramPersonToRecipients(recipients, entity, type, sessionInfo, sessionExtra = null) {
+    const contact = typeof resolveProgramPersonContact === 'function'
+        ? resolveProgramPersonContact(entity)
+        : null;
+    if (!contact) return;
+
+    const sessionEntry = sessionExtra ? { ...sessionInfo, ...sessionExtra } : sessionInfo;
+    const recipientBase = {
+        email: contact.email || '',
+        name: contact.name_kor || contact.name_eng || contact.name || '',
+        name_kor: contact.name_kor || '',
+        name_eng: contact.name_eng || '',
+        affiliation: contact.affiliation || '',
+        department: contact.department || '',
+        affiliationDisplay: formatAffiliationDepartmentDisplay(contact.affiliation, contact.department),
+        type,
+        participantId: contact.id,
+        country: contact.country || '',
+        country_code: contact.country_code || '',
+        poolRef: contact.poolRef || ''
+    };
+
+    const mapKey = recipientBase.email
+        ? recipientBase.email.toLowerCase()
+        : (recipientBase.poolRef
+            ? `pool:${recipientBase.poolRef}`
+            : `uid:${type}:${recipientBase.participantId}`);
+
+    if (!recipients.has(mapKey)) {
+        recipients.set(mapKey, { ...recipientBase, sessions: [] });
+    }
+
+    recipients.get(mapKey).sessions.push(sessionEntry);
+}
+
 function populateEmailRecipients() {
     const recipientsList = document.getElementById('emailRecipientsList');
     if (!recipientsList) return;
@@ -235,110 +286,28 @@ function populateEmailRecipients() {
         // 좌장 수집
         if (session.chairs && session.chairs.length > 0) {
             session.chairs.forEach(chair => {
-                const chairId = chair.id || chair.participantId;
-                const chairInfo = typeof getParticipantInfo === 'function' ? getParticipantInfo(chairId) : null;
-                if (chairInfo && chairInfo.email) {
-                    if (!recipients.has(chairInfo.email)) {
-                        recipients.set(chairInfo.email, {
-                            email: chairInfo.email,
-                            name: chairInfo.name_kor || chairInfo.name_eng || chairInfo.name || '',
-                            type: 'chair',
-                            participantId: chairInfo.id,
-                            country: chairInfo.country || '',
-                            country_code: chairInfo.country_code || '',
-                            sessions: [] // 여러 세션 정보 저장
-                        });
-                    }
-                    // 세션 정보 추가
-                    const recipient = recipients.get(chairInfo.email);
-                    recipient.sessions.push(sessionInfo);
-                }
+                addProgramPersonToRecipients(recipients, chair, 'chair', sessionInfo);
             });
-        } else if (session.chairId) {
-            const chairInfo = typeof getParticipantInfo === 'function' ? getParticipantInfo(session.chairId) : null;
-            if (chairInfo && chairInfo.email) {
-                if (!recipients.has(chairInfo.email)) {
-                    recipients.set(chairInfo.email, {
-                        email: chairInfo.email,
-                        name: chairInfo.name_kor || chairInfo.name_eng || chairInfo.name || '',
-                        type: 'chair',
-                        participantId: chairInfo.id,
-                        country: chairInfo.country || '',
-                        country_code: chairInfo.country_code || '',
-                        sessions: []
-                    });
-                }
-                // 세션 정보 추가
-                const recipient = recipients.get(chairInfo.email);
-                recipient.sessions.push(sessionInfo);
-            }
+        } else if (session.chairId || session.chair) {
+            addProgramPersonToRecipients(recipients, {
+                participantId: session.chairId,
+                id: session.chairId,
+                name: session.chair
+            }, 'chair', sessionInfo);
         }
         
         // 연자 수집
         if (session.speakers && session.speakers.length > 0) {
             session.speakers.forEach(speaker => {
-                const speakerId = speaker.participantId || speaker.id;
-                if (!speakerId) {
-                    console.warn('⚠️ Speaker without participantId found:', speaker);
+                if (!speaker.name && !speaker.participantId && !speaker.id && !speaker.poolRef) {
                     return;
                 }
-                
-                // participantId를 숫자로 변환 시도 (타입 불일치 문제 해결)
-                const numericSpeakerId = typeof speakerId === 'string' ? parseInt(speakerId, 10) : speakerId;
-                const speakerInfo = typeof getParticipantInfo === 'function' ? getParticipantInfo(numericSpeakerId) : null;
-                
-                // getParticipantInfo가 실패하면 직접 participants 배열에서 찾기 시도
-                let finalSpeakerInfo = speakerInfo;
-                if (!finalSpeakerInfo && typeof participants !== 'undefined' && participants) {
-                    // ID로 찾기 시도 (타입 변환 포함)
-                    finalSpeakerInfo = participants.find(p => p.id == numericSpeakerId || p.id == speakerId);
-                    if (finalSpeakerInfo) {
-                        console.log(`✅ Found speaker by direct ID search: ID ${numericSpeakerId}, name: ${finalSpeakerInfo.name}`);
-                    } else if (speaker.name) {
-                        // ID로 찾지 못하면 이름으로 찾기 시도
-                        finalSpeakerInfo = participants.find(p => 
-                            p.name === speaker.name || 
-                            p.name_kor === speaker.name || 
-                            p.name_eng === speaker.name
-                        );
-                        if (finalSpeakerInfo) {
-                            console.log(`✅ Found speaker by name: ${speaker.name} (ID: ${finalSpeakerInfo.id})`);
-                        }
-                    }
-                }
-                
-                if (!finalSpeakerInfo) {
-                    console.warn(`⚠️ Participant info not found for speaker ID: ${speakerId}, name: ${speaker.name || 'N/A'}, speaker data:`, speaker);
-                    return;
-                }
-                
-                if (finalSpeakerInfo && finalSpeakerInfo.email) {
-                    // 발표자별 세션 정보 (발표 주제, 발표 시간 포함)
-                    const speakerSessionInfo = {
-                        ...sessionInfo,
-                        lecture_title: speaker.topic || '',
-                        lecture_time: speaker.startTime && speaker.endTime ? `${speaker.startTime}-${speaker.endTime}` : '',
-                        lecture_start_time: speaker.startTime || '',
-                        lecture_end_time: speaker.endTime || ''
-                    };
-                    
-                    if (!recipients.has(finalSpeakerInfo.email)) {
-                        recipients.set(finalSpeakerInfo.email, {
-                            email: finalSpeakerInfo.email,
-                            name: finalSpeakerInfo.name_kor || finalSpeakerInfo.name_eng || finalSpeakerInfo.name || '',
-                            type: 'speaker',
-                            participantId: finalSpeakerInfo.id,
-                            country: finalSpeakerInfo.country || '',
-                            country_code: finalSpeakerInfo.country_code || '',
-                            sessions: []
-                        });
-                    }
-                    // 세션 정보 추가
-                    const recipient = recipients.get(finalSpeakerInfo.email);
-                    recipient.sessions.push(speakerSessionInfo);
-                } else {
-                    console.warn(`⚠️ Speaker info found but no email: ID ${speakerId}, name: ${finalSpeakerInfo ? finalSpeakerInfo.name : 'N/A'}`);
-                }
+                addProgramPersonToRecipients(recipients, speaker, 'speaker', sessionInfo, {
+                    lecture_title: speaker.topic || '',
+                    lecture_time: speaker.startTime && speaker.endTime ? `${speaker.startTime}-${speaker.endTime}` : '',
+                    lecture_start_time: speaker.startTime || '',
+                    lecture_end_time: speaker.endTime || ''
+                });
             });
         }
     });
@@ -488,10 +457,14 @@ function renderRecipientsList(recipientsArray, selectedIds = null) {
             </span>
         ` : '';
         
+        const affiliationText = recipient.affiliationDisplay
+            ? `<span style="color: #888; font-size: 12px; margin-left: 8px;">${recipient.affiliationDisplay}</span>`
+            : '';
+
         recipientDiv.innerHTML = `
             <input type="checkbox" class="recipient-checkbox" data-email="${recipient.email}" data-participant-id="${recipient.participantId}" data-type="${recipient.type}" ${isChecked ? 'checked' : ''} style="width: 16px; height: 16px;">
-            <span style="flex: 1; font-size: 14px;">${recipient.name}</span>
-            <span style="font-size: 12px; color: #666;">${recipient.email}</span>
+            <span style="flex: 1; font-size: 14px; min-width: 0;">${recipient.name}${affiliationText}</span>
+            <span style="font-size: 12px; color: #666; white-space: nowrap;">${recipient.email || '이메일 없음'}</span>
             ${roleTag}
             ${countryTag}
         `;
@@ -720,9 +693,14 @@ function refreshRecipientsList(searchTerm, applyAutoSelection = true) {
     
     const searchLower = searchTerm.toLowerCase().trim();
     const filtered = roleFiltered.filter(recipient => {
-        const nameMatch = (recipient.name || '').toLowerCase().includes(searchLower);
+        const nameMatch = (recipient.name || '').toLowerCase().includes(searchLower)
+            || (recipient.name_kor || '').toLowerCase().includes(searchLower)
+            || (recipient.name_eng || '').toLowerCase().includes(searchLower);
+        const affiliationMatch = (recipient.affiliation || '').toLowerCase().includes(searchLower)
+            || (recipient.department || '').toLowerCase().includes(searchLower)
+            || (recipient.affiliationDisplay || '').toLowerCase().includes(searchLower);
         const emailMatch = (recipient.email || '').toLowerCase().includes(searchLower);
-        return nameMatch || emailMatch;
+        return nameMatch || affiliationMatch || emailMatch;
     });
     
     if (applyAutoSelection) {
@@ -2362,9 +2340,14 @@ function filterRecipientsForParticipants(searchTerm, selectedParticipantIds = nu
     
     const searchLower = searchTerm.toLowerCase().trim();
     const filtered = allRecipientsData.filter(recipient => {
-        const nameMatch = (recipient.name || '').toLowerCase().includes(searchLower);
+        const nameMatch = (recipient.name || '').toLowerCase().includes(searchLower)
+            || (recipient.name_kor || '').toLowerCase().includes(searchLower)
+            || (recipient.name_eng || '').toLowerCase().includes(searchLower);
+        const affiliationMatch = (recipient.affiliation || '').toLowerCase().includes(searchLower)
+            || (recipient.department || '').toLowerCase().includes(searchLower)
+            || (recipient.affiliationDisplay || '').toLowerCase().includes(searchLower);
         const emailMatch = (recipient.email || '').toLowerCase().includes(searchLower);
-        return nameMatch || emailMatch;
+        return nameMatch || affiliationMatch || emailMatch;
     });
     
     // 필터링된 결과에 기존에 선택된 참가자들도 추가 (중복 제거)

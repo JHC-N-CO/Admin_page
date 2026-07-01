@@ -5288,6 +5288,260 @@ def get_event_participants(event_id):
         logging.error(f"Error loading event participants: {str(e)}")
         return jsonify({'error': '참가자 목록 로드 중 오류가 발생했습니다.'}), 500
 
+
+def _participant_pool_item(p: Participant) -> dict:
+  display_name = p.name_kor if p.name_kor else (
+      f'{p.first_name} {p.family_name}'.strip() if p.first_name and p.family_name
+      else p.name_eng or '참가자'
+  )
+  return {
+      'id': p.id,
+      'pool_id': f'participant:{p.id}',
+      'source': 'participant',
+      'source_label': '참가자',
+      'name': display_name,
+      'name_kor': p.name_kor,
+      'name_eng': p.name_eng,
+      'first_name': p.first_name,
+      'family_name': p.family_name,
+      'email': p.email,
+      'phone': p.phone,
+      'affiliation': p.affiliation_kor or p.affiliation_eng or '',
+      'affiliation_kor': p.affiliation_kor,
+      'affiliation_eng': p.affiliation_eng,
+      'department_kor': p.department_kor,
+      'department_eng': p.department_eng,
+      'country': p.country,
+      'country_code': p.country_code,
+      'role': p.role,
+      'position': p.position,
+      'license_number': p.license_number,
+  }
+
+
+def _member_pool_item(member: Member) -> dict:
+  name_eng_value = member.name_eng
+  if not name_eng_value:
+      if member.first_name and member.last_name:
+          name_eng_value = f'{member.first_name} {member.last_name}'
+      elif member.first_name:
+          name_eng_value = member.first_name
+      elif member.last_name:
+          name_eng_value = member.last_name
+  display_name = member.name_kor or name_eng_value or '회원'
+  return {
+      'id': f'member:{member.id}',
+      'pool_id': f'member:{member.id}',
+      'member_id': member.id,
+      'source': 'member',
+      'source_label': '회원',
+      'name': display_name,
+      'name_kor': member.name_kor,
+      'name_eng': name_eng_value,
+      'first_name': member.first_name,
+      'family_name': member.last_name,
+      'email': member.email,
+      'phone': member.mobile or member.phone,
+      'affiliation': member.workplace_name or member.workplace_name_eng or '',
+      'affiliation_kor': member.workplace_name,
+      'affiliation_eng': member.workplace_name_eng,
+      'department_kor': member.department_kor,
+      'department_eng': member.department_eng,
+      'position': member.position,
+      'license_number': member.license_number,
+  }
+
+
+def _history_pool_item(person: dict) -> dict:
+  name_kor = (person.get('성명(KOR)') or '').strip()
+  name_eng = (person.get('성명(ENG)') or '').strip()
+  display_name = name_kor or name_eng or '이름 없음'
+  person_key = person.get('person_key', '')
+  return {
+      'id': f'history:{person_key}',
+      'pool_id': f'history:{person_key}',
+      'history_key': person_key,
+      'source': 'history',
+      'source_label': '역대 좌장/연자',
+      'name': display_name,
+      'name_kor': name_kor,
+      'name_eng': name_eng,
+      'first_name': (person.get('이름(First Name)') or '').strip(),
+      'family_name': (person.get('성(Last Name)') or '').strip(),
+      'email': (person.get('이메일') or '').strip(),
+      'phone': (person.get('전화') or '').strip(),
+      'affiliation': (person.get('소속(KOR)') or person.get('소속(ENG)') or '').strip(),
+      'affiliation_kor': (person.get('소속(KOR)') or '').strip(),
+      'affiliation_eng': (person.get('소속(ENG)') or '').strip(),
+      'department_kor': (person.get('과(KOR)') or '').strip(),
+      'department_eng': (person.get('과(ENG)') or '').strip(),
+      'position': (person.get('직위') or '').strip(),
+      'license_number': (person.get('면허번호') or '').strip(),
+  }
+
+
+def _next_participant_code(event_id: int) -> str:
+  max_code = db.session.query(db.func.max(Participant.code)).filter_by(event_id=event_id).scalar()
+  return str(int(max_code) + 1 if max_code else 1)
+
+
+def _create_participant_from_member(event_id: int, member: Member) -> Participant:
+  name_eng_value = member.name_eng
+  if not name_eng_value:
+      if member.first_name and member.last_name:
+          name_eng_value = f'{member.first_name} {member.last_name}'
+      elif member.first_name:
+          name_eng_value = member.first_name
+      elif member.last_name:
+          name_eng_value = member.last_name
+
+  participant = Participant(
+      event_id=event_id,
+      code=_next_participant_code(event_id),
+      name_kor=member.name_kor,
+      name_eng=name_eng_value,
+      first_name=member.first_name,
+      family_name=member.last_name,
+      affiliation_kor=member.workplace_name,
+      affiliation_eng=member.workplace_name_eng,
+      department_kor=member.department_kor,
+      department_eng=member.department_eng,
+      email=member.email,
+      phone=member.mobile or member.phone,
+      position=member.position,
+      license_number=member.license_number,
+      birth_date=member.birth_date,
+      workplace_type=member.workplace_type,
+      accept_or_decline='대기',
+  )
+  db.session.add(participant)
+  db.session.flush()
+  return participant
+
+
+def _create_participant_from_history(event_id: int, data: dict) -> Participant:
+  name_kor = (data.get('name_kor') or data.get('name') or '').strip()
+  name_eng = (data.get('name_eng') or '').strip()
+  email = (data.get('email') or '').strip()
+  if not name_kor and not name_eng:
+      raise ValueError('이름 정보가 없습니다.')
+  if not email:
+      raise ValueError('이메일이 없어 참가자로 등록할 수 없습니다.')
+
+  participant = Participant(
+      event_id=event_id,
+      code=_next_participant_code(event_id),
+      name_kor=name_kor or name_eng,
+      name_eng=name_eng,
+      first_name=(data.get('first_name') or '').strip() or None,
+      family_name=(data.get('family_name') or '').strip() or None,
+      affiliation_kor=(data.get('affiliation_kor') or data.get('affiliation') or '').strip(),
+      affiliation_eng=(data.get('affiliation_eng') or '').strip(),
+      department_kor=(data.get('department_kor') or '').strip(),
+      department_eng=(data.get('department_eng') or '').strip(),
+      email=email,
+      phone=(data.get('phone') or '').strip(),
+      position=(data.get('position') or '').strip(),
+      license_number=(data.get('license_number') or '').strip(),
+      accept_or_decline='대기',
+  )
+  db.session.add(participant)
+  db.session.flush()
+  return participant
+
+
+@app.route('/api/event_program/<int:event_id>/person_pool', methods=['GET'])
+def get_event_person_pool(event_id):
+    """엑셀 업로드용 인물 풀: 참가자 + 회원 + 역대 좌장/연자"""
+    try:
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify({'error': '행사를 찾을 수 없습니다.'}), 404
+
+        participants = Participant.query.filter_by(event_id=event_id).all()
+        participant_items = [_participant_pool_item(p) for p in participants]
+        participant_emails = {
+            (p.email or '').strip().lower() for p in participants if p.email
+        }
+
+        member_items = []
+        member_emails = set()
+        for member in Member.query.all():
+            email = (member.email or '').strip().lower()
+            if email and email in participant_emails:
+                continue
+            member_items.append(_member_pool_item(member))
+            if email:
+                member_emails.add(email)
+
+        history_items = []
+        for person in load_aggregated_history():
+            email = (person.get('이메일') or '').strip().lower()
+            if email and (email in participant_emails or email in member_emails):
+                continue
+            history_items.append(_history_pool_item(person))
+
+        return jsonify({
+            'success': True,
+            'participants': participant_items,
+            'members': member_items,
+            'history_people': history_items,
+        })
+    except Exception as e:
+        logging.error(f"Error loading person pool: {e}")
+        return jsonify({'error': '인물 풀 로드 중 오류가 발생했습니다.'}), 500
+
+
+@app.route('/api/event_program/<int:event_id>/resolve_person', methods=['POST'])
+def resolve_person_for_event(event_id):
+    """회원·역대 명단 인물을 이 행사 참가자로 연결 (없으면 생성)"""
+    try:
+        event = Event.query.get(event_id)
+        if not event:
+            return jsonify({'error': '행사를 찾을 수 없습니다.'}), 404
+
+        data = request.get_json(silent=True) or {}
+        source = data.get('source')
+
+        if source == 'participant':
+            participant = Participant.query.filter_by(
+                event_id=event_id, id=data.get('participant_id')
+            ).first()
+            if not participant:
+                return jsonify({'error': '참가자를 찾을 수 없습니다.'}), 404
+            return jsonify({'success': True, 'participant': _participant_pool_item(participant)})
+
+        if source == 'member':
+            member = Member.query.get(data.get('member_id'))
+            if not member:
+                return jsonify({'error': '회원을 찾을 수 없습니다.'}), 404
+            if member.email:
+                existing = Participant.query.filter_by(event_id=event_id, email=member.email).first()
+                if existing:
+                    return jsonify({'success': True, 'participant': _participant_pool_item(existing)})
+            participant = _create_participant_from_member(event_id, member)
+            db.session.commit()
+            return jsonify({'success': True, 'participant': _participant_pool_item(participant)})
+
+        if source == 'history':
+            email = (data.get('email') or '').strip()
+            if email:
+                existing = Participant.query.filter_by(event_id=event_id, email=email).first()
+                if existing:
+                    return jsonify({'success': True, 'participant': _participant_pool_item(existing)})
+            participant = _create_participant_from_history(event_id, data)
+            db.session.commit()
+            return jsonify({'success': True, 'participant': _participant_pool_item(participant)})
+
+        return jsonify({'error': 'source는 participant, member, history 중 하나여야 합니다.'}), 400
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error resolving person for event: {e}")
+        return jsonify({'error': '인물 연결 중 오류가 발생했습니다.'}), 500
+
 @app.route('/api/event/<int:event_id>/participants', methods=['POST'])
 def add_event_participant(event_id):
     """행사 참가자 빠른 추가 (엑셀 업로드 중)"""
