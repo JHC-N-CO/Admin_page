@@ -63,8 +63,7 @@
                     <span id="sessionsUploadStatus" class="upload-status"></span>
                 </div>
                 <p style="margin:8px 0 0; font-size:12px; color:#5f6368;">
-                    세션 CSV 컬럼 예: 날짜 (Date), 역할, 발표자 (Speaker), 세션주제 (Session Topic), 발표 주제 (Lecture Title), 이메일 등.
-                    발표자·이메일·면허번호·성명으로 기존 명단과 연결됩니다.
+                    세션 CSV: 좌장 행 → 세션 제목, 연자 행 → 발표 제목. 이메일·면허번호로 명단과 연결됩니다.
                 </p>
             </div>
 
@@ -82,13 +81,23 @@
                     <option value="해외">해외</option>
                 </select>
                 <select id="deptFilter">
-                    <option value="">본과/타과 전체</option>
-                    <option value="본과">본과</option>
+                    <option value="">타과 구분 전체</option>
                     <option value="타과">타과</option>
                 </select>
+                <button type="button" id="mergeSelectedBtn" class="btn btn-warning" disabled>
+                    <i class="fas fa-compress-alt"></i> 선택 병합 (<span id="mergeSelectedCount">0</span>)
+                </button>
                 <button type="button" id="deleteSelectedBtn" class="btn btn-danger" disabled>
                     <i class="fas fa-trash"></i> 선택 삭제 (<span id="selectedCount">0</span>)
                 </button>
+            </div>
+
+            <div id="duplicateReviewPanel" class="duplicate-panel" hidden>
+                <div class="duplicate-panel-header">
+                    <h3><i class="fas fa-user-friends"></i> 중복 의심 <strong id="duplicateCount">0</strong>건</h3>
+                    <p>이름이 같지만 이메일·면허번호가 달라 별도 인물로 표시된 경우입니다. 확인 후 병합하거나, 동명이인이면 「다른 사람」을 선택하세요.</p>
+                </div>
+                <div id="duplicateList" class="duplicate-list"></div>
             </div>
 
             <div class="history-meta">총 <strong id="historyCount">0명</strong></div>

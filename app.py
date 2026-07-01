@@ -32,6 +32,9 @@ from chairs_speakers_history import (
     save_uploaded_csv,
     ensure_sessions_template,
     delete_people_by_keys,
+    find_duplicate_candidates,
+    manual_merge_person_keys,
+    dismiss_duplicate_group,
 )
 
 app = Flask(__name__, static_folder='static')
@@ -4644,7 +4647,14 @@ def get_chairs_speakers_history():
     try:
         ensure_sessions_template()
         data = load_aggregated_history()
-        return jsonify({'status': 'success', 'count': len(data), 'people': data})
+        duplicates = find_duplicate_candidates(data)
+        return jsonify({
+            'status': 'success',
+            'count': len(data),
+            'people': data,
+            'duplicates': duplicates,
+            'duplicate_count': len(duplicates),
+        })
     except Exception as e:
         logging.error(f"Error loading chairs/speakers history: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -4674,12 +4684,15 @@ def upload_chairs_speakers_history():
                 os.remove(tmp_path)
 
         data = load_aggregated_history()
+        duplicates = find_duplicate_candidates(data)
         label = '역대 명단' if upload_type == 'history' else '세션/발표 이력'
         return jsonify({
             'status': 'success',
             'message': f'{label} 파일이 업데이트되었습니다.',
             'count': len(data),
             'people': data,
+            'duplicates': duplicates,
+            'duplicate_count': len(duplicates),
         })
     except Exception as e:
         logging.error(f"Error uploading chairs/speakers history: {e}")
@@ -4700,15 +4713,69 @@ def delete_chairs_speakers_history():
             return jsonify({'status': 'error', 'message': '삭제된 항목이 없습니다.'}), 400
 
         data = load_aggregated_history()
+        duplicates = find_duplicate_candidates(data)
         return jsonify({
             'status': 'success',
             'message': f'{removed}명이 삭제되었습니다.',
             'removed': removed,
             'count': len(data),
             'people': data,
+            'duplicates': duplicates,
+            'duplicate_count': len(duplicates),
         })
     except Exception as e:
         logging.error(f"Error deleting chairs/speakers history: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/chairs_speakers_history/merge', methods=['POST'])
+def merge_chairs_speakers_history():
+    """중복 의심 인물을 관리자 확인 후 동일 인물로 병합"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        person_keys = payload.get('person_keys') or []
+        if not isinstance(person_keys, list) or len(person_keys) < 2:
+            return jsonify({'status': 'error', 'message': '병합할 인물을 2명 이상 선택하세요.'}), 400
+
+        merged = manual_merge_person_keys(person_keys)
+        data = load_aggregated_history()
+        duplicates = find_duplicate_candidates(data)
+        return jsonify({
+            'status': 'success',
+            'message': f'{merged}건이 동일 인물로 병합되었습니다.',
+            'merged': merged,
+            'count': len(data),
+            'people': data,
+            'duplicates': duplicates,
+            'duplicate_count': len(duplicates),
+        })
+    except Exception as e:
+        logging.error(f"Error merging chairs/speakers history: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@app.route('/api/chairs_speakers_history/dismiss_duplicate', methods=['POST'])
+def dismiss_chairs_speakers_duplicate():
+    """동명이인 등 — 다른 사람으로 확인하여 중복 의심 목록에서 제외"""
+    try:
+        payload = request.get_json(silent=True) or {}
+        person_keys = payload.get('person_keys') or []
+        if not isinstance(person_keys, list) or len(person_keys) < 2:
+            return jsonify({'status': 'error', 'message': '그룹을 선택하세요.'}), 400
+
+        dismiss_duplicate_group(person_keys)
+        data = load_aggregated_history()
+        duplicates = find_duplicate_candidates(data)
+        return jsonify({
+            'status': 'success',
+            'message': '다른 사람으로 확인되었습니다. 목록에서 제외합니다.',
+            'count': len(data),
+            'people': data,
+            'duplicates': duplicates,
+            'duplicate_count': len(duplicates),
+        })
+    except Exception as e:
+        logging.error(f"Error dismissing duplicate: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 

@@ -306,8 +306,14 @@
 .btn-primary { background: #1a73e8; color: #fff; }
 .btn-secondary { background: #f1f3f4; color: #202124; border: 1px solid #dadce0; }
 .btn-success { background: #34a853; color: #fff; }
+.btn-warning { background: #f9ab00; color: #202124; }
+.btn-warning:disabled { background: #fce8b2; cursor: not-allowed; }
 .btn-danger { background: #dc3545; color: #fff; }
 .btn-danger:disabled { background: #e0a8ad; cursor: not-allowed; }
+.btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+}
 
 .history-table .col-check {
     width: 44px;
@@ -330,4 +336,73 @@
 
 .upload-status.error {
     color: #d93025;
+}
+
+.duplicate-panel {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border: 1px solid #fdd663;
+    border-radius: 8px;
+    background: #fef7e0;
+}
+
+.duplicate-panel-header h3 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    color: #202124;
+}
+
+.duplicate-panel-header p {
+    margin: 0;
+    font-size: 12px;
+    color: #5f6368;
+    line-height: 1.5;
+}
+
+.duplicate-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.duplicate-card {
+    background: #fff;
+    border: 1px solid #e8eaed;
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.duplicate-card-title {
+    margin: 0 0 10px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.duplicate-people {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.duplicate-person {
+    padding: 10px;
+    border: 1px solid #f0f0f0;
+    border-radius: 6px;
+    background: #fafafa;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.duplicate-person strong {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 13px;
+}
+
+.duplicate-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }

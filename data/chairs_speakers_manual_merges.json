@@ -1,0 +1,28 @@
+{
+  "merge_groups": [
+    [
+      "email:skoh@childrensnebraska.org",
+      "email:skoh@childrensomaha.org"
+    ],
+    [
+      "email:hclove72@yuhs.ac",
+      "lic:99162"
+    ],
+    [
+      "email:minsoeng.kim@samsung.com",
+      "email:na1924.kim@samsung.com"
+    ],
+    [
+      "email:brainbin80@gmail.com",
+      "lic:93412"
+    ],
+    [
+      "email:cyr0321a@gmail.com",
+      "email:sy0512@yuhs.ac"
+    ]
+  ],
+  "dismissed": [
+    "email:gm9988@naver.com|lic:102687",
+    "lic:58122|lic:64897"
+  ]
+}

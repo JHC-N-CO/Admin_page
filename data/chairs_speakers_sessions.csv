@@ -1,61 +1,631 @@
 ﻿날짜 (Date),역할,발표자 (Speaker),세션주제 (Session Topic),발표 주제 (Lecture Title),국가,소속(KOR),과(KOR),전화,이메일
+2026-06-19,국내 좌장,손영민,CDE,,Korea,성균관의대 삼성서울병원,신경과,010-9142-6804,sonogung@gmail.com
+2026-06-19,국내 연자,구용서,CDE,"Five Minutes to Care & Cohort—Effortless Notes for Single-Center, Multicenter, and National Research: Join CDE!",Korea,울산의대 서울아산병원,신경과,010-4490-4880,yo904@naver.com
+2026-06-19,국내 연자,김헌민,CDE,Panel Discussion,Korea,서울의대 분당서울대병원,소아청소년과,010-9942-7035,hunminkim@hanmail.net
+2026-06-19,국내 연자,이서영,CDE,Panel Discussion,Korea,명지병원,신경과,010-9101-4025,raininaugust@hanmail.net
+2026-06-19,국내 연자,손영민,CDE,Panel Discussion,Korea,성균관의대 삼성서울병원,신경과,010-9142-6804,sonogung@gmail.com
+2026-06-19,국내 좌장,이지훈,Precision Medicine in Epilepsy,,Korea,성균관의대 삼성서울병원,소아청소년과,010-9933-0910,leejeehunmd@gmail.com
+2026-06-19,국내 연자,김영옥,Precision Medicine in Epilepsy,Genetic precision therapies transforming epilepsy care,Korea,전남의대 전남대병원,소아청소년과,010-2947-2889,ik052@chonnam.ac.kr
+2026-06-19,국내 연자,이지원,Precision Medicine in Epilepsy,Antisense Oligonucleotides in Epilepsy Treatment,Korea,성균관의대 삼성서울병원,소아청소년과,010-4659-9334,haloofcomet@naver.com
+2026-06-19,국내 연자,이승복,Precision Medicine in Epilepsy,Gene Mutation-Driven Epilepsy Therapies,Korea,서울의대 서울대병원,소아청소년과,010-8427-3470,for3guy@naver.com
+2026-06-19,국내 좌장,정기영,Impact of Technical Innovation in Epilepsy,,Korea,서울의대 서울대병원,신경과,010-9953-9287,jungky@snu.ac.kr
+2026-06-19,국내 연자,고영준,Impact of Technical Innovation in Epilepsy,Large Language Model and Epilepsy,Korea,중앙의대 중앙대광명병원,소아청소년과,010-9889-9666,kyjmillenium@naver.com
+2026-06-19,국내 연자,김대형,Impact of Technical Innovation in Epilepsy,Materials and soft electronics in epilepsy,Korea,서울대학교,공대,,dkim98@snu.ac.kr
+2026-06-19,국내 연자,김헌민,Impact of Technical Innovation in Epilepsy,Wearable devices and Epilepsy,Korea,서울의대 분당서울대병원,소아청소년과,010-9942-7035,hunminkim@hanmail.net
+2026-06-19,국내 좌장,신용원,Frontiers in Epileptogenesis and Molecular Biomarkers,,Korea,서울의대 서울대병원,중환자의학과,010-9502-6592,syw3473@naver.com
+2026-06-19,국내 연자,정창욱,Frontiers in Epileptogenesis and Molecular Biomarkers,Clonal Architecture of the Normal and Epileptic Human Brain,Korea,한국과학기술원 (KAIST),의과학대학원,042-350-0239,chchuk@kaist.ac.kr
+2026-06-19,국내 연자,신용원,Frontiers in Epileptogenesis and Molecular Biomarkers,Systemic Immune Signatures and Adaptive T-cell Activation in Epilepsy,Korea,서울의대 서울대병원,중환자의학과,010-9502-6592,syw3473@naver.com
+2026-06-19,국내 연자,유용진,Frontiers in Epileptogenesis and Molecular Biomarkers,Replacing Microglia to Treat a Brain Disease,Korea,고려의대,뇌신경과학교실,010-5235-7504,yongjinyoo@korea.ac.kr
+2026-06-19,국내 좌장,홍석호,Presidential Symposium,,Korea,울산의대 서울아산병원,신경외과,010-4735-1503,hongsound@gmail.com
+2026-06-19,국외 연자(PS),Jorge A. Gonzalez-Martinez,Presidential Symposium,Refining centromedian nucleus stimulation for generalized epilepsy with targeting and mechanistic insights from intraoperative electrophysiology,USA,,신경외과,412-647-3685,gonzalezjo@upmc.edu
 2026-06-19,,,Break,,,,,,
+2026-06-19,국내 좌장,남상욱,UCB,,Korea,양산부산대학교병원,소아청소년과,010-7483-8149,neuroped@naver.com
+2026-06-19,국내 연자,임병찬,UCB,Redefining Treatment Goals in Dravet Syndrome: The Role of Fintepla and Beyond,Korea,서울의대 서울대병원,소아청소년과,010-9078-8048,prabbit7@snu.ac.kr
+2026-06-19,국내 좌장,신원철,Bukwang,,Korea,경희의대 강동경희대병원,신경과,010-5299-3150,shin1chul@gmail.com
+2026-06-19,국내 연자,김대영,Bukwang,Balancing Classic and Advance: Optimizing Epilepsy Symptom Management with VPA and BRV,Korea,충남의대 충남대병원,신경과,010-8901-7937,bigbread.kim@gmail.com
+2026-06-19,국내 좌장,강훈철,MYUNG IN ,,Korea,서울의대 서울대병원,신경과,010-5443-6596,hipo0207@yuhs.ac
+2026-06-19,국내 연자,강경욱,MYUNG IN ,Brivaracetam: Advancing the Modern Approach to Focal Seizure Treatment,Korea,전남의대 전남대병원,신경과,010-8665-1400,"Kang8774@hanmail.net	"
+2026-06-19,국내 연자,이병인,Invited Conversation: Insights from Decades of Epilepsy Experience,,Korea,명지병원,신경과,010-6668-4676,BILEE@yuhs.ac
 2026-06-19,,,Break,,,,,,
 2026-06-19,,,Press Conference,,,,,,
+2026-06-19,국내 좌장,문혜진,DataBlitz 1,,Korea,,,,moonhyejin21@gmail.com
+2026-06-19,국내 좌장,김세희,DataBlitz 1,,Korea,,,,seheekim@yuhs.ac
+2026-06-19,국내 연자,곽동원,DataBlitz 1,Melatonin Prolonged-Release may improve insomnia and depression in epilepsy patients.,Korea,건국의대 건국대학교병원,신경과,010-8636-0407,20180069@kuh.ac.kr
+2026-06-19,국내 연자,윤이나,DataBlitz 1,Evaluating the Efficacy of Large Language Models Against Individual Writing Styles for Automated Seizure Information Extraction,Korea,서울의대 분당서울대병원,소아청소년과,010-5112-7751,inayoun0519@gmail.com
+2026-06-19,국내 연자,이윤진,DataBlitz 1,Spike resolution in self-limited epilepsy with centrotemporal spikes: Predicting power of clinical and EEG features,Korea,부산의대 부산대학교병원,소아청소년과,010-8504-1358,jinnyeye@naver.com
+2026-06-19,국내 연자,김하욤,DataBlitz 1,Diffusion Tensor Imaging Markers as Predictors of rTMS Responsiveness in Drug-Resistant Medial Temporal Lobe Epilepsy,Korea,고려의대 고대안암병원,신경과,010-8973-6025,happyhy3@naver.com
+2026-06-19,국내 연자,남윤성,DataBlitz 1,Assessing Thalamocortical Circuit Modulation Induced by Vagus Nerve Stimulation Using Modulation Index,Korea,울산의대 서울아산병원,소아청소년과,010-3233-2572,nysjim@naver.com
+2026-06-19,국내 연자,서수연,DataBlitz 1,Network-Level Associations Between Brain Age Index and Cognitive Function in Mesial Temporal Lobe Epilepsy,Korea,성균관의대 삼성서울병원,신경과,010-9973-5842,suyeonla@naver.com
+2026-06-19,국내 연자,안선재,DataBlitz 1,The CALM Score for Predicting Poor Outcomes in Functional Seizures after Autoimmune Encephalitis,Korea,서울의대 서울대병원,신경과,010-8827-9634,ahnsj2000@gmail.com
+2026-06-20,국내 좌장,이서영,DataBlitz 2,,Korea,,,,raininaugust@hanmail.net
+2026-06-20,국내 좌장,강준원,DataBlitz 2,,Korea,충남의대 세종충남대병원,소아청소년과,010-3375-6804,luke2178@naver.com
+2026-06-20,국내 연자,조재소,DataBlitz 2,Integrating Electrophysiological Features and Machine Learning to Improve Genotype–Phenotype Correlation in SCN2A-Related Disorders,Korea,서울의대 분당서울대병원,소아청소년과,010-2039-8501,gipumj@gmail.com
+2026-06-20,국내 연자,안수현,DataBlitz 2,Hyponatremia is associated with accelerated hippocampal atrophy and delayed clinical recovery in LGI1 encephalitis,Korea,서울의대 서울대병원,신경과,010-9956-2575,tngus55@gmail.com
+2026-06-20,국내 연자,장준호,DataBlitz 2,Deep Learning Reveals a Continuous EEG Recurrence Axis After Anti-Epileptic Drug Withdrawal Beyond Conventional Biomarkers,Korea,서울의대 서울대병원,기타,010-9575-8629,wnsgh8629@risorious.com
+2026-06-20,국내 연자,김경민,DataBlitz 2,Determinants of Positive Airway Pressure Adherence and Association With Seizure Outcomes in Adults With Epilepsy and Obstructive Sleep Apnea,Korea,성균관의대 삼성서울병원,신경과,010-4016-5236,gm9988@naver.com
+2026-06-20,국내 연자,소민경,DataBlitz 2,Forecasting Seizure Onset via Scalp EEG Network Dynamics,Korea,고려의대 안암병원,신경과,010-7414-0063,minggyong0510@gmail.com
+2026-06-20,국내 연자,박소영,DataBlitz 2,Clinical Characteristics and Referral Patterns of Pediatric Palliative Care for Children with Epilepsy and Severe Neurological Impairment,Korea,연세의대 세브란스병원,소아청소년과,010-8841-6797,hclove72@yuhs.ac
+2026-06-20,국내 연자,홍상빈,DataBlitz 2,Common- and rare-variant epilepsy risk act through largely distinct genes and brain cell types,Korea,서울의대 서울대병원,신경과,010-4658-3464,hong.sangbin@gmail.com
+2026-06-20,국내 연자,김우준,DataBlitz 2,Clinical and Electroencephalographic Characteristics of Non-Hypoxic Cortical Myoclonus: A Single-Center Retrospective Cohort Study,Korea,가톨릭의대 서울성모병원,신경과,010-2602-7298,plomb2@naver.com
+2026-06-19,국내 좌장,이지훈,Oral Presentation 1,,Korea,,,,leejeehunmd@gmail.com
+2026-06-19,국내 좌장,류한욱,Oral Presentation 1,,Korea,,,,iory252@naver.com
+2026-06-19,국내 연자,안수현,Oral Presentation 1,Leiomodin-1 Antibody and Clinical Outcomes in Cryptogenic New-Onset Refractory Status Epilepticus: A Cohort Study,Korea,서울의대 서울대병원,신경과,010-9956-2575,tngus55@gmail.com
+2026-06-19,국내 연자,권오철,Oral Presentation 1,Dynamic Remission and Relapse Trajectories in Infantile-Onset Epilepsy: A 10-Year Longitudinal Study,Korea,울산의대 서울아산병원,소아청소년과,010-6688-8519,ohcheol227@gmail.com
+2026-06-19,국내 연자,김성은,Oral Presentation 1,Interictal Spike-HFO Rates Improve Localization of the Epileptogenic Zone Compared with Spike Rates: A Quantitative SEEG Analysis,Korea,인제의대 해운대백병원,신경과,010-6212-6131,epidoc@inje.ac.kr
+2026-06-19,국내 연자,추이슬,Oral Presentation 1,Longitudinal response-pattern heterogeneity after hippocampal and anterior thalamic nucleus deep brain stimulation in drug-resistant bilateral temporal-network epilepsy,Korea,성균관의대 삼성서울병원,신경과,010-4543-7242,roachoo@naver.com
+2026-06-19,국내 연자,염정연,Oral Presentation 1,Cortico-Striato-Thalamo-Cortical Network Disruption and Its Association with Seizure Outcomes in Treatment-Naïve Idiopathic Generalized Epilepsy,Korea,연세의대 용인세브란스병원,신경과,010-8771-7398,hjyyum@yuhs.ac
+2026-06-19,국내 좌장,염미선,Oral Presentation 2,,Korea,,,,yumyum99@hanmail.net
+2026-06-19,국내 좌장,황경진,Oral Presentation 2,,Korea,,,,jinie111@hanmail.net
+2026-06-19,국내 연자,이우진,Oral Presentation 2,Predicting Long-Term Epilepsy Burden in Post-Stroke Seizures,Korea,서울의대 분당서울대병원,신경과,010-7706-6008,eoozin@gmail.com
+2026-06-19,국내 연자,편율,Oral Presentation 2,Neurodevelopmental and Neurocognitive Profiles Associated with Frontal Lobe Function in Early Childhood: Exploring Early ADHD-Related Characteristics,Korea,,,010-7188-6802,yulp7755@gmail.com
+2026-06-19,국내 연자,양석열,Oral Presentation 2,"Transcutaneous Auricular Vagus Nerve Stimulation in Drug-Resistant Epilepsy: A Randomized, Sham-Controlled Crossover Trial with EEG and MRI Response Phenotyping",Korea,성균관의대 삼성서울병원,신경과,010-2574-6748,yangseokyeol@gmail.com
+2026-06-19,국내 연자,차종호,Oral Presentation 2,Long-term Seizure Outcomes and Relapse Risk Factors in Children with Childhood Absence Epilepsy,Korea,서울의대 서울대병원,소아청소년과,010-3703-7399,cjhchany@gmail.com
+2026-06-19,국내 연자,공주헌,Oral Presentation 2,Lateralized amyloid accumulation and beta-band networks mediate cognition in temporal lobe epilepsy,Korea,고려대학교 안암병원,신경과,010-6876-0350,djfkejfk@naver.com
 2026-06-19,,,Break,,,,,,
+2026-06-19,국내 좌장,김종현,Optimizing Epilepsy Surgery: Insights from Insular SEEG and Pediatric Surgical Outcomes,,Korea,고려의대 구로병원,신경외과,010-4751-6725,jhkimns@gmail.com
+2026-06-19,국내 좌장,장원석,Optimizing Epilepsy Surgery: Insights from Insular SEEG and Pediatric Surgical Outcomes,,Korea,연세의대 세브란스병원,신경외과,010-5453-8902,changws0716@yuhs.ac
+2026-06-19,국외 연자(PS),Jorge A. Gonzalez-Martinez,Optimizing Epilepsy Surgery: Insights from Insular SEEG and Pediatric Surgical Outcomes,Insular Epilepsy: Insights from SEEG Practice,USA,,,412-647-3685,gonzalezjo@upmc.edu
+2026-06-19,국내 연자,피지훈,Optimizing Epilepsy Surgery: Insights from Insular SEEG and Pediatric Surgical Outcomes,Identifying Surgical Candidates and Optimizing Epilepsy Surgery in Children with Intractable Epilepsy,Korea,서울의대 서울대병원,신경외과,010-8258-1720,phi.jihoon@gmail.com
+2026-06-19,국외 연자,David Gonda,Optimizing Epilepsy Surgery: Insights from Insular SEEG and Pediatric Surgical Outcomes,Outcome of laser interstitial thermal therapy in children,USA,,,858-829-8349,dgonda@health.ucsd.edu
+2026-06-19,국내 좌장,이서영,Clinical Practice Guidelines for Epilepsy Management — KES Guideline Development Committee,,Korea,명지병원,신경과,010-9101-4025,raininaugust@hanmail.net
+2026-06-19,국내 연자,최선아,Clinical Practice Guidelines for Epilepsy Management — KES Guideline Development Committee,Real-World Evidence for WWE Management in Korea,Korea,이화의대 목동병원,소아청소년과,010-9429-9665,sunchoii@naver.com
+2026-06-19,국내 연자,김현경,Clinical Practice Guidelines for Epilepsy Management — KES Guideline Development Committee,The New Korean CPG for Management of WWE,Korea,국립의료원,신경과,010-9376-2055,crespin97@gmail.com
+2026-06-19,국내 연자,최한솜,Clinical Practice Guidelines for Epilepsy Management — KES Guideline Development Committee,The New Korean CPG for Management of the Two Most Common Pediatric Epilepsy Syndromes: Self-Limiting Epilepsy with Centrotemporal Spikes and Childhood Absence Epilepsy,Korea,국립의료원,소아청소년과,010-3883-3534,"choi.hansom7@gmail.com	"
+2026-06-19,국내 좌장,신원철,Advancing SV2A Modulation (BRIVETA): Beyond Levetiracetam (CKD),,Korea,서울의대 서울대병원,신경과,010-5299-3150,shin1chul@gmail.com
+2026-06-19,국외 연자,Jong Woo Lee,Advancing SV2A Modulation (BRIVETA): Beyond Levetiracetam (CKD),The Evolution of SV2A Ligands from Levetiracetam to Brivaracetam,USA,,,(617) 732-7547,jlee38@bwh.harvard.edu
+2026-06-19,국내 연자,박혜리,Advancing SV2A Modulation (BRIVETA): Beyond Levetiracetam (CKD),Clinical Efficacy and Safety of Brivaracetam in Patients with Focal Onset Seizures,Korea,전남의대 전남대병원,신경과,010-7307-8808,okokree@gmail.com
 2026-06-19,,,Q&A,,,,,,
 2026-06-19,,,Break,,,,,,
+2026-06-19,국내 좌장,이영목,Genetics Update for Epileptologists: Channelopathies and Mitochondriopathies,,Korea,연세의대 강남세브란스병원,소아청소년과,010-3767-9713,ymleemd@yuhs.ac
+2026-06-19,국내 연자,문장섭,Genetics Update for Epileptologists: Channelopathies and Mitochondriopathies,Clinical Basis of Epilepsy Genetics,Korea,서울의대 서울대병원,신경과,010-9387-7364,jangsup.moon@gmail.com
+2026-06-19,국내 연자,강준원,Genetics Update for Epileptologists: Channelopathies and Mitochondriopathies,Ion Channelopathies: Neuroelectrical Problems and Key Genes,Korea,충남의대 충남대병원,소아청소년과,010-2242-7312,childlove@cnu.ac.kr
+2026-06-19,국내 연자,나지훈,Genetics Update for Epileptologists: Channelopathies and Mitochondriopathies,Mitochondrial Epilepsy and Future Clinical Directions,Korea,연세의대 세브란스병원,기타,010-4132-0750,sailing-autumn@hanmail.net
+2026-06-19,국내 좌장,이상건,Advances in EEG Biomarkers and Computational Approaches for Epilepsy,,Korea,서울의대 서울대병원,신경과,010-9177-2923,sangkun2923@gmail.com
+2026-06-19,국내 연자,황성은,Advances in EEG Biomarkers and Computational Approaches for Epilepsy,EEG biomarkers and network alteration,Korea,이화의대 이대목동병원,신경과,010-2885-8239,neurosung@gmail.com
+2026-06-19,국내 연자,박경일,Advances in EEG Biomarkers and Computational Approaches for Epilepsy,AI approaches of EEG to determine the lateralization and localization,Korea,서울의대 서울대병원,신경과,010-2198-0362,ideopki@gmail.com
+2026-06-19,국내 연자,안수현,Advances in EEG Biomarkers and Computational Approaches for Epilepsy,Prognostic value of EEG beyond spikes: insight from NORSE,Korea,서울의대 서울대학교,신경과,010-9956-2575,tngus55@gmail.com
 2026-06-19,,,Break,,,,,,
+2026-06-19,국내 좌장,김지언,AI-Driven Frontiers in Epilepsy: From Seizure Detection to Treatment Precision,,Korea,가톨릭의대 대구병원,신경과,010-5203-3991,jekim2@cu.ac.kr
+2026-06-19,국내 연자,감태의,AI-Driven Frontiers in Epilepsy: From Seizure Detection to Treatment Precision,Artificial Intelligence for Seizure Prediction Decoding EEG Complexity,Korea,고려대학교,인공지능,010-2956-6945,kamte@korea.ac.kr
+2026-06-19,국외 연자,Steve Chung,AI-Driven Frontiers in Epilepsy: From Seizure Detection to Treatment Precision,Recent Advances in Antiseizure Medication Trials and the Role of Artificial Intelligence,USA,,,602-770-2383,Stevechung77@gmail.com
+2026-06-19,국내 연자,김준식,AI-Driven Frontiers in Epilepsy: From Seizure Detection to Treatment Precision,Artificial neural network for classifying with epilepsy MEG data,Korea,건국의대 건국대병원,임상의학연구소,010-4621-2781,junesic.kim@gmail.com
+2026-06-19,국내 좌장,허경,Optimizing Early and Rational Combination Strategies in Status Epilepticus,,Korea,연세의대 세브란스병원,신경과,010-8792-7573,heokyoung8792@gmail.com
+2026-06-19,국내 연자,염정숙,Optimizing Early and Rational Combination Strategies in Status Epilepticus,When Monotherapy Fails: Strategies for Overcoming Treatment Resistance,Korea,경상의대 경상대병원,소아청소년과,010-2846-8419,polo96@daum.net
+2026-06-19,국내 연자,김영수,Optimizing Early and Rational Combination Strategies in Status Epilepticus,Stage 1 Plus: Early Combination Approaches for Improved Outcomes,Korea,경상의대 경상대병원,신경과,010-2847-8419,youngsookim0127@gmail.com
+2026-06-19,국내 연자,류한욱,Optimizing Early and Rational Combination Strategies in Status Epilepticus,Rational Polytherapy: Selecting Synergistic Treatment Combinations,Korea,전북의대 전북대병원,신경과,010-2073-2774,iory252@naver.com
 2026-06-19,,,General Assembly,,,,,,
 2026-06-19,,,Presidential Dinner,,,,,,
 2026-06-20,,,e-poster (Shilla),,,,,,
 2026-06-20,,,e-poster (Shilla),,,,,,
 2026-06-20,,,e-poster (Shilla),,,,,,
 2026-06-20,,,e-poster (Shilla),,,,,,
+2026-06-20,국내 좌장,서대원,Epilepsy Care Beyond Seizures: Identifying and Managing High-Risk Patients,,Korea,성균관의대 삼성서울병원,신경과,010-9933-3595,daewon3.seo@samsung.com
+2026-06-20,국내 좌장,박성파,Epilepsy Care Beyond Seizures: Identifying and Managing High-Risk Patients,,Korea,경북의대 경북대병원,신경과,010-8593-5769,sppark@mail.knu.ac.kr
+2026-06-20,국내 연자,이승원,Epilepsy Care Beyond Seizures: Identifying and Managing High-Risk Patients,Big-Data Approaches to Epilepsy and Its Long-Term Sequelae,Korea,성균관의대 삼성서울병원,의학과,,swleemd@g.skku.edu
+2026-06-20,국내 연자,하우석,Epilepsy Care Beyond Seizures: Identifying and Managing High-Risk Patients,Poststroke Epilepsy: Identifying High-Risk Patients and Improving Outcomes,Korea,연세의대 세브란스병원,신경과,010-5260-9496,haha88@yuhs.ac
+2026-06-20,국외 연자,Churl-Su Kwon,Epilepsy Care Beyond Seizures: Identifying and Managing High-Risk Patients,Psychiatric multimorbidity in People With Epilepsy,USA,,신경외과,,ck3112@cumc.columbia.edu
+2026-06-20,국외 연자,Ji Yeoun Yoo,Epilepsy Care Beyond Seizures: Identifying and Managing High-Risk Patients,Long-term outcomes beyond seizures in patients with NORSE,USA,,신경과,,Jiyeoun.yoo@mssm.edu
+2026-06-20,국내 좌장,강훈철,Network Dysfunction and Precision Therapies in LGS/IESS (Lennox–Gastaut and Infantile Epileptic Spasms Syndromes),,Korea,연세의대 세브란스병원,소아청소년과,010-5443-6596,hipo0207@yuhs.ac
+2026-06-20,국내 좌장,채종희,Network Dysfunction and Precision Therapies in LGS/IESS (Lennox–Gastaut and Infantile Epileptic Spasms Syndromes),,Korea,서울의대 서울대병원,소아청소년과,010-6413-3622,chaeped1@snu.ac.kr
+2026-06-20,국외 연자,Sookyong Koh,Network Dysfunction and Precision Therapies in LGS/IESS (Lennox–Gastaut and Infantile Epileptic Spasms Syndromes),Interictal Network Dysfunction and Cognitive Impairment in LGS/IESS,USA,,,773-314-3685,skoh@childrensnebraska.org
+2026-06-20,국내 연자,김민지,Network Dysfunction and Precision Therapies in LGS/IESS (Lennox–Gastaut and Infantile Epileptic Spasms Syndromes),Modeling and Pathophysiology of Infantile Epileptic Spasms Syndrome,Korea,울산의대 서울아산병원,소아청소년과,010-7445-4711,pradoxwh@naver.com
+2026-06-20,국내 연자,조재소,Network Dysfunction and Precision Therapies in LGS/IESS (Lennox–Gastaut and Infantile Epileptic Spasms Syndromes),Lennox–Gastaut Syndrome: Etiology and Emerging Treatments,Korea,서울의대 분당서울대병원,소아청소년과,010-2039-8501,gipumj@gmail.com
+2026-06-20,국내 연자,이보련,Network Dysfunction and Precision Therapies in LGS/IESS (Lennox–Gastaut and Infantile Epileptic Spasms Syndromes),Ketogenic Diet Therapy in LGS and IESS: Current Evidence and Practice,Korea,인제의대 부산백병원,소아청소년과,010-9154-3373,bototii@hanmail.net
+2026-06-20,국내 좌장,김해유,Minimally Invasive Frontiers in Epilepsy Surgery: From Ablation to Neurostimulation,,Korea,인제의대 해운대백병원,신경외과,010-3520-3740,hykim080356@gmail.com
+2026-06-20,국내 좌장,김성은,Minimally Invasive Frontiers in Epilepsy Surgery: From Ablation to Neurostimulation,,Korea,인제의대 해운대백병원,신경과,010-6212-6131,epidoc@inje.ac.kr
+2026-06-20,국외 연자,Hiroshi Shirozu,Minimally Invasive Frontiers in Epilepsy Surgery: From Ablation to Neurostimulation,Robot-assisted stereotactic radiofrequency thermocoagulation (SRFTC) for the treatment of hypothalamic hamartomas and further application to cortical epileptic foci.,Japan,,,,hiroshirozu3ens@gmail.com
+2026-06-20,국외 연자,Cheng-Chia Lee,Minimally Invasive Frontiers in Epilepsy Surgery: From Ablation to Neurostimulation,Cutting-Edge Without Cutting: Focused Ultrasound for Epilepsy,Taiwan,,신경외과,886-3-5731849,yfnaughty@gmail.com
+2026-06-20,국내 연자,이승훈,Minimally Invasive Frontiers in Epilepsy Surgery: From Ablation to Neurostimulation,Synchronizing Seizure Circuits: Dual-Target DBS of the Hippocampus and Thalamus,Korea,성균관의대 삼성서울병원,신경외과,010-9933-5222,benee@hanmail.net
+2026-06-20,국외 연자,David Gonda,Minimally Invasive Frontiers in Epilepsy Surgery: From Ablation to Neurostimulation,Toward Closed-Loop Seizure Control: Responsive Neurostimulation,USA,,,858-829-8349,dgonda@health.ucsd.edu
 2026-06-20,,,Break,,,,,,
+2026-06-20,국내 좌장,양광익,Year-In-Review,,Korea,순천향의대 천안병원,신경과,010-3208-9293,neurofan@schmc.ac.kr
+2026-06-20,국내 연자,김세희,Year-In-Review,"Advances in Electrophysiology: EEG, MEG and use of AI",Korea,연세의대 세브란스병원,소아청소년과,010-3920-0860,seheekim@yuhs.ac
+2026-06-20,국내 연자,황성은,Year-In-Review,Emerging Antiseizure Medications and Clinical Trials,Korea,이화의대 이대목동병원,신경과,010-2885-8239,neurosung@gmail.com
+2026-06-20,국내 연자,김준형,Year-In-Review,Current concepts in Neuromodulation and Non-Pharmacologic Strategies,Korea,연세의대 세브란스병원,신경외과,010-3895-9176,jkim1518@yuhs.ac
+2026-06-20,국내 좌장,조용원,"Sleep, Seizures, and the Heart: Exploring Neurocardiac Pathways in Epilepsy",,Korea,계명의대 동산의료원,신경과,010-3521-5059,neurocho@dsmc.or.kr
+2026-06-20,국내 연자,김지현 (이대),"Sleep, Seizures, and the Heart: Exploring Neurocardiac Pathways in Epilepsy","Epilepsy and the Neurocardiac Axis: Bridging Sleep, Seizure Dynamics, and Cardiac Risk",Korea,이화의대 이대서울병원,신경과,010-2055-9159,fever26@gmail.com
+2026-06-20,국내 연자,최광연,"Sleep, Seizures, and the Heart: Exploring Neurocardiac Pathways in Epilepsy",Cardiogenic and chronobiological mechanisms in seizure-induced sinus arrhythmias,Korea,충남의대 충남대병원,정신건강의학과,,kyeon@cnu.ac.kr
+2026-06-20,국내 연자,김정빈,"Sleep, Seizures, and the Heart: Exploring Neurocardiac Pathways in Epilepsy",Heart rate variability as a preictal marker for determining the laterality of seizure onset zone in frontal lobe epilepsy,Korea,고려의대 안암병원,신경과,010-8885-5378,kjbin80@korea.ac.kr
+2026-06-20,국내 좌장,채수안,Toward Safer Outcomes in Epilepsy: Seizure Freedom and SUDEP Prevention,,Korea,중앙의대 중앙대병원,소아청소년과,010-4289-1116,kidbrain@cau.ac.kr
+2026-06-20,국내 연자,김동엽,Toward Safer Outcomes in Epilepsy: Seizure Freedom and SUDEP Prevention,Beyond Seizure Reduction: Moving toward Seizure Freedom with Cenobamate,Korea,이화의대 서울병원,신경과,010-9720-1890,hap2028@naver.com
+2026-06-20,국외 연자,Jong Woo Lee,Toward Safer Outcomes in Epilepsy: Seizure Freedom and SUDEP Prevention,Beyond Seizure Control: SUDEP Risk Mechanisms and Prevention Strategies,USA,,,(617) 732-7547,jlee38@bwh.harvard.edu
 2026-06-20,-,Discussion,Toward Safer Outcomes in Epilepsy: Seizure Freedom and SUDEP Prevention,Discussion,,,,,
+2026-06-20,국내 좌장,박성파,Whan In,,Korea,경북의대 경북대병원,신경과,010-8593-5769,sppark@mail.knu.ac.kr
+2026-06-20,국내 연자,주병억,Whan In,The Value and Significance of Using Zebinix as Initial Monotherapy,Korea,순천향대학교 서울병원,신경과,010-5395-9357,churcky17@naver.com
+2026-06-20,국내 좌장,김지현,SK,,Korea,고려의대 구로병원,신경과,010-9074-1752,jhkim.merrf@gmail.com
+2026-06-20,국내 연자,김근태,SK,Lacosamide as early add-on therapy in patients with focal epilepsy,Korea,계명의대 동산의료원,신경과,010-8852-5141,6k5upa@gmail.com
+2026-06-20,국내 좌장,김광기,Eisai,,Korea,동국의대 동국대일산병원,신경과,010-4618-6768,neukim@duih.org
+2026-06-20,국내 연자,문혜진,Eisai,Optimal Treatment Strategies for Fycompa in Epilepsy Patients With Sleep Disorders,Korea,순천향의대 부천병원,신경과,010-4877-1703,moonhyejin21@gmail.com
 2026-06-20,,,Break,,,,,,
+2026-06-20,국내 좌장,송파멜라,KES-JES,,Korea,인제의대 일산백병원,신경과,010-9933-5553,songpama7@gmail.com
+2026-06-20,국외 좌장,Hideaki Shiraishi,KES-JES,,Japan,,신경과,,h-shiraishi@dokkyomed.ac.jp
+2026-06-20,국내 연자,김우중,KES-JES,Treating Epilepsies With a Genetic Diagnosis—Do Genes Guide Therapy,Korea,서울의대 서울대병원,소아청소년과,010-3005-7549,rainkim23@gmail.com
+2026-06-20,국외 연자,Hideaki Shiraishi,KES-JES,Clinical Application of New Treatment Procedures in Korea and Japan,Japan,,신경과,,h-shiraishi@dokkyomed.ac.jp
+2026-06-20,국내 연자,송파멜라,KES-JES,Advances in Acute Seizure Rescue Strategies,Korea,인제의대 일산백병원,신경과,010-9933-5553,songpama7@gmail.com
+2026-06-20,국외 연자,Riki Matsumoto,KES-JES,Late-onset epilepsy: underlying pathophysiology and treatment,Japan,,신경과,,matsumot@kuhp.kyoto-u.ac.jp
 2026-06-20,-,Discussion,KES-JES,Discussion,,,,,
+2026-06-20,국내 좌장,김원주,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,,Korea,연세의대 강남세브란스병원,신경과,010-9276-6766,kzoo@yuhs.ac
+2026-06-20,국내 좌장,염미선,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,,Korea,울산의대 서울아산병원,소아청소년과,010-6528-6513,yumyum99@hanmail.net
+2026-06-20,국내 연자,김경민,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,Should We Treat the Ictal-Interictal Continuum During SE Management?,Korea,연세의대 세브란스병원,신경과,010-8717-1233,penlighting@naver.com
+2026-06-20,국내 연자,이우진,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,Should We Treat the Ictal-Interictal Continuum During SE Management?,Korea,서울의대 분당서울대병원,신경과,010-7706-6008,eoozin@gmail.com
+2026-06-20,국내 연자,고아라,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,ASM selection for NICU : PB as the first choice and discontinuation before discharge as the guideline,Korea,연세의대 세브란스병원,소아청소년과,010-7185-0307,arako@yuhs.ac
+2026-06-20,국내 연자,우혜원,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,ASM selection for NICU : Individualized approach or continuation after discharge,Korea,충북의대 충북대병원,소아청소년과,010-6415-1050,hyewonwoo@gmail.com
+2026-06-20,국내 연자,염미선,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,When Should We Stop ASM After Acute Symptomatic Seizures? Pediatrics patients Perspectives,Korea,울산의대 서울아산병원,소아청소년과,010-6528-6513,yumyum99@hanmail.net
+2026-06-20,국내 연자,박혜리,[Debates] Should We Treat the Ictal-Interictal Continuum During SE Management?,When Should We Stop ASM After Acute Symptomatic Seizures? Adults patients Perpectives,Korea,인제의대 일산백병원,신경과,010-7307-8808,okokree@gmail.com
+2026-06-20,국내 좌장,김흥동,KESC/KBE joint session 사회위원회 세션: 뇌전증 환자의 삶과 권리 향상을 위한 인식과 실천,,Korea,성균관의대 강북삼성병원,소아청소년과,010-3343-4389,HDKIMMD@yuhs.ac
+2026-06-20,국내 좌장,손영민,KESC/KBE joint session 사회위원회 세션: 뇌전증 환자의 삶과 권리 향상을 위한 인식과 실천,,Korea,,,010-9142-6804,sonogung@gmail.com
+2026-06-20,국내 연자,이보람,KESC/KBE joint session 사회위원회 세션: 뇌전증 환자의 삶과 권리 향상을 위한 인식과 실천,"IBE 진행 「뇌전증 환자의 미충족 요구에 대한 조사(Global Epilepsy Needs Study, GENS)」 - 결과 보고 및 한국 조사 결과 안내",Korea,한국뇌전증협회,기타,010-7703-5205,boramlee130@gmail.com
+2026-06-20,국내 연자,김덕수,KESC/KBE joint session 사회위원회 세션: 뇌전증 환자의 삶과 권리 향상을 위한 인식과 실천,"WHO 결의안 「IGAP(Intersectoral global action plan on epilepsy and other neurological disorder, 2022-2031)」 - 실행 방안 제언",Korea,한국뇌전증협회,협회,010-3191-4124,koreads0304@naver.com
+2026-06-20,국내 연자,윤송이,KESC/KBE joint session 사회위원회 세션: 뇌전증 환자의 삶과 권리 향상을 위한 인식과 실천,소아청소년 뇌전증 환자의 삶의 질 향상을 위한 제언,Korea,경희의대 강동경희대병원,소아청소년과,010-3240-3942,pig-youn@hanmail.net
+2026-06-20,국내 연자,정우정,KESC/KBE joint session 사회위원회 세션: 뇌전증 환자의 삶과 권리 향상을 위한 인식과 실천,뇌전증 환자의 질병 공개 및 은폐 의사결정 분석연구,Korea,경북대학교,간호학과,010-9949-1216,godblessed@knu.ac.kr
+2026-06-20,국내 좌장,서대원,Practical Insights from the EMU and outpatients Clinic (Interdisciplinary Session),,Korea,성균관의대 삼성서울병원,신경과,010-9933-3595,daewon3.seo@samsung.com
+2026-06-20,국내 좌장,최지은,Practical Insights from the EMU and outpatients Clinic (Interdisciplinary Session),,Korea,서울대학교 보라매병원,소아청소년과,010-4170-9740,jechoi66@snu.ac.kr
+2026-06-20,국내 연자,김나현,Practical Insights from the EMU and outpatients Clinic (Interdisciplinary Session),간호실무의 핵심: 3R 원칙을 통한 환자 관리 Nursing Practice Essentials: Applying the 3R Principles in Epilepsy Care,Korea,연세의대 세브란스병원,기타,,HAMERIA@yuhs.ac
+2026-06-20,국내 연자,김보영,Practical Insights from the EMU and outpatients Clinic (Interdisciplinary Session),EMU에서의 ASM 감량 프로토콜: 발작 유발과 안전한 진단 ASM Reduction Protocols in the EMU: Balancing Seizure Induction and Diagnostic Safety,Korea,울산의대 서울아산병원,신경과,010-9333-2748,kimby0427@gmail.com
+2026-06-20,국내 연자,유수림,Practical Insights from the EMU and outpatients Clinic (Interdisciplinary Session),증례를 통한 학습: 발작 후 정신병리의 이해와 대응 Case-Based Insights: Managing Post-Seizure Psychosis in the EMU,Korea,성균관의대 삼성서울병원,기타,010-6475-2996,truemam1@naver.com
+2026-06-20,국내 연자,한윤경,Practical Insights from the EMU and outpatients Clinic (Interdisciplinary Session),사례로 배우는 환자 상담: 환자의 까다로운 질문에 답하기 Case-Based Approach: Responding Wisely to Challenging Questions from Epilepsy Patients,Korea,성균관의대 삼성서울병원,기타,010-9301-2865,nazmakii@gmail.com
+2026-06-20,국내 좌장,고태성,Clinical approach for TSC-related epilepsy,,Korea,울산의대 서울아산병원,소아청소년과,010-8867-3382,tsko@amc.seoul.kr
+2026-06-20,국내 연자,김은희,Clinical approach for TSC-related epilepsy,Treatment strategies for early-life seizures in TSC,Korea,충남의대 세종충남대병원,소아청소년과,010-3375-6804,luke2178@naver.com
+2026-06-20,국내 연자,김존수,Clinical approach for TSC-related epilepsy,Precise treatment of TSC-related epilepsy,Korea,충북의대 충북대병원,소아청소년과,010-6404-5895,pedkjs79@naver.com
+2026-06-20,국외 연자,Hyoung Won Choi,Clinical approach for TSC-related epilepsy,Epilepsy surgery in TSC patients with drug resistant epilepsy,USA,,,,choi1441@gmail.com
+2026-06-20,국내 좌장,박강민,Neuroimaging Frontiers in Epilepsy From Structure to Precision,,Korea,인제의대 해운대백병원,신경과,010-6569-0119,smilepkm@hanmail.net
+2026-06-20,국내 연자,이동아,Neuroimaging Frontiers in Epilepsy From Structure to Precision,Structural Neuroimaging: Mapping the Epileptic Brain,Korea,인제의대 해운대백병원,신경과,010-8589-7906,peony1003@gmail.com
+2026-06-20,국내 연자,조수미,Neuroimaging Frontiers in Epilepsy From Structure to Precision,Functional Neuroimaging: Understanding the Epileptic Network,Korea,연세의대 세브란스병원,신경과,010-5219-7144,soomicho@yuhs.ac
+2026-06-20,국내 연자,박강민,Neuroimaging Frontiers in Epilepsy From Structure to Precision,AI in Neuroimaging: Toward Precision Epilepsy Care,Korea,인제의대 해운대백병원,신경과,010-6569-0119,smilepkm@hanmail.net
 2026-06-20,,,Awards / Closing Ceremony,,,,,,
+2025-06-20(Fri),국내 좌장,이서영,SIG-1. Clinical and Research Applications of Magnetoencephalography (MEG),,Korea,명지병원,신경과,010-9101-4025,raininaugust@hanmail.net
+2025-06-20(Fri),국내 연자,김세희,SIG-1. Clinical and Research Applications of Magnetoencephalography (MEG),Localizing the Epileptic Focus. Clinical cases and applications.,Korea,연세의대 세브란스병원,소아청소년과,010-3920-0860,seheekim@yuhs.ac
+2025-06-20(Fri),국내 연자(타과),이상아,SIG-1. Clinical and Research Applications of Magnetoencephalography (MEG),Pre-surgical Functional Mapping with MEG,Korea,서울대학교 ,뇌인지과학과,010-5121-9336 ,sangah@gmail.com
+2025-06-20(Fri),국내 연자(타과),김준식,SIG-1. Clinical and Research Applications of Magnetoencephalography (MEG),Advancements in MEG Research and Emerging Applications,Korea,건국의대 건국대병원,임상의학연구소,010-4621-2781,junesic.kim@gmail.com
+2025-06-20(Fri),국내 좌장,김존수,SIG-2. Development of Evidence based Guidelines for Epilepsy ,,Korea,충북의대 충북대병원,소아청소년과,010-6404-5895,pedkjs79@naver.com
+2025-06-20(Fri),국내 연자,이혜정,SIG-2. Development of Evidence based Guidelines for Epilepsy ,Guideline for management of women with epilepsy,Korea,중앙의대 중앙대광명병원,신경과,010-7730-1013,leehj0398@naver.com
+2025-06-20(Fri),국내 연자,구청모,SIG-2. Development of Evidence based Guidelines for Epilepsy ,Guideline for management of self-limited epilepsy with centrotemporal spikes,Korea,단국대학교병원,소아청소년과,010-5403-4502,koochungmo0904@gmail.com
+2025-06-20(Fri),국내 연자,윤송이,SIG-2. Development of Evidence based Guidelines for Epilepsy ,Guideline for management of childhood absence epilepsy,Korea,경희의대 강동경희대병원,소아청소년과,010-3240-3942,pig-youn@hanmail.net
+2025-06-20(Fri),국내 좌장,이향운,"SIG-3. Unified Data Elements for Epilepsy: Clinical Frameworks, System Integration, and Research Platform Insights",,Korea,이화의대 이대목동병원 ,신경과,010-5671-2201,leeh@ewha.ac.kr
+2025-06-20(Fri),국내 연자,구용서,"SIG-3. Unified Data Elements for Epilepsy: Clinical Frameworks, System Integration, and Research Platform Insights",Building the Core Framework for Clinical Common Data Elements in Epilepsy Outpatient Clinics: Progress and Future Directions,Korea,울산의대 서울아산병원,신경과,010-4490-4880,yo904@naver.com
+2025-06-20(Fri),국내 연자,김헌민,"SIG-3. Unified Data Elements for Epilepsy: Clinical Frameworks, System Integration, and Research Platform Insights","Streamlining Data Integration: Laboratory, MRI, and EEG in Distributed Systems with Common Data Elements",Korea,서울의대 분당서울대병원,소아청소년과,010-9942-7035,hunminkim@hanmail.net
+2025-06-20(Fri),국내 연자(타과),신수용,"SIG-3. Unified Data Elements for Epilepsy: Clinical Frameworks, System Integration, and Research Platform Insights",Benchmark of multi institutional data research platform for data privacy & ownership _ kakaohealthcare & R-alliance case study,Korea,카카오헬스케어,카카오헬스케어,010-4104-5647  ,sean.shin@kakaohealthcare.com
 2025-06-20(Fri),Break,,Break,,,,,,
 2025-06-20(Fri),Opening Ceremony,,Opening Ceremony,,,,,,
+2025-06-20(Fri),국내 좌장,채수안,[Presidential Symposium] Gene therapy,,Korea,중앙의대 중앙대병원,소아청소년과,010-4289-1116,kidbrain@cau.ac.kr
+2025-06-20(Fri),해외 연자,Gabriele Lignani,[Presidential Symposium] Gene therapy,The Impact of Gene Therapy on Epilepsy Treatment ,UK,University College London,Neurology,,g.lignani@ucl.ac.uk
 2025-06-20(Fri),Break,,Break,,,,,,
+2025-06-20(Fri),국내 좌장,김지현(고대),[Satellite Symposium 1] UCB,,Korea,고려의대 고대구로병원,신경과,010-9074-1752,jhkim.merrf@gmail.com
+2025-06-20(Fri),국내 연자,김효정,[Satellite Symposium 1] UCB,Seizure and Cognitive Function in Adolescent with Epilepsy,Korea,가천의대 길병원,소아청소년과,010-3380-5354,greatelena@naver.com
+2025-06-20(Fri),국내 연자,이원우,[Satellite Symposium 1] UCB,Cognitive Function and Treatment Adherence in Elderly in with Epilepsy,Korea,용인세브란스병원,신경과,010-2991-8579,nawonwoo01@gmail.com
+2025-06-20(Fri),국내 좌장,염미선,[Satellite Symposium 2] whan in,,Korea,울산의대 서울아산병원,소아청소년과,010-6528-6513,yumyum99@hanmail.net
+2025-06-20(Fri),국내 연자,김재림,[Satellite Symposium 2] whan in,Optimizing Seizure Control with Zebinix : Case studies and Best practices,Korea,세종충남대학교병원,신경과,010-2832-5885,kimjaerim@gmail.com
+2025-06-20(Fri),국내 연자,변정익,[Satellite Symposium 2] whan in,Efficacy and safety of Eslicarbazepine acetate in patients with psychiatric comorbidities,Korea,경희의대 강동경희대병원,신경과,010-3812-0618,mr830611@gmail.com
+2025-06-20(Fri),국내 좌장,임병찬,[Satellite Symposium 3]  Myung In,,Korea,서울의대 서울대병원,소아청소년과,010-9078-8048,prabbit7@snu.ac.kr
+2025-06-20(Fri),국내 연자,주병억,[Satellite Symposium 3]  Myung In,Updates of Antiseizure Treatment: The Third Generation Medication,Korea,순천향대학교 서울병원,신경과,010-5395-9357,churcky17@naver.com
 2025-06-20(Fri),Break,,Break,,,,,,
+2025-06-20(Fri),국내 좌장,김경민,[Oral Presentation 1] ,,Korea,연세의대 세브란스병원,신경과,010-8717-1233,"	penlighting@naver.com	"
+2025-06-20(Fri),국내 좌장,염미선,[Oral Presentation 1] ,,Korea,울산의대 서울아산병원,소아청소년과,010-6528-6513,yumyum99@hanmail.net
+2025-06-20(Fri),국내 연자,김준호,OP-1-1,Somatic RAS-activating mutations in the dentate gyrus drive epileptogenesis in mesial temporal lobe epilepsy with hippocampal sclerosis,Korea,,Department of Neurology, 010-9501-7118,joonho345@yuhs.ac
+2025-06-20(Fri),국내 연자,유성곤,OP-1-2,A Gain-of-function Variants in KCNT1 Responsive to Quinidine : Evidence from patch-clamp and Clinical Response,Korea,,Pediatric Neurology,010-4675-4162,ysg4162@yuhs.ac
+2025-06-20(Fri),국내 연자,조수미,OP-1-3,Therapeutic Potential of Butyrate in Experimental Epilepsy: Anticonvulsant and Anti-inflammatory Effects,Korea,,"
+Department of Neurology
+", 010-5219-7144,soomicho@yuhs.ac
+2025-06-20(Fri),국내 연자,김우중,OP-1-4,Characterization of electrophysiological dysfunction in GABAergic neurons carrying an ATP1A3 mutation,Korea,,Pediatrics, 010-3005-7549,rainkim23@gmail.com
+2025-06-20(Fri),국내 연자,조재소,OP-1-5,Unified Genotype–Phenotype Database for SCN2A-Related Disorders: Structural Prediction and Functional Characterization,Korea,,Department of Pediatrics, 010-2039-8501,gipumj@gmail.com
+2025-06-20(Fri),국내 좌장,이우진,[Oral Presentation 2] ,,Korea,서울의대 분당서울대병원,신경과,010-7706-6008,eoozin@gmail.com
+2025-06-20(Fri),국내 좌장,김헌민,[Oral Presentation 2] ,,Korea,서울의대 분당서울대병원,소아청소년과,010-9942-7035,hunminkim@hanmail.net
+2025-06-20(Fri),국내 연자,김준형,OP-2-1,Tailored surgical strategies based on seizure type in corpus callosotomy: A retrospective single-center study,Korea,,Department of Neurosurgery, 010-8471-8753,jhkim2ns@gmail.com
+2025-06-20(Fri),국내 연자,김성은,OP-2-2,A Pilot Study on Detecting the Epileptogenic Zone in SEEG: A New Approach using the Convolutional Epileptogenicity Index,Korea,,Neurology, 010-6212-6131,epidoc@inje.ac.kr
+2025-06-20(Fri),국내 연자,김영호,OP-2-3,Arterial Spin Labelling Predicts Seizure Recurrence in Children with First Unprovoked Seizure,Korea,,Pediatrics, 010-5757-8277,ehemph103@naver.com
+2025-06-20(Fri),국내 연자,염정연,OP-2-4,Asymmetry in the Diffusion Tensor Image Analysis Along the Perivascular Space Index Predicts Seizure Outcome in MRI-negative Focal Epilepsy,Korea,,Department of Neurology, 010-8771-7398,hjyyum@yuhs.ac
+2025-06-20(Fri),국내 연자,손효신,OP-2-5,Localization value of electrical source imaging using electroencephalography in focal cortical dysplasia epilepsy surgery cases,Korea,,Neurology, 010-4916-9454,hson727@gmail.com
 2025-06-20(Fri),Break,,Break,,,,,,
+2025-06-20(Fri),국내 좌장,이영목,[Parallel Symposium 1] Epilepsy Genetics and Therapeutic Advances,,Korea,연세의대 강남세브란스병원,소아청소년과,010-3767-9713,ymleemd@yuhs.ac
+2025-06-20(Fri),국내 연자,채종희,[Parallel Symposium 1] Epilepsy Genetics and Therapeutic Advances,Genetic Testing in Epilepsy,Korea,서울의대 서울대병원,소아청소년과,010-6413-3622,chaeped1@snu.ac.kr
+2025-06-20(Fri),국내 연자,고아라,[Parallel Symposium 1] Epilepsy Genetics and Therapeutic Advances,Genetics of focal epilepsy: somatic mutation,Korea,연세의대 세브란스병원,소아청소년과,010-7185-0307,arako@yuhs.ac
+2025-06-20(Fri),국내 연자,조재소,[Parallel Symposium 1] Epilepsy Genetics and Therapeutic Advances,Treatment for genetic DEE,Korea,서울의대 분당서울대병원,소아청소년과,010-2039-8501,gipumj@gmail.com
 2025-06-20(Fri),Discussion,,Discussion,,,,,,
+2025-06-20(Fri),국내 좌장,박강민,[Parallel Symposium 2] Advanced Neuroimaging Techniques in the Study of Epilepsy: Innovations and Applications,,Korea,인제의대 해운대백병원,신경과,010-6569-0119,smilepkm@hanmail.net
+2025-06-20(Fri),국내 연자(타과),홍석준,[Parallel Symposium 2] Advanced Neuroimaging Techniques in the Study of Epilepsy: Innovations and Applications,Transforming epilepsy research and patient care through artificial intelligence,Korea,성균관대학교,글로벌바이오메디컬공학과,﻿010 8997 7747,hongseokjun@skku.edu
+2025-06-20(Fri),국내 연자(타과),이호준,[Parallel Symposium 2] Advanced Neuroimaging Techniques in the Study of Epilepsy: Innovations and Applications,Beyond Conventional Contrasts: Advances in MRI for Epilepsy,Korea,인제의대 해운대백병원,영상의학과,010-9150-5860 ,hojoon.lee@paik.ac.kr
+2025-06-20(Fri),국내 연자,김경민,[Parallel Symposium 2] Advanced Neuroimaging Techniques in the Study of Epilepsy: Innovations and Applications,The clinical power of advanced neuroimaging in epilepsy management,Korea,연세의대 세브란스병원,신경과,010-8717-1233,"	penlighting@naver.com	"
 2025-06-20(Fri),Discussion,,Discussion,,,,,,
 2025-06-20(Fri),Break,,Break,,,,,,
+2025-06-20(Fri),국내 좌장,채종희,[Parallel Symposium 3] Translational Epilepsy Research: Bridging Animal Models and Human Studies,,Korea,서울의대 서울대병원,소아청소년과,010-6413-3622,chaeped1@snu.ac.kr
+2025-06-20(Fri),해외 연자,Sookyong Koh,[Parallel Symposium 3] Translational Epilepsy Research: Bridging Animal Models and Human Studies,What Little Critters Can Tell Us About the Evolution of Drug-Resistant Epilepsy,KAES,UNMC Division of Pediatric Neurology,Pediatric Neurology,,skoh@childrensnebraska.org
+2025-06-20(Fri),해외 연자,Ryuta Koyama,[Parallel Symposium 3] Translational Epilepsy Research: Bridging Animal Models and Human Studies,Role of Glia in Epileptogenesis and Potential Drug Targets: Insights from Rodent Models,Japan,National Institute of Neuroscience,Neurobiology,,ryutakoyama@ncnp.go.jp
+2025-06-20(Fri),해외 연자,Gabriele Lignani,[Parallel Symposium 3] Translational Epilepsy Research: Bridging Animal Models and Human Studies,Animal and human organoids model to study epilepsy and test therapies,UK,"Dpt. Clinical and Experimental Epilepsy, UCL",Neurology,,g.lignani@ucl.ac.uk
 2025-06-20(Fri),Discussion,,Discussion,,,,,,
+2025-06-20(Fri),국내 좌장,피지훈,[Parallel Symposium 4] Recent advances in minimally invasive surgery ,,Korea,서울의대 서울대병원,신경외과,010-8258-1720,phi.jihoon@gmail.com
+2025-06-20(Fri),해외 연자,Hsiang-Yu Yu,[Parallel Symposium 4] Recent advances in minimally invasive surgery ,Focused ultrasound (FUS) treatment,Taiwan,"Department of Neurology, Neurological Institute, Taipei Veterans General Hospital, Taipei, Taiwan; School of Medicine, National Yang Ming Chiao Tung University College of Medicine, Taipei, Taiwan",Neurology,,alicehyyu@gmail.com
+2025-06-20(Fri),국내 연자,김준형,[Parallel Symposium 4] Recent advances in minimally invasive surgery ,Laser interstitial thermal therapy,Korea,울산의대 서울아산병원,신경외과,010-8471-8753,jhkim2ns@gmail.com
+2025-06-20(Fri),국내 연자,이은정,[Parallel Symposium 4] Recent advances in minimally invasive surgery ,SEEG-guided radiofrquency theromcoagulation (RFTC),Korea,서울의대 서울대병원,신경외과,010-4110-0121,eunjlee21@snu.ac.kr
 2025-06-20(Fri),Discussion,,Discussion,,,,,,
 2025-06-20(Fri),Break,,Break,,,,,,
+2025-06-20(Fri),국내 좌장,이지훈,[Parallel Symposium 5] Pharmacogenetics in Epilepsy,,Korea,성균관의대 삼성서울병원 ,소아청소년과 ,010-9933-0910,"leejeehunmd@gmail.com	"
+2025-06-20(Fri),국내 연자(타과),이수연,[Parallel Symposium 5] Pharmacogenetics in Epilepsy,Genetic Variability in Antiseizure Medication Response: Mechanisms and Implications,Korea,성균관대학교,진단검사의학과,01054491834,suddenbz@skku.edu 
+2025-06-20(Fri),국내 연자(타과),오재성,[Parallel Symposium 5] Pharmacogenetics in Epilepsy,Personalized Medicine in Epilepsy: Tailoring Antiseizure Medications Using Pharmacogenetics,Korea,제주대학교 의과대학 약리학교실,약리학교실,010-3618-0788,jaeseong5@jejunu.ac.kr
+2025-06-20(Fri),국내 연자,김동욱,[Parallel Symposium 5] Pharmacogenetics in Epilepsy,Pharmacogenetics and Hypersensitivity Reactions to Antiseizure Medications,Korea,건국의대 건국대병원,신경과,010-2692-1216,drdongwkim@gmail.com
 2025-06-20(Fri),Discussion,,Discussion,,,,,,
+2025-06-20(Fri),국내 좌장,홍석호,[Parallel Symposium 6] Neuromodulation for epilepsy update,,Korea,울산의대 서울아산병원,신경외과,010-4735-1503,hongsound@gmail.com
+2025-06-20(Fri),해외 연자,Ki Hyeong Lee,[Parallel Symposium 6] Neuromodulation for epilepsy update,Experiences of responsive neurostimulation (RNS),KAES,AdventHealth Epilepsy Center,Pediatric Neurology,,Kilee1024@gmail.com
+2025-06-20(Fri),국내 연자,김준형,[Parallel Symposium 6] Neuromodulation for epilepsy update,Recent update of vagaus nerve stimulation,Korea,연세의대 세브란스병원,신경외과,010-3895-9176,jkim1518@yuhs.ac
+2025-06-20(Fri),국내 연자(타과),김형민,[Parallel Symposium 6] Neuromodulation for epilepsy update,Focused ultrasound neuromodulation for epilepsy,Korea,한국과학기술연구원,바이오닉스연구센터,010-2707-0263,hk@kist.re.kr
 2025-06-20(Fri),Discussion,,Discussion,,,,,,
 2025-06-21(Sat),Poster Rounding,,Poster Rounding,,,,,,
+2025-06-21(Sat),국내 좌장,서대원,[NR-Plenary Symposium 1] Seizures and Epilepsy in Critical Care: Insights and Innovations (ENG),,Korea,성균관의대 삼성서울병원 ,신경과,010-9933-3595,daewon3.seo@samsung.com
+2025-06-21(Sat),해외 연자,Ji Yeoun Yoo,[NR-Plenary Symposium 1] Seizures and Epilepsy in Critical Care: Insights and Innovations (ENG),Scalp EEG Biomarkers for Seizure Prediction and Localization in Critical Care,KAES,Icahn School of Medicine at Mount Sinai ,Neurology,,Jiyeoun.yoo@mssm.edu
+2025-06-21(Sat),해외 연자,Tomotaka Tanaka,[NR-Plenary Symposium 1] Seizures and Epilepsy in Critical Care: Insights and Innovations (ENG),Seizures in Acute Stroke: Mechanisms and Clinical Implications,Japan,"Department of Neurology, National Cerebral and Cardiovascular Center, Osaka, Japan",Neurology,,tanakat@ncvc.go.jp
+2025-06-21(Sat),해외 연자,Lei Chen,[NR-Plenary Symposium 1] Seizures and Epilepsy in Critical Care: Insights and Innovations (ENG),Neuroinflammation and Seizure Risk: Mechanisms and Therapeutic Targets,China,"Department of Neurology, West China Hospital, Sichuan University, Chengdu, Sichuan, China",Neurology,,leilei_25@126.com
+2025-06-21(Sat),국내 연자,이우진,[NR-Plenary Symposium 1] Seizures and Epilepsy in Critical Care: Insights and Innovations (ENG),Refractory Status Epilepticus: Biomarkers and Precision Treatment Strategies,Korea,서울의대 분당서울대병원,신경과,010-7706-6008,eoozin@gmail.com
+2025-06-21(Sat),국내 좌장,강훈철,[PED-Plenary Symposium 2] Epilepsy in neonatal period and infancy  (ENG),,Korea,연세의대 세브란스병원,소아청소년과,010-5443-6596,hipo0207@yuhs.ac
+2025-06-21(Sat),해외 연자,Sookyong Koh,[PED-Plenary Symposium 2] Epilepsy in neonatal period and infancy,Introduction: overview of seizure and epilepsy in infancy and neonate,KAES,UNMC Division of Pediatric Neurology,Pediatric Neurology,,skoh@childrensnebraska.org
+2025-06-21(Sat),해외 연자,Lakshmi Nagarajan,[PED-Plenary Symposium 2] Epilepsy in neonatal period and infancy,Epilepsies in neonatal period (except self-limiting epilepsy),Australia,"Department of Neurology, Perth Children's Hospital and University of Western Australia",Pediatric Neurology,,"	lakshmi.nagarajan@health.wa.gov.au"
+2025-06-21(Sat),해외 연자,Lunliya Thampratankul ,[PED-Plenary Symposium 2] Epilepsy in neonatal period and infancy,Epilepsies in infancy (except self-limiting epilepsy),Thailand,"Department of Pediatrics, Faculty of Medicine Ramathibodi Hospital, Mahidol University",Pediatric Neurology,,lunliya.tha@mahidol.ac.th
+2025-06-21(Sat),국내 연자,김영옥,[PED-Plenary Symposium 2] Epilepsy in neonatal period and infancy,Self-limitig epilepsies in neonatal period and infancy,Korea,전남의대 전남대병원,소아청소년과,010-2947-2889,ik052@jnu.ac.kr
+2025-06-21(Sat),국내 좌장,김종현,[NS-Plenary Symposium 3] Advanced Insights in Stereo-EEG Procedures,,Korea,고려의대 고대구로병원,신경외과,010-4751-6725,jhkimns@gmail.com
+2025-06-21(Sat),국내 연자,손영민,[NS-Plenary Symposium 3] Advanced Insights in Stereo-EEG Procedures,Concept of Anatomo-Electro-Clinical correlation in SEEG application,Korea,성균관의대 삼성서울병원 ,신경과,010-9142-6804,sonogung@gmail.com
+2025-06-21(Sat),국내 연자,김해유,[NS-Plenary Symposium 3] Advanced Insights in Stereo-EEG Procedures,surgical technique and pitfalls of sEEG ,Korea,인제의대 해운대백병원,신경외과,010-3520-3740,hykim080356@gmail.com
+2025-06-21(Sat),해외 연자,Takehiro Uda,[NS-Plenary Symposium 3] Advanced Insights in Stereo-EEG Procedures,Complementary use of SEEG and MEG,Japan,"Department of Neurosurgery, Osaka Metropolitan University Graduate School of Medicine",Neurosurgery,,udat@omu.ac.jp
+2025-06-21(Sat),해외 연자,Hsiang-Yu Yu,[NS-Plenary Symposium 3] Advanced Insights in Stereo-EEG Procedures,Use of stimulation in SEEG for more tailored surgery,Taiwan,"Department of Neurology, Neurological Institute, Taipei Veterans General Hospital, Taipei, Taiwan; School of Medicine, National Yang Ming Chiao Tung University College of Medicine, Taipei, Taiwan",Neurology,,alicehyyu@gmail.com
 2025-06-21(Sat),Break,,Break,,,,,,
 2025-06-21(Sat),Break,,Break,,,,,,
+2025-06-21(Sat),국내 좌장,조재욱,[Satellite Symposium 4] SK,,Korea,부산의대 양산부산대병원,신경과,010-2858-3331,medofficer@hanmail.net
+2025-06-21(Sat),국내 연자,윤지은,[Satellite Symposium 4] SK,Lacosamide effectiveness and tolerability in patients with drug-resistant epilepsy,Korea,부천순천향대병원,신경과,010-9203-6477,neurodocyoon@gmail.com
+2025-06-21(Sat),국내 좌장,김대영,[Satellite Symposium 5] Eisai,,Korea,충남의대 충남대병원,신경과,010-8901-7937,bigbread.kim@gmail.com
+2025-06-21(Sat),국내 연자,황경진,[Satellite Symposium 5] Eisai,The benefits of Fycompa for elderly epilepsy patients,Korea,경희의대 강동경희대병원,신경과,010-9741-9639,"jinie111@hanmail.net	"
 2025-06-21(Sat),Break,,Break,,,,,,
+2025-06-21(Sat),국내 좌장,김우준,[Oral Presentation 3],,Korea,가톨릭의대 서울성모병원,신경과,010-2602-7298,plomb2@naver.com
+2025-06-21(Sat),국내 좌장,박강민,[Oral Presentation 3],,Korea,인제의대 해운대백병원,신경과,010-6569-0119,smilepkm@hanmail.net
+2025-06-21(Sat),국내 연자,권오철,OP-3-1,Predicting Drug-Resistant Epilepsy: A Clinically Applicable Nomogram for Pediatric Epilepsy,Korea,,Department of Pediatrics, 010-6688-8519,ohcheol227@gmail.com
+2025-06-21(Sat),국내 연자,추이슬,OP-3-2,Preserved Ictal Responsiveness in Right Mesial Temporal Lobe Epilepsy: Metabolic Correlates in the Posterior Temporal Networks: An FDG-PET study,Korea,,Department of Neurology, 010-4543-7242,roachoo@naver.com
+2025-06-21(Sat),국내 연자,조재소,OP-3-3,Improving Data Utility in Pediatric Epilepsy Using Clinical Common Data Elements,Korea,,Department of Pediatrics, 010-2039-8501,gipumj@gmail.com
+2025-06-21(Sat),국내 연자,김현경,OP-3-4,Prenatal exposure to antiseizure medications and the risk of congenital anomalies: A nationwide population-based study in South Korea,Korea,,Neurology, 010-9376-2055,crespin97@gmail.com
+2025-06-21(Sat),국내 연자,이지원,OP-3-5,Establishment of a Korean-Specific Clinical Genetic Registry for Adverse Reactions to Antiseizure Medications,Korea,,Pediatric Neurology,010-4659-9334,jwjw.lee@samsung.com
+2025-06-21(Sat),국내 좌장,임병찬,Datablitz ,,Korea,서울의대 서울대병원,소아청소년과,010-9078-8048,prabbit7@snu.ac.kr
+2025-06-21(Sat),국내 좌장,이서영,Datablitz ,,Korea,명지병원,신경과,010-9101-4025,raininaugust@hanmail.net
+2025-06-21(Sat),국내 연자,서수연,Datablitz -1,The Association Between Surgical Outcome and MRI-based brain age index in Mesial Temporal Lobe Epilepsy,Korea,,Department of Neurology , 010-9973-5842,suyeonla@naver.com
+2025-06-21(Sat),국내 연자,유지수,Datablitz -2,Optimizing Personalized Epilepsy Care: Machine Learning Models for Predicting Treatment Success with Eslicarbazepine,Korea,,Convergence of Healthcare Medicine,010-3803-7238,yoojisu2000@gmail.com
+2025-06-21(Sat),국내 연자,정재욱,Datablitz -3,Pharmaco-EEG Analysis of High-Dose Magnesium Infusion in Refractory Status Epilepticus: A Retrospective Cohort Study,Korea,,Department of Neurology, 010-3412-8878,jwjneuro@gmail.com
+2025-06-21(Sat),국내 연자,남윤성,Datablitz -4,Functional Connectivity Alterations in Children with Angelman Syndrome and epilepsy: A qEEG Study,Korea,,Department of Pediatrics, 010-3233-2572,nysjim@naver.com
+2025-06-21(Sat),국내 연자,김성훈,Datablitz -5,Cortical structural Brain Network Alterations in Patients with Recurrent Seizures after a First Unprovoked Seizure,Korea,,Neurology, 010-3128-0382,antilefty4@gmail.com
+2025-06-21(Sat),국내 연자,임수영,Datablitz -6,Standardization of brain lesioning in real time thermal monitoring radiofrequency ablation by sEEG electrodes,Korea,,Neurosurgery,010-9351-9550,sylim98@yuhs.ac
+2025-06-21(Sat),국내 연자,류채연,Datablitz -7,Neurodevelopmental Profiles and Digital Cognitive-Training Effects in Early School-Age Children: Toward Clinical Application in Pediatric Neurology,Korea,,Cognitive Neuropsychology,010-6297-6513,cyr0321a@gmail.com
+2025-06-21(Sat),국내 연자,고영준,Datablitz -8,Abnormal electroencephalogram findings and its correlation with clinical features from pediatric patients in psychiatric clinic,Korea,,Pediatrics, 010-9889-9666,kyjmillenium@naver.com
+2025-06-21(Sat),국내 연자,임수환,Datablitz -9,Structural and Functional Differences in Epileptic Vertigo: A Comparative Study of Lesional and Non-Lesional Epilepsy Using MRI-Based Analysis,Korea,,Department of Neurology , 010-2445-9159,yimsh3687@gmail.com
+2025-06-21(Sat),국내 연자,차종호,Datablitz -10,Altered slow spindle power in pediatric patients with epilepsy and autism spectrum disorder,Korea,,Department of Pediatrics, 010-3703-7399,cjhchany@gmail.com
+2025-06-21(Sat),국내 연자,윤소연,Datablitz -11,Surgical Outcomes and Prognostic Factors in Patients with Frontal Lobe Epilepsy,Korea,,Department of Neurology, 010-5038-4283,jennyoon27@naver.com
 2025-06-21(Sat),Break,,Break,,,,,,
+2025-06-21(Sat),국내 좌장,김원주,[Parallel Symposium 7] Brain Aging in epilepsy(KOR),,Korea,연세의대 강남세브란스병원,신경과,010-9276-6766,kzoo@yuhs.ac
+2025-06-21(Sat),해외 연자,David Y. Ko,[Parallel Symposium 7] Brain Aging in epilepsy(KOR),Epilepsy and Dementia: The Aging Brain Uncovered,KAES,Loma Linda VA,Neurology,,davidykomd@gmail.com
+2025-06-21(Sat),해외 연자,Hosung Kim,[Parallel Symposium 7] Brain Aging in epilepsy(KOR),Neuroimaging and Machine learning Approaches for biomarker exploration in epilepsy,USA,"Department of Neurology, University of Southern California, USA   ",Neurology,,hosungki@usc.edu
 2025-06-21(Sat),Discussion,,Discussion,,,,,,
+2025-06-21(Sat),국내 좌장,김광기,[Parallel Symposium 8] Epilepsy and its Comorbidity,,Korea,동국의대 동국대일산병원,신경과,010-4618-6768,neukim@duih.org
+2025-06-21(Sat),국내 연자(타과),정석훈,[Parallel Symposium 8] Epilepsy and its Comorbidity,Psychiatric Comorbidities in Epilepsy,Korea,울산의대 서울아산병원,정신건강의학과,010-3053-6170,schung@amc.seoul.kr
+2025-06-21(Sat),국내 연자,박소영,[Parallel Symposium 8] Epilepsy and its Comorbidity,Cognitive and Developmental Comorbidities,Korea,순천향대학교 부천병원,소아청소년과,010-8841-6797,hclove72@schmc.ac.kr
+2025-06-21(Sat),국내 연자,김동엽,[Parallel Symposium 8] Epilepsy and its Comorbidity,Epilepsy and Sleep disorders ,Korea,이화의대 이대서울병원,신경과,010-9720-1890,hap2028@naver.com
 2025-06-21(Sat),Discussion,,Discussion,,,,,,
 2025-06-21(Sat),Break,,Break,,,,,,
+2025-06-21(Sat),국내 좌장,김지현(이대),[Parallel Symposium 9] Decoding Autoimmune Epilepsy,,Korea,이화의대 이대서울병원,신경과,"010-2055-9159	",fever26@gmail.com
+2025-06-21(Sat),국내 연자(타과),신용원,[Parallel Symposium 9] Decoding Autoimmune Epilepsy,Clinical and Electroencephalographic Features of Autoimmune Epilepsy,Korea,서울의대 서울대병원,중환자의학과,010-9502-6592,syw3473@naver.com
+2025-06-21(Sat),해외 연자,Steve Chung,[Parallel Symposium 9] Decoding Autoimmune Epilepsy,Diagnostic Approaches and Treatment Strategies in Autoimmune Epilepsy,KAES,"University of Arizona, Phoenix",Neurology,,Stevechung77@gmail.com
+2025-06-21(Sat),국내 연자,김효재,[Parallel Symposium 9] Decoding Autoimmune Epilepsy,Long-Term Outcomes and Emerging Concepts in Autoimmune Epilepsy,Korea,울산의대 서울아산병원,신경과,010-3629-3324,peacockbeer@naver.com
 2025-06-21(Sat),Discussion,,Discussion,,,,,,
+2025-06-21(Sat),국내 좌장,권영세,[Parallel Symposium 10] Epilepsy in Adolescence,,Korea,인하의대 인하대병원,소아청소년과,010-3003-1761,ysped@inha.ac.kr
+2025-06-21(Sat),국내 연자,이윤정,[Parallel Symposium 10] Epilepsy in Adolescence,Approach to epilepsies that begin in adolescence,Korea,경북의대 경북대병원 ,소아청소년과,010-9960-8630,oilily1103@hanmail.net
+2025-06-21(Sat),국내 연자,김영미,[Parallel Symposium 10] Epilepsy in Adolescence,Other than seizure control in adolescences: issues to consider for their life,Korea,부산의대 부산대병원 ,소아청소년과,010-9519-4729,pink2129@naver.com
+2025-06-21(Sat),국내 연자,강준원,[Parallel Symposium 10] Epilepsy in Adolescence,Transition to adult epilepsy clinic,Korea,충남의대 충남대병원 ,소아청소년과,010-2242-7312,childlove@cnu.ac.kr
 2025-06-21(Sat),Discussion,,Discussion,,,,,,
 2025-06-21(Sat),Break,,Break,,,,,,
+2025-06-21(Sat),국내 좌장,정기영,[Parallel Symposium 11] Seizure Prediction and Prevention: Advances and Perspectives from Recent Algorithmic Innovations,,Korea,서울의대 서울대병원,신경과,010-9953-9287,jungky@snu.ac.kr
+2025-06-21(Sat),국내 연자,장혜연,[Parallel Symposium 11] Seizure Prediction and Prevention: Advances and Perspectives from Recent Algorithmic Innovations,Recent Advances in Machine Learning Techniques and Algorithms for Seizure Prediction,Korea,건양대병원,신경과 ,010-9940-0521,goddesschy@gmail.com
+2025-06-21(Sat),국내 연자,김승수,[Parallel Symposium 11] Seizure Prediction and Prevention: Advances and Perspectives from Recent Algorithmic Innovations,State-of-the-Art Approaches to Seizure Prediction: A Deep Learning Perspective,Korea,순천향대천안병원 ,소아청소년과,018-410-0762,equalkss@hanmail.net
+2025-06-21(Sat),국내 연자,김태준,[Parallel Symposium 11] Seizure Prediction and Prevention: Advances and Perspectives from Recent Algorithmic Innovations,EEG-Based Analysis for Seizure Prediction and Prevention,Korea,아주의대 아주대병원,신경과,010-6373-4146,dandy8123@gmail.com
 2025-06-21(Sat),Discussion,,Discussion,,,,,,
+2025-06-21(Sat),국내 좌장,신원철,[Parallel Symposium 12] Epilepsy in aged people,,Korea,경희의대 강동경희대병원,신경과,010-5299-3150,shin1chul@gmail.com
+2025-06-21(Sat),해외 연자,Yong D. Park,[Parallel Symposium 12] Epilepsy in aged people,Antiseizure Medications in Older Adults: Key Considerations and Management Strategies ,KAES,Medical College of Georgia at Augusta University,Pediatric Neurology,Medical College of Georgia at Augusta University,ypark@augusta.edu
+2025-06-21(Sat),국내 연자,송파멜라,[Parallel Symposium 12] Epilepsy in aged people,Epilepsy Care in Older Adults: Addressing Frailty and Comorbidities,Korea,인제의대 일산백병원,신경과,010-9933-5553,songpama7@gmail.com
+2025-06-21(Sat),국내 연자,하우석,[Parallel Symposium 12] Epilepsy in aged people,Post-Stroke Epilepsy: Top Cause of Epilepsy in Older Adults – Risks and Onset,Korea,연세의대 세브란스병원,신경과,010-5260-9496,haha88@yuhs.ac
 2025-06-21(Sat),Discussion,,Discussion,,,,,,
 2025-06-21(Sat),,,[Special Session 1] Education Course for Young Epileptologists,,,,,,
+2025-06-21(Sat),국내 좌장,김동욱,[Special Session 1] Clinical Video-EEG Review: Highlights of Unique Patient Presentations (with Lunchen) ,,Korea,건국의대 건국대병원,신경과,010-2692-1216,drdongwkim@gmail.com
+2025-06-21(Sat),국내 연자,고영준,[Special Session 1] Clinical Video-EEG Review: Highlights of Unique Patient Presentations (with Lunchen) ,Pediatric Cases,Korea,중앙의대 중앙대광명병원,소아청소년과,010-9889-9666,kyjmillenium@naver.com
+2025-06-21(Sat),국내 연자,박혜리,[Special Session 1] Clinical Video-EEG Review: Highlights of Unique Patient Presentations (with Lunchen) ,Adults Cases,Korea,인제의대 일산백병원,신경과,010-7307-8808,okokree@gmail.com
+2025-06-21(Sat),국내 연자,황성은 ,[Special Session 1] Clinical Video-EEG Review: Highlights of Unique Patient Presentations (with Lunchen) ,Non-epileptic paroxysmal cases,Korea,이화의대 이대목동병원 ,신경과,010-2885-8239,neurosung@gmail.com
 2025-06-21(Sat),Break,,Break,,,,,,
+2025-06-21(Sat),국내 좌장,강훈철,[Special Session 1] Approach to the pediatric patient with a first seizure,,Korea,연세의대 세브란스병원 ,소아청소년과,010-5443-6596,hipo0207@yuhs.ac
+2025-06-21(Sat),국내 연자,우혜원,[Special Session 1] Approach to the pediatric patient with a first seizure,Evaluation of 1st seizure in pediatric patient,Korea,충북의대 충북대병원,소아청소년과,010-6415-1050,hyewonwoo@gmail.com
+2025-06-21(Sat),국내 연자,김은희,[Special Session 1] Approach to the pediatric patient with a first seizure,Strategies for ASM selection based on seizure type and patient profile ,Korea,충남의대 세종충남대병원,소아청소년과,010-3375-6804,luke2178@naver.com
+2025-06-21(Sat),해외 연자,Joo Hee Seo,[Special Session 1] Approach to the pediatric patient with a first seizure,Understanding EEG patterns in various types of epileptic seizures,KAES,AdventHealth Epilepsy Center,Neurology,,drjoohee@gmail.com
+2025-06-21(Sat),국내 좌장,서대원,[Special Session 1] EEG and Seizure Management in Critical Care Settings,,Korea,성균관의대 삼성서울병원 ,신경과,010-9933-3595,daewon3.seo@samsung.com
+2025-06-21(Sat),국내 연자,박수련,[Special Session 1] EEG and Seizure Management in Critical Care Settings,Emergency Room ,Korea,동국대학교 일산병원,신경과,010-4154-2928,psooryun@gmail.com
+2025-06-21(Sat),국내 연자,선우준상,[Special Session 1] EEG and Seizure Management in Critical Care Settings,Medical and Surgical Consultations,Korea,성균관의대 강북삼성병원,신경과,010-9711-1777,ultrajs4@gmail.com
+2025-06-21(Sat),국내 연자(타과),유정암,[Special Session 1] EEG and Seizure Management in Critical Care Settings,Neurointensive Care Unit,Korea,성균관의대 삼성서울병원,중환자의학과,010-8628-3651,lamyud9@gmail.com
+2025-06-21(Sat),해외 좌장,Ki Hyeong Lee,[Special Session 1] Epilepsy Surgery Case presentations ,,KAES,AdventHealth Epilepsy Center,Pediatric Neurology,,Kilee1024@gmail.com
+2025-06-21(Sat),국내 연자,이지원,[Special Session 1] Epilepsy Surgery Case presentations ,SEEG case 1,Korea,성균관의대 삼성서울병원,소아청소년과,010-4659-9334,haloofcomet@naver.com
+2025-06-21(Sat),국내 연자,이동아,[Special Session 1] Epilepsy Surgery Case presentations ,SEEG case 2,Korea,인제의대 해운대백병원,신경과,010-8589-7906,peony1003@gmail.com
+2025-06-21(Sat),국내 연자,조수미,[Special Session 1] Epilepsy Surgery Case presentations ,SEEG case 3,Korea,연세의대 세브란스병원,신경과,010-5219-7144,soomicho@yuhs.ac
+2025-06-21(Sat),해외 연자,Ji Yeoun Yoo,[Special Session 1] Epilepsy Surgery Case presentations ,RNS case 4,KAES,Icahn School of Medicine at Mount Sinai ,Neurology,,Jiyeoun.yoo@mssm.edu
 2025-06-21(Sat),Break,,Break,,,,,,
 2025-06-21(Sat),,,[Special Session 2] Forum for Collaboration and Capacity Building between Epilepsy Nurses and EEG Technologists (뇌전증 간호사와 뇌파 기사의 협력 및 역량 강화 포럼),,,,,,
+2025-06-21(Sat),국내 좌장,최수정,[Special Session 2] 뇌전증 전담 간호사와 뇌파 기사의 협력 및 역량 강화를 위한 포럼,,Korea,성균관의대 삼성서울병원,간호과,010-9933-2851,sujungchoi@hanmail.net 
+2025-06-21(Sat),국내 좌장,김민성,[Special Session 2] 뇌전증 전담 간호사와 뇌파 기사의 협력 및 역량 강화를 위한 포럼,,Korea,성균관의대 삼성서울병원,신경검사실,010-9933-1924,na1924.kim@samsung.com
+2025-06-21(Sat),국내 연자(타과),이민정,[Special Session 2] 뇌전증 전담 간호사와 뇌파 기사의 협력 및 역량 강화를 위한 포럼,VEM 소개와 환자 관리,Korea,연세의대 세브란스병원,신경과,010-9983-9965,ASHIRA21@yuhs.ac
+2025-06-21(Sat),국내 연자(타과),이유정 ,[Special Session 2] 뇌전증 전담 간호사와 뇌파 기사의 협력 및 역량 강화를 위한 포럼,뇌파검사의 이해,Korea,서울의대 분당서울대병원,특수검사부,010-9966-5947,foreversrh@snubh.org
+2025-06-21(Sat),국내 연자(타과),한윤경,[Special Session 2] 뇌전증 전담 간호사와 뇌파 기사의 협력 및 역량 강화를 위한 포럼,뇌전증 수술 전후 환자 관리와 교육,Korea,성균관의대 삼성서울병원,신경과,010-9301-2865,nazmakii@gmail.com
+2025-06-21(Sat),국내 연자(타과),박진우 ,[Special Session 2] 뇌전증 전담 간호사와 뇌파 기사의 협력 및 역량 강화를 위한 포럼,VEM에서의 의사소통과 안전 이슈,Korea,성균관의대 삼성서울병원,신경과,010-7121-3772,okjinjin.park@samsung.com
 2025-06-21(Sat),Break,,Break,,,,,,
+2025-06-21(Sat),국내 연자(타과),유수림,[Special Session 2] 뇌전증 전담 간호사와 뇌파 기사의 협력 및 역량 강화를 위한 포럼,팀 미팅시간 [직제 간 상호 이해와 소통 기술],Korea,성균관의대 삼성서울병원,신경과,010-6475-2996,truemam1@naver.com 
+2024-06-21(Fri),국내 좌장,이병인,The history of epilepsy: from the early 1900s to the present,Symposium 1.The history of epilepsy: from the early 1900s to the present,Korea,명지병원,신경과,010-6668-4676,BILEE@yuhs.ac
+2024-06-21(Fri),국내 연자,이상암,The history of epilepsy: from the early 1900s to the present,Symposium 1.The history of epilepsy: from the early 1900s to the present,Korea,울산의대 서울아산병원,신경과,010-9890-0817,salee@amc.seoul.kr
+2024-06-21(Fri),국내 연자,이상건,The history of epilepsy: from the early 1900s to the present,Symposium 1.The history of epilepsy: from the early 1900s to the present,Korea,서울의대 서울대병원,신경과,010-9177-2923,sangkun2923@gmail.com
+2024-06-21(Fri),해외 연자,Steve Chung,The history of epilepsy: from the early 1900s to the present,Symposium 1.The history of epilepsy: from the early 1900s to the present,USA,"University Arizona, Phoenix",Neurology,602-770-2383,Stevechung77@gmail.com
+2024-06-21(Fri),국내 좌장,허경,Electroencephalography in the intensive care unit and cardiac arrest,Plenary lectureElectroencephalography in the intensive care unit and cardiac arrest,Korea,연세의대 세브란스병원,신경과,010-8792-7573,kheo@yuhs.ac
+2024-06-21(Fri),해외 연자,Jong Woo Lee,Electroencephalography in the intensive care unit and cardiac arrest,Plenary lectureElectroencephalography in the intensive care unit and cardiac arrest,USA,"Harvard Medical School 
+Brigham and Women's Hospital",Neurology,(617) 732-7547,jlee38@bwh.harvard.edu
+2024-06-21(Fri),국내 좌장,은백린,Channelopathy in epilepsy,Symposium 2.Channelopathy in epilepsy,Korea,고려의대 구로병원,소아과,010-8991-5090,bleun@korea.ac.kr
+2024-06-21(Fri),국내 연자,강훈철,Channelopathy in epilepsy,Symposium 2.Channelopathy in epilepsy,Korea,연세의대 세브란스병원,소아과,"	010-5443-6596	","hipo0207@yuhs.ac	"
+2024-06-21(Fri),국내 연자,김영옥,Channelopathy in epilepsy,Symposium 2.Channelopathy in epilepsy,Korea,전남의대 전남대병원,소아과,010-2947-2889,ik052@jnu.ac.kr
+2024-06-21(Fri),국내 연자,김효정,Channelopathy in epilepsy,Symposium 2.Channelopathy in epilepsy,Korea,가천의대 길병원,소아과,010-3380-5354,greatelena@naver.com
+2024-06-21(Fri),국내 좌장,김지현,Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Symposium 3.Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Korea,고려의대 구로병원,신경과,010-9074-1752,jhkim.merrf@gmail.com
+2024-06-21(Fri),국내 연자,김경민,Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Symposium 3.Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Korea,연세의대 세브란스병원,신경과,010-8717-1233,penlighting@naver.com
+2024-06-21(Fri),국내 연자,박강민,Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Symposium 3.Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Korea,인제의대 해운대 백병원,신경과,010-6569-0119,smilepkm@hanmail.net
+2024-06-21(Fri),국내 연자,홍석준,Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Symposium 3.Recent advances in functional neuroimaging analysis: application of AI methods to epilepsy research,Korea,성균관대학교 글로벌바이오메디컬공학과,글로벌바이오메디컬공학과,010-8997-7747,hongseokjun@skku.edu
+2024-06-21(Fri),국내 좌장 ,김기중,New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,Symposium 4.New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,Korea,서울의대 서울대병원,소아과,010-3272-3367,pednr@snu.ac.kr
+2024-06-21(Fri),해외 연자,Yong D. Park,New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,Symposium 4.New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,USA,Augusta University ,Pediatric Neurology,US 706 284 4374,ypark@augusta.edu
+2024-06-21(Fri),해외 연자,Steve Chung,New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,Symposium 4.New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,USA,"University Arizona, Phoenix",Neurology,602-770-2383,Stevechung77@gmail.com
+2024-06-21(Fri),국내 연자,김동욱,New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,Symposium 4.New antiseizure medications with novel mechanisms for treatment of drug-resistant epilepsy,Korea,건국의대 건국대병원,신경과,010-2692-1216,drdongwkim@gmail.com
+2024-06-21(Fri),국내 좌장,김지언,Unlocking Perampanel's potential: the benefits of Fycompa for elderly epilepsy patients ,Satellite symposium(Eisai),Korea,가톨릭의대 대구가톨릭대병원,신경과,010-5203-3991,jekim2@cu.ac.kr
+2024-06-21(Fri),국내 연자,서대원,Unlocking Perampanel's potential: the benefits of Fycompa for elderly epilepsy patients ,Satellite symposium(Eisai),,성균관의대 삼성서울병원,신경과,010-9933-3595,daewon3.seo@samsung.com 
+2024-06-21(Fri),국내 좌장,이세진,Management of epilepsy in the elderly: Importance of comorbidity and treatment adherence,Satellite symposium(UCB),Korea,영남대학교 의과대학,신경과,010-9350-3683,sejinmayo@ynu.ac.kr
+2024-06-21(Fri),국내 연자,주은연,Management of epilepsy in the elderly: Importance of comorbidity and treatment adherence,Satellite symposium(UCB),,성균관의대 삼성서울병원,신경과,010-9933-3597,ejoosmcsleep@gmail.com
+2024-06-21(Fri),국내 좌장,김지현,Oral presentation,Oral presentation,Korea,고려의대 구로병원,신경과,010-9074-1752,jhkim.merrf@gmail.com
+2024-06-21(Fri),국내 좌장,김동욱,Oral presentation,Oral presentation,Korea,건국의대 건국대병원,신경과,010-2692-1216,drdongwkim@gmail.com
+2024-06-21(Fri),,장윤혁,Oral presentation,Oral presentation,,서울의대 서울대병원,신경과,010-8999-8701,yoonhyuk@snu.ac.kr
+2024-06-21(Fri),,홍승우,Oral presentation,Oral presentation,,한양의대 서울병원,신경외과, 010-9389-0777,hsw0777@yuhs.ac
+2024-06-21(Fri),,송승원,Oral presentation,Oral presentation,,연세의대 세브란스병원,신경과, 010-9009-8536,ssw310@yuhs.ac
+2024-06-21(Fri),,김연수,Oral presentation,Oral presentation,,아주의대 아주대병원,신경과,010-6344-5306,sookim726@gmail.com
+2024-06-21(Fri),,하우석,Oral presentation,Oral presentation,,연세의대 세브란스병원,신경과, 010-5260-9496,haha88@yuhs.ac
+2024-06-21(Fri),국내 좌장,임병찬,Oral presentation,Oral presentation,Korea,서울의대 서울대병원,소아과,010-9078-8048,prabbit7@snu.ac.kr
+2024-06-21(Fri),국내 좌장,염미선,Oral presentation,Oral presentation,Korea,울산의대 서울아산병원,소아과,010-6528-6513,yumyum99@hanmail.net
+2024-06-21(Fri),,김혜진,Oral presentation,Oral presentation,,서울의대 서울대병원,소아과, 010-9466-0607,heijin325@hanmail.net
+2024-06-21(Fri),,조재소,Oral presentation,Oral presentation,,서울의대 분당서울대병원,소아과, 010-2039-8501,gipumj@gmail.com
+2024-06-21(Fri),,한수현,Oral presentation,Oral presentation,,중앙의대 중앙대병원,신경과, 010-2632-7041,freesu84@naver.com
+2024-06-21(Fri),,조수미,Oral presentation,Oral presentation,,연세의대 세브란스병원,신경과, 010-5219-7144,soomicho@yuhs.ac
+2024-06-21(Fri),,최선아,Oral presentation,Oral presentation,,이화의대 목동병원,소아과, 010-9429-9665,sunchoii@naver.com
+2024-06-21(Fri),국내 좌장,홍승봉,The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Symposium 5.The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Korea,성균관의대 삼성서울병원,신경과,010-9933-3592,sbhong@skku.edu
+2024-06-21(Fri),국내 좌장,신동진,The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Symposium 5.The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Korea,가천의대 길병원,신경과,"010-2315-2460	",djshin@gilhospital.com
+2024-06-21(Fri),해외 연자,Eiji Nakagawa,The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Symposium 5.The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Japan,National center of Neurology and Psychiatry,Pediatric Neurology,,nakagawa@ncnp.go.jp
+2024-06-21(Fri),해외 연자,Masafumi Fukuda,The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Symposium 5.The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Japan,NHO Nishi Niigata Chuo National Hospital,Neuroscience Division,,mfuku529@bri.niigata-u.ac.jp
+2024-06-21(Fri),국내 연자,홍승봉,The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Symposium 5.The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Korea,성균관의대 삼성서울병원,신경과,010-9933-3592,sbhong@skku.edu
 2024-06-21(Fri),국내 연자,정통령(신희성),The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Symposium 5.The Comprehensive Epilepsy Care: what we can do for people with epilepsy?,Korea,보건복지부 공공보건정책관,보건복지부,010-5790-3928,"rohtty@korea.kr
 t.r.jung72@gmail.com "
+2024-06-21(Fri),국내 좌장,신원철,Social perception changes regarding epilepsy and direction of support for epilepsy patients,Symposium 6.Social perception changes regarding epilepsy and direction of support for epilepsy patients,Korea,경희의대 강동경희대병원,신경과,010-5299-3150,shin1chul@gmail.com
+2024-06-21(Fri),국내 연자,윤송이,Social perception changes regarding epilepsy and direction of support for epilepsy patients,Symposium 6.Social perception changes regarding epilepsy and direction of support for epilepsy patients,Korea,강동경희대병원,소아과,010-3240-3942,pig-youn@hanmail.net
+2024-06-21(Fri),국내 연자,한수현,Social perception changes regarding epilepsy and direction of support for epilepsy patients,Symposium 6.Social perception changes regarding epilepsy and direction of support for epilepsy patients,Korea,중앙의대 중앙대병원,신경과,010-2632-7041,freesu84@naver.com
+2024-06-21(Fri),국내 연자,김흥동,Social perception changes regarding epilepsy and direction of support for epilepsy patients,Symposium 6.Social perception changes regarding epilepsy and direction of support for epilepsy patients,Korea,강북삼성병원,소아과,010-3343-4389,hdkimmd@yuhs.ac
+2024-06-21(Fri),패널,황경진,Social perception changes regarding epilepsy and direction of support for epilepsy patients,Symposium 6.Social perception changes regarding epilepsy and direction of support for epilepsy patients,Korea,경희의료원,신경과,"010-9741-9639	",jinie111@hanmail.net
+2024-06-21(Fri),패널,류한욱,Social perception changes regarding epilepsy and direction of support for epilepsy patients,Symposium 6.Social perception changes regarding epilepsy and direction of support for epilepsy patients,Korea,전북의대 전북대병원,신경과,010-2073-2774,iory252@naver.com
+2024-06-21(Fri),패널,김덕수,Social perception changes regarding epilepsy and direction of support for epilepsy patients,Symposium 6.Social perception changes regarding epilepsy and direction of support for epilepsy patients,Korea,한국뇌전증협회,한국뇌전증협회,010-3191-4124,koreads0304@naver.com
+2024-06-21(Fri),국내 좌장,김성은,Understanding epilepsy through computational modeling of brain networks ,Symposium 7.Understanding epilepsy through computational modeling of brain networks ,Korea,인제의대 해운대백병원,신경과,"010-6212-6131	",epidoc@inje.ac.kr
+2024-06-21(Fri),해외 연자,David Ko ,Understanding epilepsy through computational modeling of brain networks ,Symposium 7.Understanding epilepsy through computational modeling of brain networks ,USA,Loma Linda VA Medical Center,Neurology,(323)697-9802,davidykomd@gmail.com
+2024-06-21(Fri),국내 연자,이향운,Understanding epilepsy through computational modeling of brain networks ,Symposium 7.Understanding epilepsy through computational modeling of brain networks ,Korea,이화의대 목동병원,신경과,010-5671-2201,leeh@ewha.ac.kr
+2024-06-21(Fri),국내 연자,김태준,Understanding epilepsy through computational modeling of brain networks ,Symposium 7.Understanding epilepsy through computational modeling of brain networks ,Korea,아주의대 아주대병원,신경과,010-6373-4146,dandy8123@gmail.com
+2024-06-21(Fri),국내 좌장,이지훈,KES-JES 1: pharmacogenomics and precision medicine in epilepsy,Symposium 8.KES-JES 1: pharmacogenomics and precision medicine in epilepsy,Korea,성균관의대 삼성서울병원,소아과,010-9933-0910,leejeehunmd@gmail.com
+2024-06-21(Fri),해외 좌장,Nobukazu Nakasato ,KES-JES 1: pharmacogenomics and precision medicine in epilepsy,Symposium 8.KES-JES 1: pharmacogenomics and precision medicine in epilepsy,Japan,Tohoku University School of Medicine,Epileptology,81-22-717-7343,nkst@med.tohoku.ac.jp
+2024-06-21(Fri),해외 연자,Hitoshi Osaka ,KES-JES 1: Pharmacogenomics in epilepsy,Symposium 8.KES-JES 1: pharmacogenomics and precision medicine in epilepsy,Japan,Jichi Medical University,Pediatric Neurology,090-5422-7676,hosaka@jichi.ac.jp
+2024-06-21(Fri),국내 연자,이승환,KES-JES 1: Pharmacogenomics in epilepsy,Symposium 8.KES-JES 1: pharmacogenomics and precision medicine in epilepsy,Korea,서울의대 ,임상약리학과,010-2643-4300,leejh413@snu.ac.kr
+2024-06-21(Fri),국내 연자,이지원,KES-JES 1: Pharmacogenomics in epilepsy,Symposium 8.KES-JES 1: pharmacogenomics and precision medicine in epilepsy,Korea,성균관의대 삼성서울병원,소아과,010-4659-9334,haloofcomet@naver.com
+2024-06-21(Fri),국내 좌장,김종현,Disconnective surgery: video presentation,Symposium 9.Disconnective surgery: video presentation,Korea,고려의대 구로병원,신경외과,010-4751-6725,jhkimns@gmail.com
+2024-06-21(Fri),국내 연자,홍석호,Disconnective surgery: video presentation,Symposium 9.Disconnective surgery: video presentation,Korea,울산의대 서울아산병원,신경외과,010-4735-1503,hongsound@gmail.com
+2024-06-21(Fri),국내 연자,장원석,Disconnective surgery: video presentation,Symposium 9.Disconnective surgery: video presentation,Korea,연세의대 세브란스병원,신경외과,010-5453-8902,changws0716@yuhs.ac
+2024-06-21(Fri),국내 연자,김동석,Disconnective surgery: video presentation,Symposium 9.Disconnective surgery: video presentation,Korea,연세의대 세브란스병원,신경외과,010-9128-1320,dskim33@yuhs.ac
+2024-06-21(Fri),국내 좌장,신동진,KES-JES 2: Living with epilepsy,Symposium 10.KES-JES 2: Living with epilepsy,Korea,가천의대 길병원,신경과,"010-2315-2460	",djshin@gilhospital.com
+2024-06-21(Fri),해외 좌장,Kensuke Kawai ,KES-JES 2: Living with epilepsy,Symposium 10.KES-JES 2: Living with epilepsy,Japan,Jichi Medical University,Department of Neurosurgery,+81-90-7242-3654,kenkawai_tky@me.com
+2024-06-21(Fri),국내 연자,김헌민,KES-JES 2: Living with epilepsy,Symposium 10.KES-JES 2: Living with epilepsy,Korea,서울의대 분당서울대병원,소아과,010-9942-7035,hunminkim@hanmail.net
 2024-06-21(Fri),해외 연자,Ayataka Fujimoto,KES-JES 2: Living with epilepsy,Symposium 10.KES-JES 2: Living with epilepsy,Japan,Seirei Hamamatsu General Hospital,Neurosurgery,+81-80-4150-7555,fujimotoa1219@msn.com
+2024-06-21(Fri),해외 연자,Mayu Fujikawa,KES-JES 2: Living with epilepsy,Symposium 10.KES-JES 2: Living with epilepsy,Japan,Tohoku University School of Medicine Department of Epileptology,Epileptology,+81-80-8223-5317,mayu.fujikawa.e7@tohoku.ac.jp
+2024-06-21(Fri),국내 좌장,김해유,Lesioning procedures for epilepsy surgery,Symposium 11.Lesioning procedures for epilepsy surgery,Korea,인제의대 해운대 백병원,신경외과,010-3520-3740,hykim080356@gmail.com
+2024-06-21(Fri),국내 연자,이승훈,Lesioning procedures for epilepsy surgery,Symposium 11.Lesioning procedures for epilepsy surgery,Korea,성균관의대 삼성서울병원,신경외과,010-9933-5222,benee@hanmail.net
+2024-06-21(Fri),국내 연자,김준형,Lesioning procedures for epilepsy surgery,Symposium 11.Lesioning procedures for epilepsy surgery,Korea,울산의대 서울아산병원,신경외과,010-8471-8753,jhkim2ns@gmail.com
+2024-06-21(Fri),국내 연자,노해원,Lesioning procedures for epilepsy surgery,Symposium 11.Lesioning procedures for epilepsy surgery,Korea,고대구로병원,신경외과,010-4341-8142,rofree1st@gmail.com
+2024-06-21(Fri),국내 좌장,주은연,Women's Issues in epilepsy: controversies in caring for women with epilepsy,Symposium 12.Women's Issues in epilepsy: controversies in caring for women with epilepsy,Korea,성균관의대 삼성서울병원,신경과,010-9933-3597,ejoosmcsleep@gmail.com
+2024-06-21(Fri),국내 연자,전진선,Women's Issues in epilepsy: controversies in caring for women with epilepsy,Symposium 12.Women's Issues in epilepsy: controversies in caring for women with epilepsy,Korea,한림의대 강남성심병원,신경과,010-9043-8204,junjinsun0401@gmail.com
+2024-06-21(Fri),국내 연자,이윤진,Women's Issues in epilepsy: controversies in caring for women with epilepsy,Symposium 12.Women's Issues in epilepsy: controversies in caring for women with epilepsy,Korea,부산의대 어린이병원,소아과,010-8504-1358,jinnyeye@naver.com
+2024-06-21(Fri),국내 연자,전지예,Women's Issues in epilepsy: controversies in caring for women with epilepsy,Symposium 12.Women's Issues in epilepsy: controversies in caring for women with epilepsy,Korea,경북의대 칠곡경북대병원,신경과,010-4439-5211,jeonjiye87@gmail.com
+2024-06-22(Sat),국내 좌장,서대원,Puzzling cases of epilepsy,Symposium 13.Puzzling cases of epilepsy,Korea,성균관의대 삼성서울병원,신경과,010-9933-3595,daewon3.seo@samsung.com 
+2024-06-22(Sat),국내 연자,이동아,Puzzling cases of epilepsy,Symposium 13.Puzzling cases of epilepsy,Korea,인제의대 해운대 백병원,신경과,010-8589-7906,peony1003@gmail.com
+2024-06-22(Sat),국내 연자,양동화,Puzzling cases of epilepsy,Symposium 13.Puzzling cases of epilepsy,Korea,고려의대 구로병원,소아과,"010-2031-7459	",soul2star@nate.com
+2024-06-22(Sat),국내 연자,허경,Puzzling cases of epilepsy,Symposium 13.Puzzling cases of epilepsy,Korea,연세의대 세브란스병원,신경과,010-8792-7573,kheo@yuhs.ac
+2024-06-22(Sat),국내 연자,허경,Puzzling cases of epilepsy,Symposium 13.Puzzling cases of epilepsy,Korea,연세의대 세브란스병원,신경과,010-8792-7573,kheo@yuhs.ac
+2024-06-22(Sat),국내 좌장,김재문,Controversies in status epilepticus: treat aggressively or not?,Symposium 14.Controversies in status epilepticus: treat aggressively or not?,Korea,서울신경과의원,신경과,010-3428-9920,jmoonkim@cnu.ac.kr
+2024-06-22(Sat),국내 연자,김영수,Controversies in status epilepticus: treat aggressively or not?,Symposium 14.Controversies in status epilepticus: treat aggressively or not?,Korea,경상의대 경상대병원,신경과,010-2847-8419,youngsookim0127@gmail.com
+2024-06-22(Sat),국내 연자,임성철,Controversies in status epilepticus: treat aggressively or not?,Symposium 14.Controversies in status epilepticus: treat aggressively or not?,Korea,가톨릭의대 성빈센트병원,신경과,"010-6349-5282	",sclim@catholic.ac.kr
+2024-06-22(Sat),국내 연자,김영수,Controversies in status epilepticus: treat aggressively or not?,Symposium 14.Controversies in status epilepticus: treat aggressively or not?,Korea,경상의대 경상대병원,신경과,010-2847-8419,youngsookim0127@gmail.com
+2024-06-22(Sat),국내 연자,임성철,Controversies in status epilepticus: treat aggressively or not?,Symposium 14.Controversies in status epilepticus: treat aggressively or not?,Korea,가톨릭의대 성빈센트병원,신경과,"010-6349-5282	",sclim@catholic.ac.kr
+2024-06-22(Sat),국내 좌장,김동석,Identification of epileptic network using stereoelectroencephalography,Presidential symposium. Identification of epileptic network using stereoelectroencephalography,Korea,연세의대 세브란스병원,신경외과,010-9128-1320,dskim33@yuhs.ac
+2024-06-22(Sat),해외 연자,Fabrice Bartolomei ,Identification of epileptic network using stereoelectroencephalography,Presidential symposium. Identification of epileptic network using stereoelectroencephalography,France,Aix-Marseille University,Neurology,33 (0)4 91 38 49 90 ,Fabrice.BARTOLOMEI@ap-hm.fr
+2024-06-22(Sat),국내 좌장,김원주,Experimental approaches to the understanding of hippocampus and epileptogenesis,Symposium 15.Experimental approaches to the understanding of hippocampus and epileptogenesis,Korea,연세의대 강남세브란스병원,신경과,010-9276-6766,kzoo@yuhs.ac
+2024-06-22(Sat),국내 연자,정민환,Experimental approaches to the understanding of hippocampus and epileptogenesis,Symposium 15.Experimental approaches to the understanding of hippocampus and epileptogenesis,Korea,한국과학기술원(KAIST),생명과학과,042-350-2612,mwjung@kaist.ac.kr
+2024-06-22(Sat),국내 연자,최준영,Experimental approaches to the understanding of hippocampus and epileptogenesis,Symposium 15.Experimental approaches to the understanding of hippocampus and epileptogenesis,Korea,아주의대 아주대병원,신경과,010-3371-1928,taz312@gmail.com
+2024-06-22(Sat),국내 좌장,권오영,Clinical correlates of interictal epileptiform discharges,Symposium 16.Clinical correlates of interictal epileptiform discharges,Korea,경상의대 경상대병원,신경과,010-3588-8073,mnkwon21@hanmail.net
+2024-06-22(Sat),국내 연자,문진화,Clinical correlates of interictal epileptiform discharges,Symposium 16.Clinical correlates of interictal epileptiform discharges,Korea,한양의대 구리병원,소아과,"010-3363-7180	","mm824@naver.com	"
+2024-06-22(Sat),해외 연자,Ji Yeoun Yoo,Clinical correlates of interictal epileptiform discharges,Symposium 16.Clinical correlates of interictal epileptiform discharges,USA,Icahn School of Medicine at Mount Sinai ,Neurology ,+1-212-241-2627 ,Jiyeoun.yoo@mssm.edu
+2024-06-22(Sat),국내 연자,이보련,Clinical correlates of interictal epileptiform discharges,Symposium 16.Clinical correlates of interictal epileptiform discharges,Korea,인제의대 부산백병원,소아과,"010-9154-3373	",bototii@hanmail.net
+2024-06-22(Sat),국내 좌장,송홍기,Two-year experience with Zebinix in single tertiary center ,Satellite symposium(whanin),,송홍기신경과의원,신경과,"010-5446-6359	",hksong0@hanmail.net
+2024-06-22(Sat),국내 연자,김동욱,Two-year experience with Zebinix in single tertiary center ,Satellite symposium(whanin),,건국의대 건국대병원,신경과,010-2692-1216,drdongwkim@gmail.com
+2024-06-22(Sat),국내 좌장,채수안,Lacosamide as an alternative treatment option in status epilepticus  ,Satellite symposium(SK),,중앙의대 중앙대병원,소아과,010-4289-1116,kidbrain@korea.com
+2024-06-22(Sat),국내 연자,이지훈,Lacosamide as an alternative treatment option in status epilepticus  ,Satellite symposium(SK),,성균관의대 삼성서울병원,소아과,010-9933-0910,leejeehunmd@gmail.com
 2024-06-22(Sat),Poster presentation,Poster presentation,Poster presentation,Poster presentation,,,,,
+2024-06-22(Sat),국내 좌장,김흥동,Basic principles and usefulness of MEG in epilepsy,Symposium 17.Basic principles and usefulness of MEG in epilepsy,Korea,강북삼성병원,소아과,010-3343-4389,HDKIMMD@yuhs.ac
+2024-06-22(Sat),국내 연자,홍승봉,Basic principles and usefulness of MEG in epilepsy,Symposium 17.Basic principles and usefulness of MEG in epilepsy,Korea,성균관의대 삼성서울병원,신경과,010-9933-3592,sbhong@skku.edu
+2024-06-22(Sat),국내 연자,장원석,Basic principles and usefulness of MEG in epilepsy,Symposium 17.Basic principles and usefulness of MEG in epilepsy,Korea,연세의대 세브란스병원,신경외과,010-5453-8902,changws0716@yuhs.ac
+2024-06-22(Sat),해외 연자,Nobukazu Nakasato ,Basic principles and usefulness of MEG in epilepsy,Symposium 17.Basic principles and usefulness of MEG in epilepsy,Japan,Tohoku University School of Medicine,Epileptology,+81-80-3199-1171,nkst@med.tohoku.ac.jp
+2024-06-22(Sat),국내 좌장,장진우,New horizons in epilepsy research utilizing SEEG,Symposium 18.New horizons in epilepsy research utilizing SEEG,Korea,고려의대 안암병원,신경외과,010-5394-6208,jchang@yuhs.ac
+2024-06-22(Sat),국내 연자,손영민,New horizons in epilepsy research utilizing SEEG,Symposium 18.New horizons in epilepsy research utilizing SEEG,Korea,성균관의대 삼성서울병원,신경과,010-9142-6804,sonogung@gmail.com
+2024-06-22(Sat),해외 연자,Hohyun Cho,New horizons in epilepsy research utilizing SEEG,Symposium 18.New horizons in epilepsy research utilizing SEEG,USA,"Washington University School of Medicine in St. Louis, Missouri, USA",Neurosurgery,,cho@neurotechcenter.org
+2024-06-22(Sat),해외 연자,Masafumi Fukuda ,New horizons in epilepsy research utilizing SEEG,Symposium 18.New horizons in epilepsy research utilizing SEEG,Japan,Nishi Niigata Chuo National Hospital,Neuroscience Division,,mfuku529@bri.niigata-u.ac.jp
+2024-06-22(Sat),해외 좌장,Sookyong Koh ,New insights on epileptogenesis and therapeutic discovery from bench to bedside,Symposium 19.New insights on epileptogenesis and therapeutic discovery from bench to bedside,USA,University of Nebraska ,0,773-314-3685,skoh@childrensnebraska.org 
+2024-06-22(Sat),국내 연자,김소희,New insights on epileptogenesis and therapeutic discovery from bench to bedside,Symposium 19.New insights on epileptogenesis and therapeutic discovery from bench to bedside,Korea,대구경북과학기술원(DGIST),로봇및기계전자공학과,053-785-6217,soheekim@dgist.ac.kr
+2024-06-22(Sat),국내 연자,김민지,New insights on epileptogenesis and therapeutic discovery from bench to bedside,Symposium 19.New insights on epileptogenesis and therapeutic discovery from bench to bedside,Korea,울산의대 서울아산병원,소아과,010-7445-4711,pradoxwh@naver.com
+2024-06-22(Sat),국내 연자,고아라,New insights on epileptogenesis and therapeutic discovery from bench to bedside,Symposium 19.New insights on epileptogenesis and therapeutic discovery from bench to bedside,Korea,연세의대 세브란스병원,소아과,010-7185-0307,arako@yuhs.ac
+2024-06-22(Sat),국내 좌장,고태성,Promising treatment modality of Lennox-Gastaut syndrome,Symposium 20.Promising treatment modality of Lennox-Gastaut syndrome,Korea,울산의대 서울아산병원,소아과,010-8867-3382,tsko@amc.seoul.kr
+2024-06-22(Sat),해외 연자,Yong D. Park,Promising treatment modality of Lennox-Gastaut syndrome,Symposium 20.Promising treatment modality of Lennox-Gastaut syndrome,USA,Augusta University ,Pediatric Neurology,US 706 284 4374,ypark@augusta.edu
+2024-06-22(Sat),해외 연자,Joo Hee Seo,Promising treatment modality of Lennox-Gastaut syndrome,Symposium 20.Promising treatment modality of Lennox-Gastaut syndrome,USA,AdventHealth for Children,Pediatric Neurology,+1-513-444-7639,drjoohee@gmail.com
+2024-06-22(Sat),해외 연자,Hyunmi Kim,Promising treatment modality of Lennox-Gastaut syndrome,Symposium 20.Promising treatment modality of Lennox-Gastaut syndrome,USA,Stanford University,Pediatric Neurology,(650) 723-0993,hyunmi@stanford.edu
+2024-06-22(Sat),국내 좌장,주건,Seizures and epilepsy in autoimmune encephalitis,Symposium 21.Seizures and epilepsy in autoimmune encephalitis,Korea,서울의대 서울대병원,신경과,010-9027-5778,stemcell.snu@gmail.com
+2024-06-22(Sat),국내 연자,주건,Seizures and epilepsy in autoimmune encephalitis,Symposium 21.Seizures and epilepsy in autoimmune encephalitis,Korea,서울의대 서울대병원,신경과,010-9027-5778,stemcell.snu@gmail.com
+2024-06-22(Sat),국내 연자,이우진,Seizures and epilepsy in autoimmune encephalitis,Symposium 21.Seizures and epilepsy in autoimmune encephalitis,Korea,서울의대 분당서울대병원,신경과,010-7706-6008,eoozin@gmail.com
+2024-06-22(Sat),국내 연자,선우준상,Seizures and epilepsy in autoimmune encephalitis,Symposium 21.Seizures and epilepsy in autoimmune encephalitis,Korea,성균관의대 강북삼성병원,신경과,010-9711-1777,ultrajs4@gmail.com
+2024-06-22(Sat),국내 좌장,염미선,Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,Symposium 22.Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,Korea,울산의대 서울아산병원,소아과,010-6528-6513,yumyum99@hanmail.net
+2024-06-22(Sat),해외 연자,Ji Yeoun Yoo,Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,Symposium 22.Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,USA,Icahn School of Medicine at Mount Sinai ,Neurology,+1-212-241-2627 ,Jiyeoun.yoo@mssm.edu
+2024-06-22(Sat),국내 연자,강준원,Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,Symposium 22.Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,Korea,충남대학교병원,소아과,010-2242-7312,childlove@cnu.ac.kr
+2024-06-22(Sat),해외 연자,Sookyong Koh ,Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,Symposium 22.Overcoming refractory status epilepticus: clinical perspectives and preclinical animal model,USA,University of Nebraska ,Neurology,773-314-3685,skoh@childrensnebraska.org 
+2024-06-22(Sat),국내 좌장,박성파,A critical reappraisal of psychogenic non-epileptic seizures,Symposium 23.A critical reappraisal of psychogenic non-epileptic seizures,Korea,경북의대 경북대병원,신경과,010-8593-5769,sppark@mail.knu.ac.kr
+2024-06-22(Sat),해외 연자,David Y. Ko,A critical reappraisal of psychogenic non-epileptic seizures,Symposium 23.A critical reappraisal of psychogenic non-epileptic seizures,USA,Loma Linda VA Medical Center,Neurology,(323)697-9802,davidykomd@gmail.com
+2024-06-22(Sat),국내 연자,김성훈,A critical reappraisal of psychogenic non-epileptic seizures,Symposium 23.A critical reappraisal of psychogenic non-epileptic seizures,Korea,가톨릭의대 의정부성모병원,신경과,010-3128-0382,antilefty4@gmail.com
+2024-06-22(Sat),국내 연자,김우준,A critical reappraisal of psychogenic non-epileptic seizures,Symposium 23.A critical reappraisal of psychogenic non-epileptic seizures,Korea,가톨릭의대 서울성모병원,신경과,010-2602-7298,plomb2@naver.com
+2024-06-22(Sat),국내 좌장,임병찬,"Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies","Symposium 24.Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies",Korea,서울의대 서울대병원,소아과,010-9078-8048,prabbit7@snu.ac.kr
+2024-06-22(Sat),국내 연자,최선아,"Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies","Symposium 24.Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies",Korea,이화의대 목동병원,소아과,010-9429-9665,sunchoii@naver.com
+2024-06-22(Sat),국내 연자,김우중,"Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies","Symposium 24.Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies",Korea,서울의대 서울대병원,소아과,010-3005-7549,rainkim23@gmail.com
+2024-06-22(Sat),국내 연자,조경옥,"Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies","Symposium 24.Cognitive comorbidities in epilepsy: epidemiology, mechanism, and potential therapies",Korea,가톨릭의대 약리학교실,신경생물학과,02-3147-8355,kocho@catholic.ac.kr 
+2024-06-22(Sat),국내 연자,구용서,Curry hands-on practice,Symposium 25.Curry hands-on practice,Korea,울산의대 서울아산병원,신경과,010-4490-4880,yo904@naver.com
+2024-06-21(Fri),국내 연자,이서영,SIG 1.,SIG 1. ,Korea,강원의대 강원대병원,신경과,010-9101-4025,raininaugust@hanmail.net
+2024-06-22(Sat),국내 연자,손영민,SIG 2.,SIG 2.,Korea,성균관의대 삼성서울병원,신경과,010-9142-6804,sonogung@gmail.com
+2023-6-24,국내 연자,손영민,Stereoelectroencephalography (SEEG): concept and clinical application,Rationale and indication of SEEG,Korea,성균관의대 삼성서울병원,신경과,010-9142-6804,sonogung@gmail.com
+2023-6-24,국내 좌장,장진우,Stereoelectroencephalography (SEEG): concept and clinical application,Stereoelectroencephalography (SEEG): concept and clinical application,Korea,연세의대 세브란스병원,신경외과,010-5394-6208,jchang@yuhs.ac
+2023-6-24,KAES,Hyunmi Kim,Stereoelectroencephalography (SEEG): concept and clinical application,Anatomo-electro-clinical correlation for optimal SEEG interpretation,USA,,Neurology - Child Neurology,(650) 723-0993,hyunmi@stanford.edu
+2023-6-23,국내 연자,김기웅,Magnetoencephalography (MEG),Introduction to the basic principles of MEG,Korea,충북대 물리학과,물리학과,043-261-2277,kiwoong@chungbuk.ac.kr
+2023-6-23,국내 연자,선우준상,Implementation of EEG in NCSE,Diagnosis and treatment of nonconvulsive status epilepticus,Korea,성균관의대 강북삼성병원,신경과,010-9711-1777,ultrajs4@gmail.com
+2023-6-24,KAES,David Y. Ko,Comorbidities and their relationships with epilepsy,Epilepsy and dementia: understanding the link,USA,,,(323)697-9802,davidykomd@gmail.com
+2023-6-24,국내 연자,이서영,Developing common data elements (CDE) for epilepsy patients: a multi-center collaborative project,Introduction to CDE in epilepsy patients: definition and purpose,Korea,강원의대 강원대병원,신경과,010-9101-4025,raininaugust@hanmail.net
+2023-6-24,국내 연자,장원석,Stereoelectroencephalography (SEEG): case illustrations and discussion,Utilization of SEEG in temporal lobe epilepsy,Korea,연세의대 세브란스병원,신경외과,010-5453-8902,changws0716@yuhs.ac
+2023-6-23,국내 좌장,홍승봉,Magnetoencephalography (MEG),Magnetoencephalography (MEG),Korea,성균관의대 삼성서울병원,신경과,010-9933-3592,sbhong@skku.edu
+2023-6-23,국내 좌장,권오영,Implementation of EEG in NCSE,Implementation of EEG in NCSE,Korea,경상의대 경상대병원,신경과,010-3588-8073,mnkwon21@hanmail.net
+2023-6-24,국내 좌장,송홍기,Comorbidities and their relationships with epilepsy,Comorbidities and their relationships with epilepsy,Korea,한림의대 강동성심병원,신경과,010-5446-6359,hksong0@hanmail.net
+2023-6-24,국내 좌장,손영민,Developing common data elements (CDE) for epilepsy patients: a multi-center collaborative project,Developing common data elements (CDE) for epilepsy patients: a multi-center collaborative project,Korea,성균관의대 삼성서울병원,신경과,010-9142-6804,sonogung@gmail.com
+2023-6-24,국내 좌장,홍승봉,Stereoelectroencephalography (SEEG): case illustrations and discussion,Stereoelectroencephalography (SEEG): case illustrations and discussion,Korea,성균관의대 삼성서울병원,신경과,010-9933-3592,sbhong@skku.edu
+2023-6-23,국내 연자,박현미,Magnetoencephalography (MEG),Utilizing MEG in identifying epileptic spikes,Korea,가천의대 길병원,신경과,010-4753-4497,neurohm@gilhospital.com
+2023-6-23,국내 연자,이동아,Implementation of EEG in NCSE,Clinical implication of interictal-ictal continuum,Korea,인제의대 해운대 백병원,신경과,010-8589-7906,peony1003@gmail.com
+2023-6-24,국내 연자,신정원,Comorbidities and their relationships with epilepsy,Epilepsy and stroke: co-occurrence and causality,Korea,차의대 분당차병원,신경과,010-9937-0597,limitsum@gmail.com
+2023-6-24,국내 연자,김헌민,Developing common data elements (CDE) for epilepsy patients: a multi-center collaborative project,Implementing CDE in pediatric epilepsy patients,Korea,서울의대 분당서울대병원,소아과,010-9942-7035,hunminkim@hanmail.net
+2023-6-24,국내 연자,홍석호,Stereoelectroencephalography (SEEG): case illustrations and discussion,Utilization of SEEG in extratemporal epilepsy,Korea,울산의대 서울아산병원,신경외과,=Q19:W19,hongsound@gmail.com
+2023-6-23,해외 연자,Hiroshi Otsubo,Magnetoencephalography (MEG),Functional brain mapping using MEG,Canada,,,1-905-943-9376/1-647-299-9376,ghiotsubo@gmail.com
+2023-6-23,KAES,Ji Yeoun Yoo,Implementation of EEG in NCSE,Clinical implication of brief potentially ictal rhythmic discharges (BIRDs),USA,,,+1-212-241-2627 ,Jiyeoun.yoo@mssm.edu
+2023-6-24,국내 연자,주병억,Comorbidities and their relationships with epilepsy,Epilepsy and psychiatric disorders: diagnostic and management challenges,Korea,순천향의대 서울병원,신경과,010-5395-9357,churcky17@naver.com
+2023-6-24,국내 연자,구용서,Developing common data elements (CDE) for epilepsy patients: a multi-center collaborative project,Implementing CDE in adult epilepsy patients,Korea,울산의대 서울아산병원,신경과,010-4490-4880,yo904@naver.com
+2023-6-24,해외 연자,Hiroshi Otsubo,Stereoelectroencephalography (SEEG): case illustrations and discussion,MEG for SEEG: techniques and applications,Canada,,,1-905-943-9376/1-647-299-9376,ghiotsubo@gmail.com
+2023-6-23,국내 연자,이상암,levetiracetam(UCB),Critical considerations in ASM selection in the elderly: comorbidity and drug interactions,Korea,울산의대 서울아산병원,신경과,010-9890-0817,salee@amc.seoul.kr
+2023-6-24,국내 연자,김지현,Satellite: esclicarbazepine (환인),Efficacy and tolerability of eslicarbazepine for add-on therapy and initial monotherapy in FOS : The evidence and case-based approach,Korea,고려의대 구로병원,신경과,010-9074-1752,jhkim.merrf@gmail.com
+2023-6-23,국내 좌장,황용승,Satellite: lamotrigine (GSK),Lamotrigine (GSK),Korea,서울의대 서울대병원,소아과,010-5353-3629,childnr@snu.ac.kr
+2023-6-23,국내 연자,홍승봉,Satellite: lamotrigine (GSK),Lamotrigine in epilepsy patients with mood disorder and women: data and clinical implications,KOREA,성균관의대 삼성서울병원,신경과,010-9933-3592,sbhong@skku.edu
+2023-6-23,국내 좌장,이세진,levetiracetam(UCB),Levetiracetam(UCB),Korea,영남대학교 의과대학,신경과,010-9350-3683,sejinmayo@ynu.ac.kr
+2023-6-24,국내 연자,임성철,Satellite: perampenel (Eisai),Benefits of using Fycompa in earlier stages as a conversion-to-monotherapy option.  ,Korea,"가톨릭대학교 성빈센트병원	",신경과,010-6349-5282,sclim@catholic.ac.kr
+2023-6-24,국내 좌장,김지언,Satellite: esclicarbazepine (환인),Esclicarbazepine (환인),Korea,가톨릭의대 대구가톨릭대병원,신경과,010-5203-3991,jekim2@cu.ac.kr
+2023-6-24,국내 좌장,이병인,Satellite: perampenel (Eisai),Perampenel (Eisai),Korea,인제의대 해운대 백병원,신경과,010-6668-4676,BILEE@yuhs.ac
+2023-6-23,국내 연자,최지은,levetiracetam(UCB),Medical treatment in pediatric epilepsy patients: seizure control and cognitive functions,Korea,서울대학교 보라매병원,소아과,"010-4170-9740	",jechoi66@snu.ac.kr
+2023-6-24,국내 연자,임병찬,Satellite: esclicarbazepine (환인),Beyond seizure control: The role of eslicarbazepine for pediatric patients with epilepsy,Korea,서울의대 서울대병원,소아과,010-9078-8048,prabbit7@snu.ac.kr
+2023-6-23,국내 좌장,김동욱,Oral presentation,Oral presentation,Korea,건국의대 건국대병원,신경과,010-2692-1216,drdongwkim@gmail.com
+2023-6-23,국내 좌장,김지현,Oral presentation,Oral presentation,Korea,고려의대 구로병원,신경과,010-9074-1752,jhkim.merrf@gmail.com
+2023-6-23,국내 좌장,임병찬,Oral presentation,Oral presentation,Korea,서울의대 서울대병원,소아과,010-9078-8048,prabbit7@snu.ac.kr
+2023-6-23,국내 좌장,염미선,Oral presentation,Oral presentation,Korea,울산의대 서울아산병원,소아과,010-6528-6513,yumyum99@hanmail.net
+2023-6-24,국내 연자,이지훈,Biomarkers for predicting drug-resistant epilepsy: current status and future directions,Biochemical and genetic markers for DRE,Korea,성균관의대 삼성서울병원,소아과,010-9933-0910,leejeehunmd@gmail.com
+2023-6-24,국내 연자,고아라,Basic mechanism of epileptogenesis,Exploring the mechanisms of epilepsy: evidence from animal models,Korea,한국과학기술원 (카이스트),소아과,010-7185-0307,chereara@gmail.com
+2023-6-24,KAES,Ki Hyeong Lee,Stereoelectroencephalography (SEEG): update and case illustrations,Update and current trend of SEEG implantation,USA,,,513-2505703,Kilee1024@gmail.com
+2023-6-24,국내 좌장,조용원,Biomarkers for predicting drug-resistant epilepsy: current status and future directions,Biomarkers for predicting drug-resistant epilepsy: current status and future directions,Korea,계명의대 동산의료원,신경과,010-3521-5059,neurocho@dsmc.or.kr
+2023-6-24,국내 좌장,김원주,Basic mechanism of epileptogenesis,Basic mechanism of epileptogenesis,Korea,연세의대 강남세브란스병원,신경과,010-9276-6766,kzoo@yuhs.ac
+2023-6-24,국내 좌장,손영민,Stereoelectroencephalography (SEEG): update and case illustrations,Stereoelectroencephalography (SEEG): update and case illustrations,korea,성균관의대 삼성서울병원,신경과,010-9142-6804,sonogung@gmail.com
+2023-6-24,국내 연자,박강민,Biomarkers for predicting drug-resistant epilepsy: current status and future directions,Neuroimaging biomarkers for DRE,Korea,인제의대 해운대 백병원,신경과,010-6569-0119,smilepkm@hanmail.net
+2023-6-24,국내 연자,박성민,Basic mechanism of epileptogenesis,Bioelectronic Medicine for Neural Disorders,Korea,포항공대 IT융합공학과,IT융합공학과, 010-7208-7740,sungminpark@postech.ac.kr 
+2023-6-24,해외 연자,James Baumgartner,Stereoelectroencephalography (SEEG): update and case illustrations,Surgical view of SEEG and determination of resection margin,USA,,,,james.baumgartner.md@adventhealth.com
+2023-6-24,국내 연자,김승수,Biomarkers for predicting drug-resistant epilepsy: current status and future directions,Machine learning-based prediction of DRE,Korea,순천향의대 천안병원,소아과,018-410-0762,equalkss@hanmail.net
+2023-6-24,KAES,Jin Hyung Lee,Basic mechanism of epileptogenesis,Combining optogenetics and functional MRI with electrophysiology to study epileptic networks,USA,,,650-799-1088,ljinhy@stanford.edu
+2023-6-23,국내 연자,서대원,Unmet needs in drug-resistant epilepsy,State-of-the-art strategy of drug polytherapy for DRE,Korea,성균관의대 삼성서울병원,신경과,010-9933-3595,daewon@skku.edu
+2023-6-23,KAES,Sookyong Koh ,Reappraisal of Lennox-Gastaut syndrome (LGS),Causes and semiology of LGS: more than just seizures,USA,,,773-314-3685,skoh@childrensomaha.org
+2023-6-23,국내 좌장,김기중,Unmet needs in drug-resistant epilepsy,Unmet needs in drug-resistant epilepsy,Korea,서울의대 서울대병원,소아과,010-3272-3367,pednr@snu.ac.kr
+2023-6-23,국내 좌장,고태성,Reappraisal of Lennox-Gastaut syndrome (LGS),Reappraisal of Lennox-Gastaut syndrome (LGS),Korea,울산의대 서울아산병원,소아과,010-8867-3382,tsko@amc.seoul.kr
+2023-6-23,국내 연자,이상건,Unmet needs in drug-resistant epilepsy,Maximizing the potentials of epilepsy surgery for DRE in Korea: an evidence-based medicine,Korea,서울의대 서울대병원,신경과,010-9177-2923,sangkun2923@gmail.com
+2023-6-23,KAES,Joo Hee Seo,Reappraisal of Lennox-Gastaut syndrome (LGS),Medical treatment and ketogenic diet for LGS,USA,,,+1-513-444-7639,drjoohee@gmail.com
+2023-6-24,국내 연자,성준경,Epilepsy as a network disorder,Definition of network hubs and network analysis using graph theory,Korea,고려대 바이오의공학부,바이오의공학부,010-6236-3295,jkseong@korea.ac.kr
+2023-6-24,국내 연자,김영옥,Electroclinical vs. gene-based epilepsy classification: What’s the difference?,Dravet syndrome vs. SCN1A-related epilepsy,Korea,전남의대 전남대병원,소아과,010-2947-2889,ik052@jnu.ac.kr
+2023-6-24,국내 좌장,김지현,Epilepsy as a network disorder,Epilepsy as a network disorder,Korea,고려의대 구로병원,신경과,010-9074-1752,jhkim.merrf@gmail.com
+2023-6-24,국내 좌장,이지훈,Electroclinical vs. gene-based epilepsy classification: What’s the difference?,Electroclinical vs. gene-based epilepsy classification: What’s the difference?,Korea,성균관의대 삼성서울병원,소아과,010-9933-0910,leejeehunmd@gmail.com
+2023-6-24,국내 연자,조수미,Stereoelectroencephalography (SEEG): update and case illustrations,Case illustration and discussion 1,Korea,연세의대 세브란스병원,신경과,010-5219-7144,soomicho@yuhs.ac
+2023-6-24,국내 연자,김보영,Stereoelectroencephalography (SEEG): update and case illustrations,Case illustration and discussion 2,Korea,울산의대 서울아산병원,신경과,"010-9333-2748	",kimby0427@gmail.com
+2023-6-23,국내 연자,염미선,Unmet needs in drug-resistant epilepsy,Innovative treatment for DRE,Korea,울산의대 서울아산병원,소아과,010-6528-6513,yumyum99@hanmail.net
+2023-6-23,국내 연자,김동석,Reappraisal of Lennox-Gastaut syndrome (LGS),Surgical treatment in LGS,Korea,연세의대 세브란스병원,신경외과,010-9128-1320,dskim33@yuhs.ac
+2023-6-24,국내 연자,김성훈,Epilepsy as a network disorder,Epilepsy is a network disorder: functional imaging perspectives,Korea,가톨릭의대 의정부성모병원,신경과,010-3128-0382,antilefty4@gmail.com
+2023-6-24,국내 연자,이지원,Electroclinical vs. gene-based epilepsy classification: What’s the difference?,Self-limited infantile epilepsy vs. PRRT2-related epilepsy,Korea,성균관의대 삼성서울병원,소아과,010-4659-9334,haloofcomet@naver.com
+2023-6-24,국내 연자,배효은,Stereoelectroencephalography (SEEG): update and case illustrations,Case illustration and discussion 3,Korea,성균관의대 삼성서울병원,신경과,"010-5124-1052	",js2311052@naver.com
+2023-6-24,국내 연자,김태준,Epilepsy as a network disorder,Epilepsy is a network disorder: EEG/MEG perspectives,Korea,아주의대 아주대병원,신경과,010-6373-4146,dandy8123@gmail.com
+2023-6-24,국내 연자,임병찬,Electroclinical vs. gene-based epilepsy classification: What’s the difference?,Myoclonic atonic epilepsy vs. SLC2A1-related epilepsy,Korea,서울의대 서울대병원,소아과,010-9078-8048,prabbit7@snu.ac.kr
+2023-6-23,국내 연자,전지예,Epidemiology of epilepsy and status epilepticus in Korea,Incidence and prevalence of epilepsy,Korea,경북의대 칠곡경북대병원,신경과,010-4439-5211,jeonjiye87@gmail.com
+2023-6-23,국내 연자,변정익,Current trends in treatment of status epilepticus,Antiseizure medications for SE: evidence-based medicine,Korea,경희의대 강동경희대병원,신경과,010-3812-0618,mr830611@gmail.com
+2023-6-23,국내 좌장,정기영,Epidemiology of epilepsy and status epilepticus in Korea,Epidemiology of epilepsy and status epilepticus in Korea,Korea,서울의대 서울대병원,신경과,010-9953-9287,jungky@snu.ac.kr
+2023-6-23,국내 좌장,김재문,Current trends in treatment of status epilepticus,Current trends in treatment of status epilepticus,Korea,충남의대 충남대병원,신경과,010-3428-9920,jmoonkim@cnu.ac.kr
+2023-6-23,국내 연자,문혜진,Epidemiology of epilepsy and status epilepticus in Korea,Mortality in epilepsy: causes and risk factors,Korea,순천향의대 부천병원,신경과,010-4877-1703,moonhyejin21@gmail.com
+2023-6-23,국내 연자,김은희,Current trends in treatment of status epilepticus,Timing Matters: importance of timing in the treatment of SE,Korea,충남의대 세종충남대학교병원,소아과,"	010-3375-6804	",luke2178@naver.com
+2023-6-24,국내 연자,김형,Subcortical epilepsy: is it real?,Anatomy and function of brain subcortical structures in relation to epileptic seizures,Korea,서울대 생물학과,생물학과,010-2085-1383,hfkim@snu.ac.kr
+2023-6-24,국내 연자,김동욱,Amygdala enlargement in temporal lobe epilepsy: complexities and implications,Clinical and imaging characteristics in temporal lobe epilepsy with amygdala enlargement,Korea,건국의대 건국대병원,신경과,010-2692-1216,drdongwkim@gmail.com
+2023-6-24,국내 좌장,강훈철,Subcortical epilepsy: is it real?,Subcortical epilepsy: is it real?,Korea,연세의대 세브란스병원,소아과,"	010-5443-6596	","hipo0207@yuhs.ac	"
+2023-6-24,국내 좌장,김성은,Amygdala enlargement in temporal lobe epilepsy: complexities and implications,Amygdala enlargement in temporal lobe epilepsy: complexities and implications,Korea,인제의대 해운대 백병원,신경과,010-6212-6131,epidoc@inje.ac.kr
+2023-6-23,국내 연자,최선아,Epidemiology of epilepsy and status epilepticus in Korea,Incidence and mortality of status epilepticus,Korea,이화의대 목동병원,소아과,010-9429-9665,sunchoii@naver.com
+2023-6-23,국내 연자,이우진,Current trends in treatment of status epilepticus,The role of immunotherapy in the treatment of SE,Korea,서울의대 서울대병원,신경과,010-7706-6008,eoozin@gmail.com
+2023-6-24,KAES,Ki Hyeong Lee,Subcortical epilepsy: is it real?,Involvement of subcortical structures during epileptic seizures: neuroimaging and EEG evidence,USA,,,513-2505703,Kilee1024@gmail.com
+2023-6-24,국내 연자,고은정,Amygdala enlargement in temporal lobe epilepsy: complexities and implications,Pathological characteristics and surgical outcomes in temporal lobe epilepsy with amygdala enlargement,Korea,전북의대 전북대병원,신경외과,010-9646-2432,kohejns@jbnu.ac.kr
+2023-6-24,국내 연자,이은미,Subcortical epilepsy: is it real?,Therapeutic approaches of targeting subcortical structures in epilepsy: animal and human evidence,Korea,울산의대 울산대학교병원,신경과,"010-9490-1986	",saltmoon@hanmail.net
+2023-6-24,국내 연자,허경,Amygdala enlargement in temporal lobe epilepsy: complexities and implications,Amygdala enlargement as a epileptogenic lesion in temporal lobe epilepsy: not a simple causal relationship,Korea,연세의대 세브란스병원,신경과,010-8792-7573,kheo@yuhs.ac
+2023-6-23,국내 연자,문장섭,Brain tumors and epilepsy: understanding the relationship,Medical treatment in epilepsy with brain tumors: introduction of a guideline,Korea,서울의대 서울대병원,신경과,010-9387-7364,jangsup.moon@gmail.com
+2023-6-23,국내 연자,이향운,Focal cortical dysplasia type I vs. type II,Semiology and EEG findings in FCD type I vs. type II,Korea,이화의대 목동병원,신경과,010-5671-2201,leeh@ewha.ac.kr
+2023-6-23,국내 좌장,손병철,Brain tumors and epilepsy: understanding the relationship,Brain tumors and epilepsy: understanding the relationship,Korea,가톨릭의대 서울성모병원,신경외과,010-8938-7485,sbc@catholic.ac.kr
+2023-6-23,국내 좌장,김흥동,Focal cortical dysplasia type I vs. type II,Focal cortical dysplasia type I vs. type II,Korea,연세의대 세브란스병원,소아과,010-3343-4389,hdkimmd@yush.ac
+2023-6-24,국내 연자,김영구,Reappraisal of surgical treatment of hippocampal sclerosis,Optimizing surgical technique to avoid neurological complications,Korea,이화의대 목동병원,신경외과,010-5331-0958,ygkim@ewha.ac.kr
+2023-6-24,국내 연자,박성파,Common complaints in epilepsy: what is clinical significance?,Headache ,Korea,경북의대 경북대병원,신경과,010-8593-5769,sppark@mail.knu.ac.kr
+2023-6-24,국내 좌장,정천기,Reappraisal of surgical treatment of hippocampal sclerosis,Reappraisal of surgical treatment of hippocampal sclerosis,Korea,서울의대 서울대병원,신경외과,010-2910-7271,chungc@snu.ac.kr
+2023-6-24,국내 좌장,남상욱,Common complaints in epilepsy: what is clinical significance?,Common complaints in epilepsy: what is clinical significance?,Korea,양산부산대학교병원,소아과,010-7483-8149,neuroped@naver.com
+2023-6-23,국내 연자,피지훈,Brain tumors and epilepsy: understanding the relationship,Longterm epilepsy-associated tumors: characteristics and outcomes,Korea,서울의대 서울대병원,신경외과,010-8258-1720,phi.jihoon@gmail.com
+2023-6-23,국내 연자,김세훈,Focal cortical dysplasia type I vs. type II,Pathological consideration of FCD type I vs. type II,Korea,연세의대 세브란스병원,병리과 ,010-4941-4572,"PAXCO@yuhs.ac, paxluke@gmail.com"
+2023-6-24,국내 연자,김종현,Reappraisal of surgical treatment of hippocampal sclerosis,Selective amygdalohippocampectomy vs. anterior temporal lobectomy,Korea,고려의대 구로병원,신경외과,010-4751-6725,jhkimns@gmail.com
+2023-6-24,국내 연자,주은연,Common complaints in epilepsy: what is clinical significance?,Sleep disturbances ,Korea,성균관의대 삼성서울병원,신경과,010-9933-3597,ejoosmcsleep@gmail.com
+2023-6-23,국내 연자,이정호,Brain tumors and epilepsy: understanding the relationship,Genetics in epilepsy with brain tumors: implications for diagnosis and treatment,Korea,한국과학기술원 (카이스트),"신경과학, 유전체의학",042-350-4268,jhlee4246@kaist.ac.kr
+2023-6-23,국내 연자,정천기,Focal cortical dysplasia type I vs. type II,Surgical approach and outcomes in FCD type I vs. type II,Korea,서울의대 서울대병원,신경외과,010-2910-7271,chungc@snu.ac.kr
+2023-6-24,국내 연자,김해유,Reappraisal of surgical treatment of hippocampal sclerosis,"Other options: gamma knife radiosurgery, hippocampal deep brain stimulation, laser interstitial thermal therapy",Korea,인제의대 해운대 백병원,신경외과,010-3520-3740,hykim080356@gmail.com
+2023-6-24,국내 연자,김우준,Common complaints in epilepsy: what is clinical significance?,Anxiety and depression,Korea,가톨릭의대 서울성모병원,신경과,010-2602-7298,plomb2@naver.com
+2023-6-23,국내 연자,이윤진,Sudden unexpected death in epilepsy (SUDEP) ,Pathophysiological considerations in SUDEP,Korea,부산대병원 어린이병원,소아과,010-8504-1358,jinnyeye@naver.com
+2023-6-23,국내 연자,배은기,Pregnancy issues in women with epilepsy (WWE),The Impact of ASMs on fetal malformations,Korea,인하의대 인하대병원,신경과,010-8945-3172,alchemist0210@gmail.com
+2023-6-23,국내 좌장,이상암,Sudden unexpected death in epilepsy (SUDEP) ,Sudden unexpected death in epilepsy (SUDEP) ,Korea,울산의대 서울아산병원,신경과,010-9890-0817,salee@amc.seoul.kr
+2023-6-23,국내 좌장,이향운,Pregnancy issues in women with epilepsy (WWE),Pregnancy issues in women with epilepsy (WWE),Korea,이화의대 목동병원,신경과,010-5671-2201,leeh@ewha.ac.kr
+2023-6-23,국내 연자,김세희,Sudden unexpected death in epilepsy (SUDEP) ,Biomarkers for SUDEP: Current research and future directions,Korea,연세의대 세브란스병원,소아과,010-3920-0860,seheekim@yuhs.ac
+2023-6-23,국내 연자,이보련,Pregnancy issues in women with epilepsy (WWE),Cognitive outcomes in children exposed to ASMs during pregnancy,Korea,인제의대 부산백병원,소아과,010-9154-3373,bototii@hanmail.net
+2023-6-23,국내 연자,전진선,Sudden unexpected death in epilepsy (SUDEP) ,Seizure detection and SUDEP prevention,Korea,한림의대 강남성심병원,신경과,010-9043-8204,junjinsun0401@gmail.com
+2023-6-23,국내 연자,한수현,Pregnancy issues in women with epilepsy (WWE),How to prescribe ASMs during pregnancy: an evidence-based approach,Korea,중앙의대 중앙대병원,신경과,010-2632-7041,freesu84@naver.com
+2023-6-23,국내 연자,구용서,Video presentation of ictal semiology in adult patients,Temporal lobe seizures,Korea,울산의대 서울아산병원,신경과,010-4490-4880,yo904@naver.com
+2023-6-23,국내 연자,김우중,Video presentation of ictal semiology in pediatric patients,Temporal lobe seizures,Korea,서울의대 서울대병원,소아과,010-3005-7549,rainkim23@gmail.com
+2023-6-24,국내 연자,나지훈,Uncommon epilepsy syndromes in pediatric population ,Epilepsy in mitochondrial diseases,Korea,연세의대 세브란스병원,소아과,010-4132-0750,sailing-autumn@hanmail.net
+2023-6-24,국내 연자,김영수,Paroxysmal movement disorders and epilepsy,Link between paroxysmal dyskinesia and epilepsy,Korea,경상의대 경상대병원,신경과,010-2847-8419,youngsookim0127@gmail.com
+2023-6-23,국내 좌장,신원철,Video presentation of ictal semiology in adult patients,,Korea,경희의대 강동경희대병원,신경과,010-5299-3150,shin1chul@gmail.com
+2023-6-23,국내 좌장,은백린,Video presentation of ictal semiology in pediatric patients,Video presentation of ictal semiology in pediatric patients,Korea,고려의대 구로병원,소아과,010-8991-5090,bleun@korea.ac.kr
+2023-6-24,국내 좌장,채수안,Uncommon epilepsy syndromes in pediatric population ,Uncommon epilepsy syndromes in pediatric population ,Korea,중앙의대 중앙대병원,소아과,010-4289-1116,kidbrain@korea.com
+2023-6-24,국내 좌장,신동진,Paroxysmal movement disorders and epilepsy,Paroxysmal movement disorders and epilepsy,Korea,가천의대 길병원,신경과,"010-2315-2460	",djshin@gilhospital.com
+2023-6-24,국내 연자,홍석호,Stereoelectroencephalography (SEEG): concept and clinical application,Advantages and disadvantages of SEEG compared to subdural grids and strip electrodes,Korea,울산의대 서울아산병원,신경외과,010-4735-1503,hongsound@gmail.com
+2023-6-23,국내 연자,김경민,Video presentation of ictal semiology in adult patients,Extratemporal lobe seizures,Korea,연세의대 세브란스병원,신경과,010-8717-1233,penlighting@naver.com
+2023-6-23,국내 연자,장한나,Video presentation of ictal semiology in pediatric patients,Extratemporal lobe seizures,Korea,순천향의대 천안병원,소아과,010-9930-3466,jhannah@naver.com
+2023-6-24,국내 연자,박소영,Uncommon epilepsy syndromes in pediatric population ,Otahara syndrome,Korea,순천향의대 부천병원,소아과,010-8841-6797,hclove72@schmc.ac.kr
+2023-6-24,국내 연자,김민지,Paroxysmal movement disorders and epilepsy,Reflex epilepsies: link between stimuli and seizures,Korea,울산의대 서울아산병원,소아과,010-7445-4711,pradoxwh@naver.com
+2023-6-23,국내 연자,구대림,Video presentation of ictal semiology in adult patients,Psychogenic nonepileptic seizures,Korea,서울대학교 보라매병원,신경과,010-9056-6336,koodaelim@gmail.com
+2023-6-23,국내 연자,양동화,Video presentation of ictal semiology in pediatric patients,Generalized seizures,Korea,국민건강보험공단 일산병원,소아과,"	010-2031-7459	",soul2star@nate.com
+2023-6-24,국내 연자,문진화,Uncommon epilepsy syndromes in pediatric population ,"Newly recognized IGE syndromes: Jeavon syndrome, Panayiotopoulos syndrome",Korea,한양의대 구리병원,소아과,010-3363-7180,mm824@naver.com
+2023-6-24,국내 연자,황경진,Paroxysmal movement disorders and epilepsy,"Startle syndromes: physiology, clinical characteristics, and management",Korea,경희의료원,신경과,"010-9741-9639	",jinie111@hanmail.net
+2023-6-23,국내 좌장,허경,"Psychiatric, Cognitive, and Behavioral concerns of Antiseizure Medications",,Korea,연세의대 세브란스병원,신경과,010-8792-7573,kheo@yuhs.ac
+2023-6-23,KAES,Steve S. Chung,"Psychiatric, Cognitive, and Behavioral concerns of Antiseizure Medications","Psychiatric, Cognitive, and Behavioral concerns of Antiseizure Medications",USA,,,602-770-2383,Stevechung77@gmail.com
+2023-6-24,국내 좌장,김동석,Presidential symposium,“Experience with diverse patient groups treated with the RNS system”,Korea,연세의대 세브란스병원,신경외과,010-9128-1320,dskim33@yuhs.ac
+2023-6-24,KAES,Yong D. Park,Presidential symposium,“Experience with diverse patient groups treated with the RNS system”,USA,,,US 706 284 4374,ypark@augusta.edu
 2023-6-23,Oral Presentation,Menghan Yang,Oral Presentation,Altered Dynamic Functional Connectivity of Striatal-cortical Circuits in Juvenile Myoclonic Epilepsy,China,,,,908472702@qq.com
+2023-6-23,Oral Presentation,Seung Woo Hong,Oral Presentation,Local field potential of deep brain stimulation for drug refractory epilepsy patients,Korea,,,,hsw0777@yuhs.ac
 2023-6-23,Oral Presentation,Yim Soohwan,Oral Presentation,Dipole theory approach to irreplaceable diagnostic values of NP electrodes in TLE,Korea,,,,juny0215@hanmail.net
 2023-6-23,Oral Presentation,Jeong Ik Eun,Oral Presentation,Anti-seizure medication response and the glymphatic system in patients with focal epilepsy,Korea,,,,eunjungik@naver.com
+2023-6-23,Oral Presentation,Ji Hyun Kim,Oral Presentation,Valproate use may cause grey matter changes in idiopathic generalized epilepsy: combined voxel-based and surface-based morphometry analyses,Korea,,,,jhkim.merrf@gmail.com
 2023-6-23,Oral Presentation,EUNJU CHOI,Oral Presentation,Attention-deficit hyperactivity disorder in adults with epilepsy: Associated factors and a relationship with a suicide risk,Korea,,,,choiej@amc.seoul.kr
+2023-6-23,Oral Presentation,Hyeeun Kwon,Oral Presentation,Temporal lobe surgery in pediatrics; From temporal lobe epilepsy to temporal plus epilepsy,Korea,,,,romani33@hanmail.net
+2023-6-23,Oral Presentation,Junhyung Kim,Oral Presentation,Electrophysiological network predicts clinical response to vigabatrin in epileptic spasms,Korea,,,,jhkim2ns@gmail.com
+2023-6-23,Oral Presentation,Woojoong Kim,Oral Presentation,Efficacy and Safety of Transitioning from Oxcarbazepine to Eslicarbazepine Acetate in Pediatric Patients with Focal Epilepsy: A Single-Center Experience,Korea,,,,rainkim23@gmail.com
+2023-6-23,Oral Presentation,Ara Ko,Oral Presentation,Brain somatic variants in pediatric epilepsy patients – a single center experience,Korea,,,,chereara@gmail.com
 2023-6-23,Oral Presentation,Kim JiHun,Oral Presentation,Gene Correction and Comparative Analysis of Neuronal Differentiation in Epilepsy Patient with SCN2A Mutations Using CRISPR/Cas9,Korea,,,,jihun264@naver.com
 2023-6-23,Oral Presentation,June-Young Park,Oral Presentation,Development of temporal lobe slowing detection model using electroencephalography and deep neural network,Korea,,,,wnsdud1007@naver.com
 ,,,,,,,,,
