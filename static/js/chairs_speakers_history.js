@@ -2,8 +2,14 @@ const PERSON_COLUMNS = [
     '성명(KOR)', '성명(ENG)', '이메일', '전화',
     '소속(KOR)', '과(KOR)', '소속(ENG)', '과(ENG)',
     '직위', '면허번호', '생년월일', '회원구분',
-    '국가', '국가약어', '연자비', '은행정보', '프로필',
+    '국가', '국가약어', '연자비', '은행정보',
 ];
+
+const DETAIL_COLUMN_LABELS = {
+    profile: '프로필',
+    session: '세션 제목',
+    presentation: '발표 제목',
+};
 
 const TABLE_COLSPAN = PERSON_COLUMNS.length + 6; // checkbox + year cols + session/presentation
 
@@ -240,7 +246,10 @@ function applyFilters() {
 
     displayedPeople = allPeople.filter((person) => {
         if (q) {
-            const haystack = PERSON_COLUMNS.map((c) => person[c] || '').join(' ').toLowerCase();
+            const haystack = [
+                ...PERSON_COLUMNS.map((c) => person[c] || ''),
+                person['프로필'] || '',
+            ].join(' ').toLowerCase();
             const years = `${person.chair_years} ${person.speaker_years} ${person.panel_years}`.toLowerCase();
             const titles = `${person.session_titles || ''} ${person.presentation_titles || ''}`.toLowerCase();
             if (!haystack.includes(q) && !years.includes(q) && !titles.includes(q)) {
@@ -281,33 +290,35 @@ function renderTable(people) {
         const nameLabel = escapeHtml(person['성명(KOR)'] || person['성명(ENG)'] || '이름 없음');
         const personCells = PERSON_COLUMNS.map((col) => {
             const val = person[col] || '';
-            return `<td title="${escapeHtml(val)}">${escapeHtml(val)}</td>`;
+            let cellClass = '';
+            if (col === '성명(KOR)') cellClass = ' class="col-name-kor col-sticky-name"';
+            else if (col === '성명(ENG)') cellClass = ' class="col-name-eng col-sticky-name"';
+            else if (col === '전화') cellClass = ' class="col-phone"';
+            else if (col === '국가') cellClass = ' class="col-country"';
+            return `<td${cellClass} title="${escapeHtml(val)}">${escapeHtml(val)}</td>`;
         }).join('');
         return `<tr>
             <td class="col-check">
                 <input type="checkbox" class="history-row-checkbox" value="${personKey}" data-name="${nameLabel}" onchange="updateSelectedCount()">
             </td>
             ${personCells}
+            ${renderDetailCell(person['프로필'] || '', personKey, nameLabel, 'profile')}
             <td class="year-col" title="${escapeHtml(person.chair_years || '')}">${escapeHtml(person.chair_years || '')}</td>
             <td class="year-col" title="${escapeHtml(person.speaker_years || '')}">${escapeHtml(person.speaker_years || '')}</td>
             <td class="year-col" title="${escapeHtml(person.panel_years || '')}">${escapeHtml(person.panel_years || '')}</td>
-            ${renderTitleCell(sessionTitles, personKey, nameLabel, 'session', person.sessions)}
-            ${renderTitleCell(presentationTitles, personKey, nameLabel, 'presentation', person.sessions)}
+            ${renderDetailCell(sessionTitles, personKey, nameLabel, 'session', person.sessions)}
+            ${renderDetailCell(presentationTitles, personKey, nameLabel, 'presentation', person.sessions)}
         </tr>`;
     }).join('');
     updateSelectedCount();
 }
 
-function renderTitleCell(text, personKey, nameLabel, type, sessions) {
+function renderDetailCell(text, personKey, nameLabel, type, sessions) {
     if (!text) {
-        return '<td class="session-cell"></td>';
+        return '<td class="col-narrow-detail session-cell"></td>';
     }
-    const hasDetail = (sessions || []).some((s) => s[type === 'session' ? 'session_title' : 'presentation_title']);
-    if (!hasDetail) {
-        return `<td class="session-cell" title="${escapeHtml(text)}">${escapeHtml(text)}</td>`;
-    }
-    const label = type === 'session' ? '세션 제목' : '발표 제목';
-    return `<td class="session-cell session-cell-clickable"
+    const label = DETAIL_COLUMN_LABELS[type] || '내용';
+    return `<td class="col-narrow-detail session-cell session-cell-clickable"
         data-person-key="${personKey}"
         data-person-name="${nameLabel}"
         data-title-type="${type}"
@@ -344,10 +355,20 @@ function openTitleModal(personKey, personName, type) {
     const subtitle = document.getElementById('titleModalPersonName');
     const body = document.getElementById('titleModalBody');
 
-    const isSession = type === 'session';
-    heading.textContent = isSession ? '세션 제목' : '발표 제목';
+    heading.textContent = DETAIL_COLUMN_LABELS[type] || '상세 내용';
     subtitle.textContent = personName || '';
-    body.innerHTML = buildTitleModalHtml(person ? person.sessions : [], type);
+
+    if (type === 'profile') {
+        const profileText = person ? (person['프로필'] || '') : '';
+        body.innerHTML = profileText
+            ? `<div class="title-modal-text">${escapeHtml(profileText)}</div>`
+            : '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
+    } else {
+        const fallbackText = type === 'session'
+            ? (person?.session_titles || '')
+            : (person?.presentation_titles || '');
+        body.innerHTML = buildTitleModalHtml(person ? person.sessions : [], type, fallbackText);
+    }
 
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
@@ -373,11 +394,14 @@ function formatRoleContext(session) {
     return parts.length ? ` (${parts.join('·')})` : '';
 }
 
-function buildTitleModalHtml(sessions, type) {
+function buildTitleModalHtml(sessions, type, fallbackText = '') {
     const field = type === 'session' ? 'session_title' : 'presentation_title';
     const items = (sessions || []).filter((s) => s[field]);
 
     if (!items.length) {
+        if (fallbackText) {
+            return `<div class="title-modal-text">${escapeHtml(fallbackText)}</div>`;
+        }
         return '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
     }
 

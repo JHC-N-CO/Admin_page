@@ -2217,6 +2217,8 @@ function renderSessions() {
     } else {
         excelViewState.initialized = false;
     }
+
+    updateRegisterProgramPeopleButton();
 }
 
 // 툴팁 관련 함수들
@@ -3865,88 +3867,82 @@ function exportProgram() {
         alert('내보낼 세션 데이터가 없습니다.');
         return;
     }
-    if (typeof XLSX === 'undefined') {
-        alert('엑셀 라이브러리를 불러오지 못했습니다. 네트워크 상태를 확인한 후 다시 시도해주세요.');
-        return;
-    }
     openExportSettingsModal();
 }
 
 function exportChairsSpeakers() {
-    if (!sessions || sessions.length === 0) {
-        alert('내보낼 세션 데이터가 없습니다.');
-        return;
-    }
     const eventId = document.body.getAttribute('data-event-id');
     if (!eventId) {
         alert('이벤트 ID를 찾을 수 없습니다.');
         return;
     }
+    closeExportSettingsModal();
     window.location.href = `/api/event_program/${eventId}/chairs_speakers_excel`;
 }
 
-// 엑셀 내보내기 설정 모달 열기
+function updateExportFormatOptions() {
+    const selectedFormat = document.querySelector('input[name="exportFormat"]:checked')?.value || 'rows';
+    const rowOptions = document.getElementById('rowFormatOptions');
+    const calendarOptions = document.getElementById('calendarFormatOptions');
+    const chairsSpeakersOptions = document.getElementById('chairsSpeakersFormatOptions');
+
+    if (rowOptions) {
+        rowOptions.style.display = selectedFormat === 'rows' ? 'block' : 'none';
+    }
+    if (calendarOptions) {
+        calendarOptions.style.display = selectedFormat === 'calendar' ? 'block' : 'none';
+    }
+    if (chairsSpeakersOptions) {
+        chairsSpeakersOptions.style.display = selectedFormat === 'chairs_speakers' ? 'block' : 'none';
+    }
+
+    const calendarDetailColorOption = document.getElementById('calendarDetailColorOption');
+    const calendarSimpleColorOption = document.getElementById('calendarSimpleColorOption');
+    const selectedDetail = document.querySelector('input[name="calendarDetailLevel"]:checked');
+
+    if (calendarDetailColorOption) {
+        if (selectedFormat === 'calendar' && selectedDetail && selectedDetail.value === 'speaker') {
+            calendarDetailColorOption.style.display = 'block';
+        } else {
+            calendarDetailColorOption.style.display = 'none';
+            const applyColorsCheckbox = document.getElementById('calendarDetailedApplySessionColors');
+            if (applyColorsCheckbox) {
+                applyColorsCheckbox.checked = false;
+            }
+        }
+    }
+
+    if (calendarSimpleColorOption) {
+        if (selectedFormat === 'calendar' && selectedDetail && selectedDetail.value === 'session') {
+            calendarSimpleColorOption.style.display = 'block';
+        } else {
+            calendarSimpleColorOption.style.display = 'none';
+            const applyColorsCheckbox = document.getElementById('calendarSimpleApplySessionColors');
+            if (applyColorsCheckbox) {
+                applyColorsCheckbox.checked = false;
+            }
+        }
+    }
+}
+
+// 엑셀보내기 설정 모달 열기
 function openExportSettingsModal() {
     const modal = document.getElementById('exportSettingsModal');
     modal.style.display = 'flex';
-    
-    // 형식 선택 라디오 버튼 이벤트 리스너
+
     const formatRadios = document.getElementsByName('exportFormat');
     formatRadios.forEach(radio => {
-        radio.addEventListener('change', function() {
-            const rowOptions = document.getElementById('rowFormatOptions');
-            const calendarOptions = document.getElementById('calendarFormatOptions');
-            
-            if (this.value === 'rows') {
-                rowOptions.style.display = 'block';
-                calendarOptions.style.display = 'none';
-            } else {
-                rowOptions.style.display = 'none';
-                calendarOptions.style.display = 'block';
-            }
-        });
+        radio.removeEventListener('change', updateExportFormatOptions);
+        radio.addEventListener('change', updateExportFormatOptions);
     });
 
-    // 캘린더 추가 옵션 표시 제어
     const detailRadios = document.getElementsByName('calendarDetailLevel');
-    const calendarDetailColorOption = document.getElementById('calendarDetailColorOption');
-    const calendarSimpleColorOption = document.getElementById('calendarSimpleColorOption');
-
-    const updateCalendarDetailOptions = () => {
-        const selectedDetail = document.querySelector('input[name="calendarDetailLevel"]:checked');
-        
-        // 세부 캘린더 색상 옵션
-        if (calendarDetailColorOption) {
-            if (selectedDetail && selectedDetail.value === 'speaker') {
-                calendarDetailColorOption.style.display = 'block';
-            } else {
-                calendarDetailColorOption.style.display = 'none';
-                const applyColorsCheckbox = document.getElementById('calendarDetailedApplySessionColors');
-                if (applyColorsCheckbox) {
-                    applyColorsCheckbox.checked = false;
-                }
-            }
-        }
-        
-        // 일반 캘린더 색상 옵션
-        if (calendarSimpleColorOption) {
-            if (selectedDetail && selectedDetail.value === 'session') {
-                calendarSimpleColorOption.style.display = 'block';
-            } else {
-                calendarSimpleColorOption.style.display = 'none';
-                const applyColorsCheckbox = document.getElementById('calendarSimpleApplySessionColors');
-                if (applyColorsCheckbox) {
-                    applyColorsCheckbox.checked = false;
-                }
-            }
-        }
-    };
-
     detailRadios.forEach(radio => {
-        radio.addEventListener('change', updateCalendarDetailOptions);
+        radio.removeEventListener('change', updateExportFormatOptions);
+        radio.addEventListener('change', updateExportFormatOptions);
     });
 
-    updateCalendarDetailOptions();
+    updateExportFormatOptions();
 }
 
 // 엑셀 내보내기 설정 모달 닫기
@@ -4034,6 +4030,75 @@ function resolveProgramPersonContact(entity) {
         country: pickFirstNonEmpty([entity.country, info?.country]),
         country_code: pickFirstNonEmpty([entity.country_code, info?.country_code]),
         poolRef: entity.poolRef || entity.pool_id || info?.pool_id || ''
+    };
+}
+
+/** 행/엑셀 뷰보내기용 좌장·연자 필드 (참가자 DB + 인물 풀 + 세션 객체) */
+function buildExportPersonFields(entity) {
+    const empty = {
+        nameKor: '',
+        nameEng: '',
+        country: '',
+        affiliation: '',
+        affiliationEng: '',
+        email: '',
+        phone: '',
+        departmentEng: '',
+        position: ''
+    };
+    if (!entity) return empty;
+
+    const participantId = entity.participantId ?? entity.id;
+    const participantInfo = (participantId && Number(participantId) > 0)
+        ? getParticipantInfo(participantId)
+        : null;
+    const contact = resolveProgramPersonContact(entity);
+
+    if (participantInfo) {
+        return {
+            nameKor: pickFirstNonEmpty([participantInfo.name_kor, contact?.name_kor, entity.name_kor, entity.name]),
+            nameEng: pickFirstNonEmpty([participantInfo.name_eng, contact?.name_eng, getPreferredNameForEntity(entity, 'eng')]),
+            country: pickFirstNonEmpty([participantInfo.country, contact?.country, entity.country]),
+            affiliation: pickFirstNonEmpty([
+                participantInfo.affiliation_eng,
+                participantInfo.affiliation_kor,
+                contact?.affiliation,
+                entity.affiliation_eng,
+                entity.affiliation_kor,
+                entity.affiliation
+            ]),
+            affiliationEng: pickFirstNonEmpty([participantInfo.affiliation_eng, entity.affiliation_eng, contact?.affiliation]),
+            email: pickFirstNonEmpty([participantInfo.email, contact?.email, entity.email]),
+            phone: pickFirstNonEmpty([participantInfo.phone, entity.phone]),
+            departmentEng: pickFirstNonEmpty([participantInfo.department_eng, entity.department_eng, contact?.department]),
+            position: pickFirstNonEmpty([participantInfo.position, entity.position])
+        };
+    }
+
+    if (contact) {
+        return {
+            nameKor: contact.name_kor || entity.name_kor || entity.name || '',
+            nameEng: getPreferredNameForEntity(entity, 'eng') || contact.name_eng || '',
+            country: contact.country || entity.country || '',
+            affiliation: contact.affiliation || entity.affiliation_kor || entity.affiliation || '',
+            affiliationEng: entity.affiliation_eng || '',
+            email: contact.email || entity.email || '',
+            phone: entity.phone || '',
+            departmentEng: entity.department_eng || contact.department || '',
+            position: entity.position || ''
+        };
+    }
+
+    return {
+        nameKor: entity.name_kor || entity.name || '',
+        nameEng: getPreferredNameForEntity(entity, 'eng'),
+        country: entity.country || '',
+        affiliation: entity.affiliation_kor || entity.affiliation || '',
+        affiliationEng: entity.affiliation_eng || '',
+        email: entity.email || '',
+        phone: entity.phone || '',
+        departmentEng: entity.department_eng || '',
+        position: entity.position || ''
     };
 }
 
@@ -4128,6 +4193,8 @@ function buildProgramSpeakerSlot(person, sessionFields = {}) {
         department_kor: person.department_kor || '',
         department_eng: person.department_eng || '',
         country: person.country || '',
+        country_code: person.country_code || '',
+        position: person.position || '',
         poolRef: person.poolRef || person.pool_id || '',
         poolSource: person.poolSource || person.source || '',
         isPoolReference: Boolean(person.isPoolReference),
@@ -4339,80 +4406,16 @@ function generateRowExportData(overrides = null) {
         
         if (session.chairs && session.chairs.length > 0) {
             for (const chair of session.chairs) {
-                const chairId = chair.id || chair.participantId;
-                const chairInfo = getParticipantInfo(chairId);
-                
-                const chairData = {
-                    nameKor: '',
-                    nameEng: '',
-                    country: '',
-                    affiliation: '',
-                    affiliationEng: '',
-                    email: '',
-                    phone: '',
-                    departmentEng: '',
-                    position: ''
-                };
-                
-                if (chairInfo) {
-                    chairData.nameKor = chairInfo.name_kor || '';
-                    chairData.nameEng = chairInfo.name_eng || '';
-                    chairData.country = chairInfo.country || '';
-                    chairData.affiliation = chairInfo.affiliation_eng || chairInfo.affiliation_kor || '';
-                    chairData.affiliationEng = chairInfo.affiliation_eng || '';
-                    chairData.email = chairInfo.email || '';
-                    chairData.phone = chairInfo.phone || '';
-                    chairData.departmentEng = chairInfo.department_eng || '';
-                    chairData.position = chairInfo.position || '';
-                } else {
-                    chairData.nameKor = chair.name_kor || chair.name || '';
-                    chairData.nameEng = getPreferredNameForEntity(chair, 'eng');
-                    chairData.country = chair.country || '';
-                    chairData.email = chair.email || '';
-                }
-                
-                chairsData.push(chairData);
+                chairsData.push(buildExportPersonFields(chair));
             }
+        } else if (session.chairId || session.chair) {
+            chairsData.push(buildExportPersonFields({
+                participantId: session.chairId,
+                id: session.chairId,
+                name: session.chair
+            }));
         } else {
-            const chairInfo = getParticipantInfo(session.chairId);
-            if (chairInfo) {
-                chairsData.push({
-                    nameKor: chairInfo.name_kor || '',
-                    nameEng: chairInfo.name_eng || '',
-                    country: chairInfo.country || '',
-                    affiliation: chairInfo.affiliation_eng || chairInfo.affiliation_kor || '',
-                    affiliationEng: chairInfo.affiliation_eng || '',
-                    email: chairInfo.email || '',
-                    phone: chairInfo.phone || '',
-                    departmentEng: chairInfo.department_eng || '',
-                    position: chairInfo.position || ''
-                });
-            } else if (session.chair) {
-                chairsData.push({
-                    nameKor: session.chair || '',
-                    nameEng: '',
-                    country: '',
-                    affiliation: '',
-                    affiliationEng: '',
-                    email: '',
-                    phone: '',
-                    departmentEng: '',
-                    position: ''
-                });
-            } else {
-                // 좌장이 없는 경우 빈 좌장 데이터 추가
-                chairsData.push({
-                    nameKor: '',
-                    nameEng: '',
-                    country: '',
-                    affiliation: '',
-                    affiliationEng: '',
-                    email: '',
-                    phone: '',
-                    departmentEng: '',
-                    position: ''
-                });
-            }
+            chairsData.push(buildExportPersonFields(null));
         }
         
         // 발표자 정보를 배열로 저장 (각 발표자별로 분리)
@@ -4420,40 +4423,13 @@ function generateRowExportData(overrides = null) {
         
         if (session.speakers && session.speakers.length > 0) {
             for (const speaker of session.speakers) {
-                const speakerInfo = getParticipantInfo(speaker.participantId);
-                
                 const speakerData = {
-                    nameKor: '',
-                    nameEng: '',
-                    country: '',
-                    affiliation: '',
-                    affiliationEng: '',
-                    email: '',
-                    phone: '',
-                    departmentEng: '',
-                    position: '',
+                    ...buildExportPersonFields(speaker),
                     topic: speaker.topic || '',
                     time: speaker.startTime && speaker.endTime
                         ? `${speaker.startTime}-${speaker.endTime}`
                         : ''
                 };
-                
-                if (speakerInfo) {
-                    speakerData.nameKor = speakerInfo.name_kor || '';
-                    speakerData.nameEng = speakerInfo.name_eng || '';
-                    speakerData.country = speakerInfo.country || '';
-                    speakerData.affiliation = speakerInfo.affiliation_eng || speakerInfo.affiliation_kor || '';
-                    speakerData.affiliationEng = speakerInfo.affiliation_eng || '';
-                    speakerData.email = speakerInfo.email || '';
-                    speakerData.phone = speakerInfo.phone || '';
-                    speakerData.departmentEng = speakerInfo.department_eng || '';
-                    speakerData.position = speakerInfo.position || '';
-                } else {
-                    speakerData.nameKor = speaker.name_kor || speaker.name || '';
-                    speakerData.nameEng = getSpeakerDisplayName(speaker, 'eng');
-                    speakerData.country = speaker.country || '';
-                }
-                
                 speakersData.push(speakerData);
             }
         } else {
@@ -4693,51 +4669,59 @@ function setViewMode(mode) {
 function refreshExcelViewData(forceRegenerate = false) {
     const excelContainer = document.getElementById('excelViewContainer');
     if (!excelContainer) return;
-    
-    try {
-        if (!excelViewState.initialized || forceRegenerate) {
-            // 캘린더 뷰와 동일한 세션 번호를보내기 데이터에 반영
-            if (typeof assignSessionNumbers === 'function' && Array.isArray(sessions) && sessions.length > 0) {
-                assignSessionNumbers();
+
+    const runRefresh = () => {
+        try {
+            if (!excelViewState.initialized || forceRegenerate) {
+                // 캘린더 뷰와 동일한 세션 번호를보내기 데이터에 반영
+                if (typeof assignSessionNumbers === 'function' && Array.isArray(sessions) && sessions.length > 0) {
+                    assignSessionNumbers();
+                }
+                // 엑셀 뷰에서는 모든 컬럼을 포함하도록 설정
+                const allColumnsSettings = {
+                    date: true,
+                    sessionType: true,
+                    sessionAbbr: true,
+                    sessionTitle: true,
+                    venue: true,
+                    sessionTime: true,
+                    chairName: true,
+                    chairCountry: true,
+                    chairAffiliation: true,
+                    chairEmail: true,
+                    chairPhone: true,
+                    chairAffiliationEng: true,
+                    chairDepartmentEng: true,
+                    chairPosition: true,
+                    speakerName: true,
+                    speakerCountry: true,
+                    speakerAffiliation: true,
+                    speakerEmail: true,
+                    speakerPhone: true,
+                    speakerAffiliationEng: true,
+                    speakerDepartmentEng: true,
+                    speakerPosition: true,
+                    speakerTopic: true,
+                    speakerTime: true
+                };
+                const { headers, rows, exportSettings } = generateRowExportData(allColumnsSettings);
+                excelViewState.headers = headers;
+                excelViewState.rows = rows;
+                excelViewState.exportSettings = exportSettings;
+                excelViewState.initialized = true;
             }
-            // 엑셀 뷰에서는 모든 컬럼을 포함하도록 설정
-            const allColumnsSettings = {
-                date: true,
-                sessionType: true,
-                sessionAbbr: true,
-                sessionTitle: true,
-                venue: true,
-                sessionTime: true,
-                chairName: true,
-                chairCountry: true,
-                chairAffiliation: true,
-                chairEmail: true,
-                chairPhone: true,
-                chairAffiliationEng: true,
-                chairDepartmentEng: true,
-                chairPosition: true,
-                speakerName: true,
-                speakerCountry: true,
-                speakerAffiliation: true,
-                speakerEmail: true,
-                speakerPhone: true,
-                speakerAffiliationEng: true,
-                speakerDepartmentEng: true,
-                speakerPosition: true,
-                speakerTopic: true,
-                speakerTime: true
-            };
-            const { headers, rows, exportSettings } = generateRowExportData(allColumnsSettings);
-            excelViewState.headers = headers;
-            excelViewState.rows = rows;
-            excelViewState.exportSettings = exportSettings;
-            excelViewState.initialized = true;
+            applyExcelViewFilters();
+        } catch (error) {
+            console.error('❌ Error refreshing Excel view:', error);
+            excelViewState.initialized = false;
+            showExcelViewError('엑셀 뷰 데이터를 불러오는 중 문제가 발생했습니다.');
         }
-        applyExcelViewFilters();
-    } catch (error) {
-        console.error('❌ Error refreshing Excel view:', error);
-        excelViewState.initialized = false;
-        showExcelViewError('엑셀 뷰 데이터를 불러오는 중 문제가 발생했습니다.');
+    };
+
+    if (typeof loadParticipants === 'function') {
+        loadParticipants().then(runRefresh).catch(runRefresh);
+    } else {
+        runRefresh();
     }
 }
 
@@ -5103,11 +5087,19 @@ function showExcelViewError(message) {
 
 // 실제 엑셀 내보내기 수행
 function performExport() {
-    // 선택된 형식 확인
     const selectedFormat = document.querySelector('input[name="exportFormat"]:checked').value;
-    
+
+    if (selectedFormat === 'chairs_speakers') {
+        exportChairsSpeakers();
+        return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+        alert('엑셀 라이브러리를 불러오지 못했습니다. 네트워크 상태를 확인한 후 다시 시도해주세요.');
+        return;
+    }
+
     if (selectedFormat === 'calendar') {
-        // 캘린더 세부화 수준 확인
         const detailLevelElement = document.querySelector('input[name="calendarDetailLevel"]:checked');
         const detailLevel = detailLevelElement ? detailLevelElement.value : 'session';
         exportProgramCalendar(detailLevel);
@@ -6362,13 +6354,9 @@ function buildSearchablePeople() {
         people.push(m);
     });
 
-    const memberEmails = new Set(
-        personPoolMembers.map((m) => (m.email || '').toLowerCase()).filter(Boolean)
-    );
-
     personPoolHistory.forEach((h) => {
         const email = (h.email || '').toLowerCase();
-        if (email && (participantEmails.has(email) || memberEmails.has(email))) {
+        if (email && participantEmails.has(email)) {
             return;
         }
         people.push(h);
@@ -6418,6 +6406,11 @@ function resolvePersonForProgram(person) {
         affiliation: person.affiliation || person.affiliation_kor || '',
         affiliation_kor: person.affiliation_kor || '',
         affiliation_eng: person.affiliation_eng || '',
+        department_kor: person.department_kor || '',
+        department_eng: person.department_eng || '',
+        country: person.country || '',
+        country_code: person.country_code || '',
+        position: person.position || '',
         phone: person.phone || '',
         poolSource: person.source || 'pool',
         poolRef: person.pool_id || '',
@@ -6426,7 +6419,7 @@ function resolvePersonForProgram(person) {
 }
 
 /** 수동 좌장/연자 선택: 회원·역대 명단 → 이 행사 참가자로 등록 */
-async function ensureEventParticipant(person) {
+async function ensureEventParticipant(person, options = {}) {
     if (!person) {
         return person;
     }
@@ -6436,7 +6429,14 @@ async function ensureEventParticipant(person) {
     }
 
     const eventId = document.body.getAttribute('data-event-id');
-    const payload = { source: person.source };
+    const payload = {
+        source: person.source,
+        from_program_register: true,
+        registration: '사전등록',
+        role: options.role || person.program_role || person.role || '',
+        country: person.country || '',
+        country_code: person.country_code || '',
+    };
 
     if (person.source === 'member') {
         payload.member_id = person.member_id || Number(String(person.pool_id).replace('member:', ''));
@@ -6482,6 +6482,349 @@ async function ensureEventParticipant(person) {
     }
 
     return resolved;
+}
+
+function getProgramPersonDisplayName(entity) {
+    if (!entity) return '';
+    return (entity.name_kor || entity.name_eng || entity.name || '').trim();
+}
+
+function getProgramPersonRegistrationKey(entity) {
+    const poolRef = entity.poolRef || entity.pool_id;
+    if (poolRef) return String(poolRef);
+    const email = (entity.email || '').trim().toLowerCase();
+    if (email) return `email:${email}`;
+    const name = getProgramPersonDisplayName(entity);
+    if (name) return `name:${name}`;
+    return '';
+}
+
+function needsProgramPersonRegistration(entity) {
+    if (!entity || entity.isSpecialKeyword) return false;
+
+    const name = getProgramPersonDisplayName(entity);
+    if (!name) return false;
+
+    const participantId = Number(entity.participantId ?? entity.id ?? 0);
+    const poolRef = String(entity.poolRef || entity.pool_id || '');
+    const poolSource = entity.poolSource || entity.source || '';
+
+    if (participantId > 0 && !entity.isPoolReference && !poolRef) {
+        return false;
+    }
+
+    if (entity.isTemporary && !poolRef && poolSource !== 'history' && poolSource !== 'member') {
+        return false;
+    }
+
+    if (poolRef.startsWith('history:') || poolRef.startsWith('member:')) {
+        return true;
+    }
+    if (poolSource === 'history' || poolSource === 'member') {
+        return true;
+    }
+    if (entity.isPoolReference && poolRef) {
+        return true;
+    }
+
+    return false;
+}
+
+function iterProgramSessionPeople(session) {
+    const items = [];
+    if (Array.isArray(session.chairs) && session.chairs.length > 0) {
+        session.chairs.forEach((chair) => items.push({ entity: chair, role: '좌장' }));
+    } else if (session.chairId || session.chair) {
+        items.push({
+            entity: {
+                participantId: session.chairId,
+                id: session.chairId,
+                name: session.chair,
+            },
+            role: '좌장',
+        });
+    }
+    if (Array.isArray(session.speakers)) {
+        session.speakers.forEach((speaker) => items.push({ entity: speaker, role: '연자' }));
+    }
+    return items;
+}
+
+function collectProgramPeoplePendingRegistration() {
+    const unique = new Map();
+
+    sessions.forEach((session) => {
+        iterProgramSessionPeople(session).forEach(({ entity, role }) => {
+            if (!needsProgramPersonRegistration(entity)) return;
+
+            const key = getProgramPersonRegistrationKey(entity);
+            if (!key) return;
+
+            if (unique.has(key)) {
+                const existing = unique.get(key);
+                if (role && !existing.roles.includes(role)) {
+                    existing.roles.push(role);
+                    existing.role = existing.roles.join('/');
+                }
+                return;
+            }
+
+            const poolRef = entity.poolRef || entity.pool_id || '';
+            let sourceLabel = '프로그램';
+            if (poolRef.startsWith('history:') || entity.poolSource === 'history' || entity.source === 'history') {
+                sourceLabel = '역대 좌장/연자';
+            } else if (poolRef.startsWith('member:') || entity.poolSource === 'member' || entity.source === 'member') {
+                sourceLabel = '회원';
+            }
+
+            unique.set(key, {
+                key,
+                entity,
+                roles: [role],
+                role,
+                name: getProgramPersonDisplayName(entity),
+                email: entity.email || '',
+                affiliation: entity.affiliation_kor || entity.affiliation_eng || entity.affiliation || '',
+                country: entity.country || '',
+                country_code: entity.country_code || '',
+                sourceLabel,
+            });
+        });
+    });
+
+    return Array.from(unique.values());
+}
+
+function poolPersonFromProgramEntity(entity, programRole = '') {
+    const poolRef = entity.poolRef || entity.pool_id || '';
+    const cached = poolRef ? findPersonByPoolRef(poolRef) : null;
+    const base = cached ? { ...cached } : null;
+
+    const merged = base || (() => {
+        if (poolRef.startsWith('member:')) {
+            return {
+                ...entity,
+                source: 'member',
+                pool_id: poolRef,
+                member_id: Number(poolRef.replace('member:', '')),
+            };
+        }
+        if (poolRef.startsWith('history:')) {
+            return {
+                ...entity,
+                source: 'history',
+                pool_id: poolRef,
+                history_key: poolRef.replace('history:', ''),
+            };
+        }
+        if (entity.poolSource === 'member' || entity.source === 'member') {
+            return { ...entity, source: 'member' };
+        }
+        if (entity.poolSource === 'history' || entity.source === 'history') {
+            return { ...entity, source: 'history' };
+        }
+        return null;
+    })();
+
+    if (!merged) return null;
+
+    merged.program_role = programRole || merged.program_role || '';
+    merged.country = entity.country || merged.country || '';
+    merged.country_code = entity.country_code || merged.country_code || '';
+    return merged;
+}
+
+function mergeParticipantIntoProgramEntity(entity, resolved) {
+    const preserved = {};
+    ['topic', 'startTime', 'endTime', 'role'].forEach((field) => {
+        if (entity[field] !== undefined && entity[field] !== null && entity[field] !== '') {
+            preserved[field] = entity[field];
+        }
+    });
+    return buildProgramSpeakerSlot(resolved, preserved);
+}
+
+function applyParticipantResolutionToSessions(resolutionMap) {
+    sessions.forEach((session) => {
+        if (Array.isArray(session.chairs)) {
+            session.chairs = session.chairs.map((chair) => {
+                const key = getProgramPersonRegistrationKey(chair);
+                if (key && resolutionMap.has(key)) {
+                    return mergeParticipantIntoProgramEntity(chair, resolutionMap.get(key));
+                }
+                return chair;
+            });
+            if (session.chairs.length > 0) {
+                const primary = session.chairs[0];
+                session.chairId = primary.id || primary.participantId;
+                session.chair = session.chairs.map((c) => c.name || getProgramPersonDisplayName(c)).filter(Boolean).join(' / ');
+            }
+        }
+
+        if (Array.isArray(session.speakers)) {
+            session.speakers = session.speakers.map((speaker) => {
+                const key = getProgramPersonRegistrationKey(speaker);
+                if (key && resolutionMap.has(key)) {
+                    return mergeParticipantIntoProgramEntity(speaker, resolutionMap.get(key));
+                }
+                return speaker;
+            });
+        }
+    });
+}
+
+function updateRegisterProgramPeopleButton() {
+    const btn = document.getElementById('registerProgramPeopleBtn');
+    if (!btn) return;
+
+    const pending = collectProgramPeoplePendingRegistration();
+    if (pending.length > 0) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-user-plus"></i> 좌장·연자 참가자 등록 (${pending.length})`;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+function renderRegisterProgramPeoplePreview() {
+    const pending = collectProgramPeoplePendingRegistration();
+    const summary = document.getElementById('registerProgramPeopleSummary');
+    const list = document.getElementById('registerProgramPeopleList');
+
+    if (!summary || !list) return pending;
+
+    if (pending.length === 0) {
+        summary.textContent = '등록 대기 중인 좌장·연자가 없습니다.';
+        list.innerHTML = '<p style="padding: 16px; text-align: center; color: #999; margin: 0;">이미 참가자로 등록되었거나, 등록 가능한 인물이 없습니다.</p>';
+        return pending;
+    }
+
+    summary.textContent = `총 ${pending.length}명을 참가자로 등록합니다.`;
+    list.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+            <thead>
+                <tr style="background: #f8f9fa;">
+                    <th style="padding: 8px 10px; text-align: left;">이름</th>
+                    <th style="padding: 8px 10px; text-align: left;">역할</th>
+                    <th style="padding: 8px 10px; text-align: left;">출처</th>
+                    <th style="padding: 8px 10px; text-align: left;">이메일</th>
+                    <th style="padding: 8px 10px; text-align: left;">소속</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${pending.map((item) => `
+                    <tr style="border-top: 1px solid #eee;">
+                        <td style="padding: 8px 10px;">${item.name || '-'}</td>
+                        <td style="padding: 8px 10px;">${item.role || '-'}</td>
+                        <td style="padding: 8px 10px;"><span class="pool-source-badge">${item.sourceLabel}</span></td>
+                        <td style="padding: 8px 10px;">${item.email || '-'}</td>
+                        <td style="padding: 8px 10px;">${item.affiliation || '-'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    return pending;
+}
+
+function openRegisterProgramPeopleModal() {
+    const pending = renderRegisterProgramPeoplePreview();
+    if (pending.length === 0) {
+        alert('등록 대기 중인 좌장·연자가 없습니다.');
+        updateRegisterProgramPeopleButton();
+        return;
+    }
+
+    document.getElementById('registerProgramPeopleProgress').style.display = 'none';
+    document.getElementById('registerProgramPeopleResult').style.display = 'none';
+    document.getElementById('registerProgramPeopleConfirmBtn').disabled = false;
+
+    const modal = document.getElementById('registerProgramPeopleModal');
+    modal.style.display = 'block';
+    modal.style.zIndex = '10050';
+}
+
+function closeRegisterProgramPeopleModal() {
+    const modal = document.getElementById('registerProgramPeopleModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function registerAllProgramPeopleAsParticipants() {
+    const confirmBtn = document.getElementById('registerProgramPeopleConfirmBtn');
+    const progressWrap = document.getElementById('registerProgramPeopleProgress');
+    const progressBar = document.getElementById('registerProgramPeopleProgressBar');
+    const statusEl = document.getElementById('registerProgramPeopleStatus');
+    const resultEl = document.getElementById('registerProgramPeopleResult');
+
+    await loadParticipants();
+
+    const pending = collectProgramPeoplePendingRegistration();
+    if (pending.length === 0) {
+        alert('등록 대기 중인 좌장·연자가 없습니다.');
+        closeRegisterProgramPeopleModal();
+        updateRegisterProgramPeopleButton();
+        return;
+    }
+
+    confirmBtn.disabled = true;
+    progressWrap.style.display = 'block';
+    resultEl.style.display = 'none';
+    progressBar.style.width = '0%';
+
+    const resolutionMap = new Map();
+    const successes = [];
+    const failures = [];
+
+    for (let i = 0; i < pending.length; i++) {
+        const item = pending[i];
+        statusEl.textContent = `등록 중 (${i + 1}/${pending.length}): ${item.name}`;
+        progressBar.style.width = `${Math.round(((i + 1) / pending.length) * 100)}%`;
+
+        try {
+            const poolPerson = poolPersonFromProgramEntity(item.entity, item.role);
+            if (!poolPerson) {
+                throw new Error('등록 가능한 출처(역대 명단/회원) 정보가 없습니다.');
+            }
+            const resolved = await ensureEventParticipant(poolPerson, { role: item.role });
+            if (!resolved || Number(resolved.id) <= 0) {
+                throw new Error('참가자 등록에 실패했습니다.');
+            }
+            resolutionMap.set(item.key, resolved);
+            successes.push(item.name);
+        } catch (error) {
+            failures.push({ name: item.name, reason: error.message || String(error) });
+        }
+    }
+
+    if (resolutionMap.size > 0) {
+        applyParticipantResolutionToSessions(resolutionMap);
+        renderSessions();
+        saveProgram();
+    }
+
+    updateRegisterProgramPeopleButton();
+    progressWrap.style.display = 'none';
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = `
+        <div class="alert alert-success" style="margin-bottom: ${failures.length ? '12px' : '0'};">
+            <strong>등록 완료:</strong> ${successes.length}명
+            ${successes.length ? `<div style="margin-top: 6px; font-size: 13px;">${successes.join(', ')}</div>` : ''}
+        </div>
+        ${failures.length ? `
+            <div class="alert alert-danger" style="margin-bottom: 0;">
+                <strong>실패:</strong> ${failures.length}명
+                <ul style="margin: 8px 0 0 18px; font-size: 13px;">
+                    ${failures.map((f) => `<li>${f.name}: ${f.reason}</li>`).join('')}
+                </ul>
+            </div>
+        ` : ''}
+    `;
+
+    confirmBtn.disabled = false;
+    if (failures.length === 0) {
+        confirmBtn.innerHTML = '<i class="fas fa-check"></i> 완료';
+    }
 }
 
 // 참가자 검색 관련 변수
@@ -7481,144 +7824,138 @@ function updateSessionTypeDropdown(selectedValue = null) {
  */
 let duplicateNameSelections = new Map(); // Store user selections for duplicate names
 let currentDuplicateModal = null;
+let currentPersonConfirmResolve = null;
+
+function _normalizeSearchName(str) {
+    if (!str) return '';
+    return str.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function _fullyNormalizeSearchName(str) {
+    if (!str) return '';
+    return str.trim().toLowerCase().replace(/[\s.\-,]/g, '');
+}
+
+function personMatchesName(p, trimmedName) {
+    if (!trimmedName) return false;
+
+    const normalizedSearchName = _normalizeSearchName(trimmedName);
+    const fullyNormalizedSearch = _fullyNormalizeSearchName(trimmedName);
+    const isEnglish = /^[a-zA-Z\s.\-]+$/.test(trimmedName);
+    const isKorean = /[가-힣]/.test(trimmedName);
+
+    if (isEnglish) {
+        const engName = (p.name_eng || '').trim();
+        const firstName = (p.first_name || '').trim();
+        const familyName = (p.family_name || '').trim();
+        const fullName = `${firstName} ${familyName}`.trim();
+        const nameField = (p.name || '').trim();
+        const allEnglishNames = [engName, fullName, nameField].filter(n => n && /^[a-zA-Z\s.\-]+$/.test(n));
+
+        if (allEnglishNames.length === 0) {
+            return false;
+        }
+
+        for (const name of allEnglishNames) {
+            if (_normalizeSearchName(name) === normalizedSearchName) return true;
+        }
+        for (const name of allEnglishNames) {
+            if (_fullyNormalizeSearchName(name) === fullyNormalizedSearch) return true;
+        }
+
+        const searchParts = normalizedSearchName.split(' ').filter(part => part.length > 0);
+        if (searchParts.length >= 2) {
+            for (const nameToCheck of allEnglishNames) {
+                const normalized = _normalizeSearchName(nameToCheck);
+                const nameParts = normalized.split(' ').filter(part => part.length > 0);
+
+                if (searchParts.length === nameParts.length &&
+                    searchParts.every(part => nameParts.includes(part))) {
+                    return true;
+                }
+
+                if (searchParts.length < nameParts.length) {
+                    const namePartsWithoutMiddle = nameParts.filter(part =>
+                        part.length > 1 || !part.match(/^[a-z]\.?$/));
+                    if (searchParts.every(part => namePartsWithoutMiddle.includes(part))) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        for (const name of allEnglishNames) {
+            if (_fullyNormalizeSearchName(name).includes(fullyNormalizedSearch)) {
+                return true;
+            }
+        }
+    } else if (isKorean) {
+        const korName = (p.name_kor || '').trim();
+        const nameField = (p.name || '').trim();
+
+        if (korName === trimmedName) return true;
+        if (nameField === trimmedName && /[가-힣]/.test(nameField)) return true;
+        if (korName && korName.includes(trimmedName)) return true;
+    } else {
+        const allNames = [
+            p.name_kor, p.name_eng, p.name,
+            p.first_name, p.family_name,
+            `${p.first_name} ${p.family_name}`.trim()
+        ].filter(Boolean);
+
+        return allNames.some(n => {
+            const normalized = n.trim().toLowerCase();
+            return normalized === trimmedName.toLowerCase() || normalized.includes(trimmedName.toLowerCase());
+        });
+    }
+    return false;
+}
+
+function findPeopleInList(people, name) {
+    if (!name || !name.trim()) return [];
+    const trimmedName = name.trim();
+    return people.filter(p => personMatchesName(p, trimmedName));
+}
+
+function getEventParticipantsForSearch() {
+    return participants.map((p) => ({
+        ...p,
+        source: p.source || 'participant',
+        pool_id: p.pool_id || `participant:${p.id}`,
+    }));
+}
+
+function findParticipantsByNamePrioritized(name) {
+    const history = findPeopleInList(personPoolHistory, name);
+    const members = findPeopleInList(personPoolMembers, name);
+    const eventPeople = findPeopleInList(getEventParticipantsForSearch(), name);
+    const seen = new Set();
+    const merged = [];
+
+    [...history, ...members, ...eventPeople].forEach((person) => {
+        const key = person.pool_id || String(person.id);
+        if (seen.has(key)) return;
+        seen.add(key);
+        merged.push(person);
+    });
+    return merged;
+}
 
 function findParticipantsByName(name) {
     if (!name || !name.trim()) return [];
-    
+
     const trimmedName = name.trim();
-    
-    // 이름 정규화 함수: 대소문자 무시, 공백 정규화 (여러 공백을 하나로)
-    const normalizeName = (str) => {
-        if (!str) return '';
-        return str.trim().toLowerCase().replace(/\s+/g, ' ');
-    };
-    
-    // 이름을 완전히 정규화 (공백, 하이픈, 점 모두 제거)
-    const fullyNormalize = (str) => {
-        if (!str) return '';
-        return str.trim().toLowerCase().replace(/[\s\.\-,]/g, '');
-    };
-    
-    // 이름 정규화 (공백 정규화 포함)
-    const normalizedSearchName = normalizeName(trimmedName);
-    const fullyNormalizedSearch = fullyNormalize(trimmedName);
-    
-    console.log(`🔍 Searching for: "${trimmedName}" (normalized: "${normalizedSearchName}", fully: "${fullyNormalizedSearch}")`);
-    
-    // 한글/영문 구분 (영문은 영문자만, 한글은 한글 포함)
-    const isEnglish = /^[a-zA-Z\s\.\-]+$/.test(trimmedName);
-    const isKorean = /[가-힣]/.test(trimmedName);
-    
-    const results = buildSearchablePeople().filter(p => {
-        if (isEnglish) {
-            // 영문 검색이지만 한글 이름을 가진 참가자도 체크해야 함
-            // (예: "Ki hyung Lee" 검색 시 한글 이름 "이기형"의 name_eng도 매칭)
-            // 영문 이름 검색: name_eng, first_name, family_name, name (영문일 경우)
-            const engName = (p.name_eng || '').trim();
-            const firstName = (p.first_name || '').trim();
-            const familyName = (p.family_name || '').trim();
-            const fullName = `${firstName} ${familyName}`.trim();
-            const nameField = (p.name || '').trim();
-            
-            // 모든 영문 관련 필드들을 체크
-            const allEnglishNames = [engName, fullName, nameField].filter(n => n && /^[a-zA-Z\s\.\-]+$/.test(n));
-            
-            // 디버깅: 모든 참가자 정보 출력
-            console.log(`  👤 Participant: kor="${p.name_kor}", eng="${engName}", first="${firstName}", family="${familyName}", name="${nameField}"`);
-            
-            // 영문 필드가 없으면 false
-            if (allEnglishNames.length === 0) {
-                return false;
-            }
-            
-            // 1단계: 정규화된 이름으로 정확한 매칭 (대소문자 무시, 공백 정규화)
-            for (const name of allEnglishNames) {
-                if (normalizeName(name) === normalizedSearchName) {
-                    console.log(`  ✅ Exact match: "${name}"`);
-                    return true;
-                }
-            }
-            
-            // 2단계: 완전 정규화 매칭 (공백, 하이픈, 점 모두 무시)
-            for (const name of allEnglishNames) {
-                if (fullyNormalize(name) === fullyNormalizedSearch) {
-                    console.log(`  ✅ Fully normalized match: "${name}"`);
-                    return true;
-                }
-            }
-            
-            // 3단계: 미들 네임 무시 매칭 (예: "David Gonda" vs "David D. Gonda")
-            const searchParts = normalizedSearchName.split(' ').filter(p => p.length > 0);
-            if (searchParts.length >= 2) {
-                for (const nameToCheck of allEnglishNames) {
-                    const normalized = normalizeName(nameToCheck);
-                    const nameParts = normalized.split(' ').filter(p => p.length > 0);
-                    
-                    // 케이스 1: 정확히 같은 단어 수 (순서 무관)
-                    if (searchParts.length === nameParts.length &&
-                        searchParts.every(part => nameParts.includes(part))) {
-                        console.log(`  ✅ Word order match: "${nameToCheck}"`);
-                        return true;
-                    }
-                    
-                    // 케이스 2: 미들 네임 무시 (검색어가 DB 이름의 부분집합)
-                    // "David Gonda"가 "David D. Gonda"에 포함
-                    if (searchParts.length < nameParts.length) {
-                        // 미들 이니셜/네임 필터링 (1글자 또는 이니셜 형태)
-                        const namePartsWithoutMiddle = nameParts.filter(part => 
-                            part.length > 1 || !part.match(/^[a-z]\.?$/)
-                        );
-                        
-                        // 검색 단어들이 모두 포함되어 있는지 확인
-                        if (searchParts.every(part => namePartsWithoutMiddle.includes(part))) {
-                            console.log(`  ✅ Middle name ignored match: "${nameToCheck}" (without middle: ${namePartsWithoutMiddle.join(' ')})`);
-                            return true;
-                        }
-                    }
-                }
-            }
-            
-            // 4단계: 부분 매칭
-            for (const name of allEnglishNames) {
-                if (fullyNormalize(name).includes(fullyNormalizedSearch)) {
-                    console.log(`  ✅ Partial match: "${name}"`);
-                    return true;
-                }
-            }
-        } else if (isKorean) {
-            // 한글 이름 검색: name_kor, name (한글일 경우)
-            const korName = (p.name_kor || '').trim();
-            const nameField = (p.name || '').trim();
-            
-            // 정확한 매칭
-            if (korName === trimmedName) return true;
-            if (nameField === trimmedName && /[가-힣]/.test(nameField)) return true;
-            
-            // 부분 매칭
-            if (korName && korName.includes(trimmedName)) return true;
-        } else {
-            // 기타 (한글/영문 혼합 또는 숫자 등): 모든 필드 검색
-            const allNames = [
-                p.name_kor, p.name_eng, p.name, 
-                p.first_name, p.family_name,
-                `${p.first_name} ${p.family_name}`.trim()
-            ].filter(Boolean);
-            
-            return allNames.some(n => {
-                const normalized = n.trim().toLowerCase();
-                return normalized === trimmedName.toLowerCase() || normalized.includes(trimmedName.toLowerCase());
-            });
-        }
-        return false;
-    });
-    
+    console.log(`🔍 Searching for: "${trimmedName}"`);
+
+    const results = buildSearchablePeople().filter(p => personMatchesName(p, trimmedName));
+
     console.log(`✅ Found ${results.length} matches for "${trimmedName}"`);
     if (results.length > 0) {
         results.forEach((r, i) => {
-            console.log(`  ${i+1}. "${r.name_kor || r.name_eng || r.name}" (ID: ${r.id})`);
+            console.log(`  ${i + 1}. "${r.name_kor || r.name_eng || r.name}" (ID: ${r.id})`);
         });
     }
-    
+
     return results;
 }
 
@@ -7627,16 +7964,15 @@ function hasDuplicateNames(name) {
     return matches.length > 1;
 }
 
-function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, roleLabel = '발표자') {
-    const matches = findParticipantsByName(name);
+function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, roleLabel = '발표자', matches = null) {
+    const matchList = matches || findParticipantsByName(name);
     
-    if (matches.length <= 1) {
-        // No duplicates, proceed normally
-        callback(matches[0] || null);
+    if (matchList.length <= 1) {
+        callback(matchList[0] || null);
         return;
     }
     
-    console.log(`🔄 Found ${matches.length} participants with name "${name}"`);
+    console.log(`🔄 Found ${matchList.length} participants with name "${name}"`);
     
     // Remove any existing duplicate name modal
     const existingModal = document.getElementById('duplicateNameModal');
@@ -7666,9 +8002,9 @@ function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, role
                         세션: <strong>"${sessionTitle}"</strong><br>
                         ${roleLabel}: <strong>"${name}"</strong>${roleLabel === '발표자' ? ` (${roleDescription})` : ''}
                     </div>
-                    <p>아래에서 올바른 인물을 선택해주세요 (참가자 / 회원 / 역대 좌장·연자):</p>
+                    <p>아래에서 올바른 인물을 선택해주세요:</p>
                     <div class="duplicate-participants-list">
-                        ${matches.map((participant) => {
+                        ${matchList.map((participant) => {
                             const poolRef = encodeURIComponent(participant.pool_id || `participant:${participant.id}`);
                             const affiliation = participant.affiliation_kor || participant.affiliation_eng || participant.affiliation || '소속 정보 없음';
                             const sourceLabel = getPersonSourceLabel(participant);
@@ -7741,6 +8077,9 @@ function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, role
         callback: callback,
         roleLabel: roleLabel
     };
+
+    ensureModalOverlayVisible('duplicateNameModal', 10050);
+    setUploadStatusWaiting(`동명이인 선택 대기: ${name}`);
 }
 
 async function selectDuplicatePerson(poolRefEncoded, name, sessionTitle, speakerIndex, roleLabel = '발표자') {
@@ -7814,6 +8153,133 @@ function closeDuplicateNameModal() {
         modal.remove();
     }
     currentDuplicateModal = null;
+}
+
+let currentPersonConfirmPerson = null;
+
+function ensureModalOverlayVisible(modalId, zIndex = 10050) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.55)';
+    modal.style.zIndex = String(zIndex);
+    modal.style.display = 'flex';
+    modal.style.justifyContent = 'center';
+    modal.style.alignItems = 'center';
+}
+
+function setUploadStatusWaiting(message) {
+    const statusEl = document.getElementById('uploadStatus');
+    if (statusEl) {
+        statusEl.textContent = message;
+    }
+}
+
+function closePoolPersonConfirmModal() {
+    const modal = document.getElementById('poolPersonConfirmModal');
+    if (modal) {
+        modal.remove();
+    }
+    currentPersonConfirmResolve = null;
+    currentPersonConfirmPerson = null;
+}
+
+function confirmPoolPersonMatch(person, excelName, roleLabel, sessionTitle, sourceLabel) {
+    return new Promise((resolve) => {
+        closePoolPersonConfirmModal();
+
+        const displayName = person.name_kor || person.name_eng || person.name || excelName;
+        const affiliation = person.affiliation_kor || person.affiliation_eng || person.affiliation || '소속 정보 없음';
+        const email = person.email || '이메일 없음';
+
+        const modalHtml = `
+        <div id="poolPersonConfirmModal" class="modal-overlay" style="display: flex; z-index: 10000;">
+            <div class="modal-content" style="max-width: 520px;">
+                <div class="modal-header">
+                    <h3>인물 확인</h3>
+                    <button type="button" class="close-btn" onclick="rejectPoolPersonConfirm()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info" style="margin-bottom: 16px;">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>${sourceLabel}</strong> 명단에서 아래 인물을 찾았습니다.<br>
+                        세션: <strong>"${sessionTitle}"</strong> · ${roleLabel}: <strong>"${excelName}"</strong>
+                    </div>
+                    <div style="background: #f8f9fa; padding: 16px; border-radius: 6px; margin-bottom: 16px;">
+                        <div style="font-weight: 600; font-size: 16px; margin-bottom: 6px;">
+                            ${displayName} <span class="pool-source-badge">${sourceLabel}</span>
+                        </div>
+                        <div style="color: #666; font-size: 14px;">${email}</div>
+                        <div style="color: #666; font-size: 14px;">${affiliation}</div>
+                    </div>
+                    <p style="font-size: 14px; color: #555; margin-bottom: 0;">이 인물 정보를 사용하시겠습니까?</p>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 8px; justify-content: center; padding: 16px;">
+                    <button type="button" class="btn btn-primary" onclick="acceptPoolPersonConfirm()">사용</button>
+                    <button type="button" class="btn btn-secondary" onclick="rejectPoolPersonConfirm()">아니오 (직접 입력)</button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="skipPoolPersonConfirm()">건너뛰기</button>
+                </div>
+            </div>
+        </div>`;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        ensureModalOverlayVisible('poolPersonConfirmModal', 10050);
+        setUploadStatusWaiting(`인물 확인 대기 중: ${excelName} (${sourceLabel})`);
+        currentPersonConfirmResolve = resolve;
+        currentPersonConfirmPerson = person;
+    });
+}
+
+function acceptPoolPersonConfirm() {
+    const resolve = currentPersonConfirmResolve;
+    const person = currentPersonConfirmPerson;
+    closePoolPersonConfirmModal();
+    setUploadStatusWaiting('세션을 생성하는 중...');
+    if (resolve) resolve(person);
+}
+
+function rejectPoolPersonConfirm() {
+    const resolve = currentPersonConfirmResolve;
+    closePoolPersonConfirmModal();
+    setUploadStatusWaiting('세션을 생성하는 중...');
+    if (resolve) resolve(false);
+}
+
+function skipPoolPersonConfirm() {
+    const resolve = currentPersonConfirmResolve;
+    closePoolPersonConfirmModal();
+    setUploadStatusWaiting('세션을 생성하는 중...');
+    if (resolve) resolve('skip');
+}
+
+function promptPersonSelection(name, sessionTitle, speakerIndex, matches, roleLabel) {
+    return new Promise((resolve) => {
+        showDuplicateNameModal(name, sessionTitle, speakerIndex, (selectedParticipant) => {
+            resolve(selectedParticipant || null);
+        }, roleLabel, matches);
+    });
+}
+
+async function resolveMissingPersonForProgram(name, roleLabel, sessionTitle) {
+    const userChoice = await confirmAddMissingParticipant(name, roleLabel, sessionTitle);
+
+    if (userChoice === 'add') {
+        const participant = await showAddParticipantModal(name, roleLabel, sessionTitle);
+        return participant;
+    }
+    if (userChoice && typeof userChoice === 'object' && (userChoice.id || userChoice.participantId)) {
+        return resolvePersonForProgram(userChoice);
+    }
+    if (userChoice === 'skip') {
+        throw new Error(`"${name}" 참가자 추가를 건너뛰었습니다.`);
+    }
+    return null;
 }
 
 /**
@@ -8034,6 +8500,9 @@ async function processExcelUpload() {
             <strong>✅ 업로드 완료!</strong><br>
             총 ${result.created} 개의 세션이 생성되었습니다.<br>
             ${result.warnings.length > 0 ? `<br><strong>⚠️ 경고:</strong><br>${result.warnings.join('<br>')}` : ''}
+            <p style="margin: 12px 0 0; font-size: 13px; color: #555;">
+                좌장·연자를 참가자로 등록하려면 상단의 <strong>「좌장·연자 참가자 등록」</strong> 버튼을 사용하세요.
+            </p>
         `;
         
         if (result.errors.length > 0) {
@@ -8565,14 +9034,13 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
     console.log(`   isSpeaker flag: ${speaker.isSpeaker}`);
     console.log(`   isSpecialKeyword flag: ${speaker.isSpecialKeyword}`);
     
-    // 특수 키워드 또는 TBD 또는 빈 값은 참가자 검색 없이 바로 임시 참가자로 처리
     const name = speaker.name ? speaker.name.trim() : '';
+    const roleLabel = speaker.isSpeaker === false ? '좌장' : '발표자';
     
-    // 특수 키워드 체크 (Discussion, Q&A, Break 등)
     if (speaker.isSpecialKeyword || !name) {
         console.log(`🔖 Special keyword or blank detected: "${name}", creating non-participant entry`);
         const tempParticipantId = -(Date.now() + Math.random() * 1000);
-        const tempParticipant = {
+        return {
             participantId: tempParticipantId,
             id: tempParticipantId,
             name: name,
@@ -8581,86 +9049,79 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
             isTemporary: true,
             isSpecialKeyword: true
         };
-        console.log(`✅ Returning special keyword entry:`, tempParticipant);
-        return tempParticipant;
     }
-    
-    const matches = findParticipantsByName(speaker.name);
-    console.log(`🔍 Found ${matches.length} matches for "${speaker.name}"`);
-    
-    if (matches.length === 0) {
-        // 참가자 없음 - 사용자에게 확인
-        console.warn(`⚠️ Speaker not found: ${speaker.name} - Asking user`);
-        
-        const userChoice = await confirmAddMissingParticipant(
-            speaker.name,
-            speaker.isSpeaker !== false ? '발표자' : '좌장',  // isSpeaker가 명시적으로 false가 아니면 발표자로 처리
-            sessionTitle
-        );
-        
-        if (userChoice === 'add') {
-            // 참가자 추가 모달 표시
-            const participant = await showAddParticipantModal(
-                speaker.name,
-                speaker.isSpeaker !== false ? '발표자' : '좌장',  // isSpeaker가 명시적으로 false가 아니면 발표자로 처리
-                sessionTitle
-            );
-            console.log(`✅ Participant resolved:`, participant);
-            return participant;
-        } else if (userChoice && typeof userChoice === 'object' && userChoice.id) {
-            // 기존 인물 검색에서 선택한 경우 (프로그램에만 반영, 참가자 자동 등록 없음)
-            console.log(`🔍 User selected existing person from search:`, userChoice);
-            return resolvePersonForProgram(userChoice);
-        } else if (userChoice === 'skip') {
-            // 건너뛰기 - 업로드 취소
-            console.log(`⏭️ User chose to skip "${speaker.name}"`);
-            throw new Error(`"${speaker.name}" 참가자 추가를 건너뛰었습니다.`);
-        }
-    } else if (matches.length === 1) {
-        // 정확히 1명 - 프로그램에만 배치 (참가자 자동 등록 없음)
-        console.log(`✅ Found unique person: ${speaker.name}`);
-        const resolved = resolvePersonForProgram(matches[0]);
-        console.log(`✅ Returning program person:`, resolved);
+
+    // 1) 역대 좌장/연자 — 자동 매칭 (동명이인만 선택)
+    const historyMatches = findPeopleInList(personPoolHistory, name);
+    console.log(`🏛️ History matches for "${name}": ${historyMatches.length}`);
+    if (historyMatches.length === 1) {
+        const resolved = resolvePersonForProgram(historyMatches[0]);
+        console.log(`✅ Auto-matched from history:`, resolved);
         return resolved;
-    } else {
-        // 동명이인 - 사용자 선택 필요
-        console.log(`🔄 Found ${matches.length} participants with name "${speaker.name}" - showing selection modal`);
-        
-        // 현재 모달이 있으면 제거
-        const existingModal = document.getElementById('duplicateNameModal');
-        if (existingModal) {
-            console.log('🗑️ Removing existing modal before showing new one');
-            existingModal.remove();
-        }
-        
-        // Promise로 감싸서 await 가능하게 만듦
-        const roleLabel = speaker.isSpeaker === false ? '좌장' : '발표자';
-        const selectedParticipant = await new Promise((resolve) => {
-            showDuplicateNameModal(speaker.name, sessionTitle, speakerIndex, (selectedParticipant) => {
-                console.log(`🎯 Callback received for ${speaker.name}:`, selectedParticipant);
-                
-                if (selectedParticipant) {
-                    console.log(`✅ User selected participant: ${selectedParticipant.name} (ID: ${selectedParticipant.id})`);
-                    resolve(selectedParticipant);
-                } else {
-                    // 사용자가 선택하지 않음 - 임시 참가자로 추가
-                    console.warn(`⚠️ No participant selected for ${speaker.name} - Adding as temporary participant`);
-                    const tempParticipantId = -(Date.now() + Math.random() * 1000);
-                    const tempParticipant = {
-                        participantId: tempParticipantId,
-                        name: speaker.name,
-                        email: '',
-                        affiliation: '',
-                        isTemporary: true
-                    };
-                    console.log(`✅ Resolving with temporary participant:`, tempParticipant);
-                    resolve(tempParticipant);
-                }
-            }, roleLabel);
-        });
-        
-        return resolvePersonForProgram(selectedParticipant);
     }
+    if (historyMatches.length > 1) {
+        const selected = await promptPersonSelection(name, sessionTitle, speakerIndex, historyMatches, roleLabel);
+        if (!selected) {
+            const tempParticipantId = -(Date.now() + Math.random() * 1000);
+            return {
+                participantId: tempParticipantId,
+                id: tempParticipantId,
+                name,
+                email: '',
+                affiliation: '',
+                isTemporary: true
+            };
+        }
+        return resolvePersonForProgram(selected);
+    }
+
+    // 2) 회원 — 확인 후 사용
+    const memberMatches = findPeopleInList(personPoolMembers, name);
+    console.log(`👥 Member matches for "${name}": ${memberMatches.length}`);
+    if (memberMatches.length === 1) {
+        setUploadStatusWaiting(`회원 명단 확인 대기: ${name}`);
+        const confirmed = await confirmPoolPersonMatch(memberMatches[0], name, roleLabel, sessionTitle, '회원');
+        if (confirmed === 'skip') {
+            throw new Error(`"${name}" 처리를 건너뛰었습니다.`);
+        }
+        if (confirmed && typeof confirmed === 'object') {
+            return resolvePersonForProgram(confirmed);
+        }
+    } else if (memberMatches.length > 1) {
+        const selected = await promptPersonSelection(name, sessionTitle, speakerIndex, memberMatches, roleLabel);
+        if (!selected) {
+            throw new Error(`"${name}" 회원 선택을 건너뛰었습니다.`);
+        }
+        return resolvePersonForProgram(selected);
+    }
+
+    // 3) 이 행사 참가자 — 자동 (역대/회원에 없을 때)
+    const participantMatches = findPeopleInList(getEventParticipantsForSearch(), name);
+    console.log(`🎫 Event participant matches for "${name}": ${participantMatches.length}`);
+    if (participantMatches.length === 1) {
+        return resolvePersonForProgram(participantMatches[0]);
+    }
+    if (participantMatches.length > 1) {
+        const selected = await promptPersonSelection(name, sessionTitle, speakerIndex, participantMatches, roleLabel);
+        if (!selected) {
+            const tempParticipantId = -(Date.now() + Math.random() * 1000);
+            return {
+                participantId: tempParticipantId,
+                id: tempParticipantId,
+                name,
+                email: '',
+                affiliation: '',
+                isTemporary: true
+            };
+        }
+        return resolvePersonForProgram(selected);
+    }
+
+    // 4) 없음 — 직접 입력/검색
+    console.warn(`⚠️ Person not found in history/member/participants: ${name} - Asking user`);
+    const resolved = await resolveMissingPersonForProgram(name, roleLabel, sessionTitle);
+    console.log(`✅ Participant resolved:`, resolved);
+    return resolved;
 }
 
 async function createSessionsFromExcel(parsedSessions) {
@@ -9039,7 +9500,8 @@ function confirmAddMissingParticipant(name, role, sessionTitle) {
         // 확인 모달 표시
         const modal = document.getElementById('confirmMissingParticipantModal');
         modal.style.display = 'block';
-        modal.style.zIndex = '10000';
+        modal.style.zIndex = '10050';
+        setUploadStatusWaiting(`인물 입력/검색 대기: ${name}`);
         
         // 검색창에 포커스 (약간의 딜레이 후)
         setTimeout(() => {
@@ -9093,7 +9555,7 @@ function searchInConfirmModal() {
     }
     
     // 개선된 findParticipantsByName 함수 사용 (대소문자, 하이픈, 공백 무시)
-    const results = findParticipantsByName(searchTerm);
+    const results = findParticipantsByNamePrioritized(searchTerm);
     
     // 결과 정렬 (이름순)
     results.sort((a, b) => {

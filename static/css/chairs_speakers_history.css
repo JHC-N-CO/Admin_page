@@ -86,11 +86,13 @@
 }
 
 .history-table {
-    width: 100%;
-    border-collapse: collapse;
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 13px;
-    min-width: 1800px;
-    table-layout: fixed;
+    table-layout: auto;
+    --col-name-kor-width: 88px;
 }
 
 .history-table th,
@@ -102,6 +104,26 @@
     overflow: hidden;
     text-overflow: ellipsis;
     vertical-align: middle;
+}
+
+/* 긴 텍스트 열: 내용 기준 너비 + 상한 (영문 성명 제외) */
+.history-table th:not(.col-name-eng):not(.col-name-kor):not(.col-check):not(.year-col):not(.col-narrow-detail):not(.col-phone):not(.col-country),
+.history-table td:not(.col-name-eng):not(.col-name-kor):not(.col-check):not(.year-col):not(.col-narrow-detail):not(.col-phone):not(.col-country) {
+    max-width: 180px;
+}
+
+.history-table th.col-phone,
+.history-table td.col-phone {
+    width: 96px;
+    min-width: 96px;
+    max-width: 96px;
+}
+
+.history-table th.col-country,
+.history-table td.col-country {
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
 }
 
 .history-table th {
@@ -123,14 +145,60 @@
     background: #f8f9fa;
 }
 
-.year-col {
-    min-width: 140px;
-    width: 140px;
+.history-table tbody tr:hover td.col-sticky-name {
+    background: #f8f9fa;
 }
 
-.session-cell {
-    min-width: 220px;
-    width: 220px;
+.history-table th.col-name-kor,
+.history-table td.col-name-kor {
+    position: sticky;
+    left: 0;
+    width: var(--col-name-kor-width);
+    min-width: var(--col-name-kor-width);
+    max-width: var(--col-name-kor-width);
+    background: #fff;
+    z-index: 2;
+}
+
+.history-table th.col-name-kor {
+    z-index: 4;
+    background: #f7f8fa;
+}
+
+.history-table th.col-name-eng,
+.history-table td.col-name-eng {
+    position: sticky;
+    left: var(--col-name-kor-width);
+    width: fit-content;
+    min-width: 4.5em;
+    max-width: 200px;
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.35;
+    background: #fff;
+    z-index: 2;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.06);
+}
+
+.history-table th.col-name-eng {
+    z-index: 5;
+    background: #f7f8fa;
+}
+
+.year-col {
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
+}
+
+.session-cell,
+.history-table th.col-narrow-detail,
+.history-table td.col-narrow-detail {
+    width: 110px;
+    min-width: 110px;
+    max-width: 110px;
 }
 
 .session-cell-clickable {

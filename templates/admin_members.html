@@ -39,19 +39,19 @@
                     <div class="action-buttons">
                         <button type="button" class="secondary" onclick="openPopup('/add_member')">회원 추가</button>
                         <button type="button" class="secondary" onclick="openPopup('/upload_members')">회원 업로드</button>
-                        <button type="submit" class="secondary">선택 삭제</button>
                     </div>
                     <div class="table-actions">
                         <div class="search-box">
                             <input type="text" id="search-input" placeholder="검색...">
                         </div>
+                        <div class="table-toolbar-controls">
                         <div class="column-selector">
                             <button type="button" class="column-selector-btn" title="컬럼 설정">
                                 <i class="fas fa-cog"></i>
                             </button>
                             <div class="column-selector-dropdown">
                                 <div class="column-selector-header">표시할 컬럼 선택</div>
-                                <!-- 순서: 아이디, 성별, 성명(KOR), 성명(ENG), 이름(First Name), 성(Last Name), 이메일, 전화, 소속(ENG), 과(ENG), 소속(KOR), 과(KOR), 직위, 면허번호, 생년월일, 회원구분 -->
+                                <!-- 순서: 번호, 아이디, 성별, ... -->
                                 <div class="column-option">
                                     <input type="checkbox" id="col-username" data-column="username" checked>
                                     <label for="col-username">아이디</label>
@@ -127,7 +127,11 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="button" class="primary" onclick="exportMembers()">선택 다운로드</button>
+                        <div class="table-bulk-actions">
+                            <button type="button" class="primary" onclick="exportMembers()">선택 다운로드</button>
+                            <button type="submit" class="danger">선택 삭제</button>
+                        </div>
+                        </div>
                     </div>
                     <div class="table-container">
                         <div class="table-wrapper">
@@ -135,6 +139,7 @@
                             <thead>
                                 <tr>
                                     <th><input type="checkbox" id="select-all"></th>
+                                    <th class="col-row-number">번호</th>
                                     <th class="sortable" data-column="username" data-sort="username">아이디</th>
                                     <th class="sortable" data-column="gender" data-sort="gender">성별</th>
                                     <th class="sortable" data-column="name_kor" data-sort="name_kor">성명(KOR)</th>
@@ -158,6 +163,7 @@
                                 {% for member in members %}
                                 <tr data-id="{{ member.id }}">
                                     <td><input type="checkbox" name="selected_members" value="{{ member.id }}" class="row-checkbox"></td>
+                                    <td class="col-row-number row-number">{{ loop.index }}</td>
                                     <td data-column="username">{{ member.username }}</td>
                                     <td data-column="gender">{{ member.gender }}</td>
                                     <td data-column="name_kor">{{ member.name_kor }}</td>

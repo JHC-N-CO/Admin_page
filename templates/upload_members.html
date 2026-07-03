@@ -22,7 +22,7 @@
                 <h3>Excel 파일을 드래그하거나 클릭하여 업로드</h3>
                 <p>지원 형식: .xlsx, .xls, .csv</p>
                 <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
-                <button type="button" class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                <button type="button" class="upload-btn" id="selectFileBtn">
                     파일 선택
                 </button>
             </div>
@@ -47,6 +47,10 @@
                 <div class="instruction-item">
                     <i class="fas fa-info-circle"></i>
                     <span><strong>표준 16개 컬럼:</strong> 아이디, 성별, 성명(KOR), 성명(ENG), 이름(First Name), 성(Last Name), 이메일, 전화, 소속(ENG), 과(ENG), 소속(KOR), 과(KOR), 직위, 면허번호, 생년월일, 회원구분</span>
+                </div>
+                <div class="instruction-item">
+                    <i class="fas fa-info-circle"></i>
+                    <span><strong>번호 열:</strong> 맨 앞의 No./번호/연번 열은 표시용이며 업로드 시 자동으로 무시됩니다. 회원 목록 화면에는 1부터 자동 번호가 부여됩니다.</span>
                 </div>
                 <div class="instruction-item">
                     <i class="fas fa-check-circle"></i>
@@ -85,18 +89,24 @@
         </div>
         
         <div class="actions">
-            <button type="button" class="btn btn-secondary" onclick="window.close()">취소</button>
+            <button type="button" class="btn btn-secondary" id="cancelBtn" onclick="window.close()">취소</button>
             <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadMembers()" disabled>
                 <i class="fas fa-upload"></i>
                 업로드 시작
             </button>
         </div>
-        
-        <div class="progress-section" id="progressSection" style="display: none;">
-            <div class="progress-bar">
+
+        <div class="progress-section" id="progressSection" style="display: none;" aria-live="polite">
+            <div class="progress-header">
+                <i class="fas fa-spinner fa-spin progress-spinner"></i>
+                <h3 id="progressTitle">업로드 진행 중</h3>
+            </div>
+            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
-            <p class="progress-text" id="progressText">업로드 중...</p>
+            <p class="progress-text" id="progressText">파일을 서버로 전송하는 중...</p>
+            <p class="progress-elapsed" id="progressElapsed">경과 시간: 0초</p>
+            <p class="progress-hint">대량 파일은 1~3분 걸릴 수 있습니다. 창을 닫지 마세요.</p>
         </div>
         
         <div class="result-section" id="resultSection" style="display: none;">
@@ -112,10 +122,29 @@
                 <p><strong>성공:</strong> <span id="successCount">0</span>명</p>
                 <p><strong>실패:</strong> <span id="failureCount">0</span>명</p>
             </div>
+            <div class="result-errors" id="resultErrors" style="display: none;">
+                <h4>실패 내역</h4>
+                <div class="result-error-summary" id="resultErrorSummary"></div>
+                <ul class="result-error-list" id="resultErrorList"></ul>
+                <p class="result-error-more" id="resultErrorMore" style="display: none;"></p>
+            </div>
             <div class="result-actions">
                 <button type="button" class="btn btn-primary" onclick="goToMembersPage()">회원 관리로 이동</button>
                 <button type="button" class="btn btn-secondary" onclick="window.close()">닫기</button>
             </div>
+        </div>
+    </div>
+
+    <div class="upload-overlay" id="uploadOverlay" aria-hidden="true">
+        <div class="upload-overlay-card" role="status" aria-live="polite">
+            <i class="fas fa-spinner fa-spin progress-spinner"></i>
+            <h3>회원 업로드 진행 중</h3>
+            <div class="progress-bar">
+                <div class="progress-fill indeterminate" id="overlayProgressFill"></div>
+            </div>
+            <p class="progress-text" id="overlayStatus">파일을 서버로 전송하는 중...</p>
+            <p class="progress-elapsed" id="overlayElapsed">경과 시간: 0초</p>
+            <p class="progress-hint">처리가 끝날 때까지 창을 닫지 마세요.</p>
         </div>
     </div>
     

@@ -2024,6 +2024,30 @@ body {
     align-items: center !important;
 }
 
+#poolPersonConfirmModal.modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.55) !important;
+    z-index: 10050 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+}
+
+#poolPersonConfirmModal .modal-content {
+    background: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+    z-index: 10051 !important;
+    position: relative !important;
+    margin: 0 !important;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
 #duplicateNameModal .modal-content {
     background: white !important;
     border-radius: 8px !important;
@@ -2107,29 +2131,33 @@ body {
     margin-top: 2px;
 }
 
-/* 참가자 추가/검색 모달 z-index */
+/* 참가자 추가/검색 모달 z-index (업로드 중 확인 모달이 업로드 창 위에 표시되도록) */
 #confirmMissingParticipantModal {
-    z-index: 10000 !important;
+    z-index: 10050 !important;
 }
 
 #confirmMissingParticipantModal .modal-content {
-    z-index: 10001 !important;
+    z-index: 10051 !important;
 }
 
 #addParticipantModal {
-    z-index: 10002 !important;
+    z-index: 10052 !important;
 }
 
 #addParticipantModal .modal-content {
-    z-index: 10003 !important;
+    z-index: 10053 !important;
 }
 
 #excelParticipantSearchModal {
-    z-index: 10004 !important;
+    z-index: 10054 !important;
 }
 
 #excelParticipantSearchModal .modal-content {
-    z-index: 10005 !important;
+    z-index: 10055 !important;
+}
+
+#registerProgramPeopleModal {
+    z-index: 10050 !important;
 }
 
 /* 참가자 없음 확인 모달 버튼 스타일 */

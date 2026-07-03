@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initPagination();
     initBulkActions();
     initTooltips();
+    refreshRowNumbers();
 });
 
 function initColumnSelector() {
@@ -174,6 +175,21 @@ function updateBulkActions() {
     }
 }
 
+function refreshRowNumbers() {
+    const rows = document.querySelectorAll('#members-table tbody tr');
+    let number = 1;
+    rows.forEach(row => {
+        if (row.style.display === 'none') {
+            return;
+        }
+        const cell = row.querySelector('.row-number');
+        if (cell) {
+            cell.textContent = number;
+            number += 1;
+        }
+    });
+}
+
 function initSearchFunctionality() {
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
@@ -185,6 +201,7 @@ function initSearchFunctionality() {
                 const text = row.textContent.toLowerCase();
                 row.style.display = text.includes(searchTerm) ? '' : 'none';
             });
+            refreshRowNumbers();
         });
     }
 }
@@ -316,6 +333,7 @@ function sortTable(sortKey, direction) {
     
     // Reorder rows in the table
     rows.forEach(row => tbody.appendChild(row));
+    refreshRowNumbers();
 }
 
 // Export members function

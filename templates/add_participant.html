@@ -18,6 +18,24 @@
             {{ error }}
         </div>
         {% endif %}
+
+        <div class="person-lookup-section">
+            <h3><i class="fas fa-search"></i> 인물 검색</h3>
+            <p class="form-hint">회원 관리 · 역대 좌장/연자 명단에서 이름 또는 이메일로 검색해 폼에 불러올 수 있습니다.</p>
+            <div class="person-lookup-bar">
+                <input type="text" id="personLookupQuery" placeholder="이름 또는 이메일 (2글자 이상)" autocomplete="off">
+                <button type="button" id="personLookupBtn" class="btn-lookup">
+                    <i class="fas fa-search"></i> 검색
+                </button>
+            </div>
+            <div id="personLookupStatus" class="person-lookup-status" style="display: none;"></div>
+            <div id="personLookupResults" class="person-lookup-results" style="display: none;"></div>
+            <div id="selectedPersonSource" class="person-source-badge" style="display: none;">
+                <i class="fas fa-database"></i>
+                데이터 출처: <strong id="selectedPersonSourceLabel"></strong>
+                <button type="button" id="clearPersonLookup" class="link-btn">선택 해제</button>
+            </div>
+        </div>
         
         <form action="/add_participant/{{ event.id }}" method="post" enctype="multipart/form-data" onsubmit="submitForm(event)">
             

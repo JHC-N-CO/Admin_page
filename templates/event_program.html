@@ -86,16 +86,16 @@
                         <i class="fas fa-plus"></i> 세션 추가
                     </button>
                     <button type="button" class="btn btn-success" onclick="openExcelUploadModal()">
-                        <i class="fas fa-file-excel"></i> 엑셀 업로드
+                        <i class="fas fa-file-excel"></i> 프로그램 업로드
+                    </button>
+                    <button type="button" id="registerProgramPeopleBtn" class="btn btn-warning" onclick="openRegisterProgramPeopleModal()" style="display: none;" title="프로그램에만 배치된 좌장·연자를 이 행사 참가자로 일괄 등록">
+                        <i class="fas fa-user-plus"></i> 좌장·연자 참가자 등록
                     </button>
                     <button type="button" class="btn btn-secondary" onclick="saveProgram()">
                         <i class="fas fa-save"></i> 저장
                     </button>
                     <button type="button" class="btn btn-info" onclick="exportProgram()">
                         <i class="fas fa-download"></i> 내보내기
-                    </button>
-                    <button type="button" class="btn btn-info" onclick="exportChairsSpeakers()" title="좌장/연자 명단을 순서대로 내보냅니다 (이메일, 등록구분, CV/사진/PPT/Script 제출 여부 포함)">
-                        <i class="fas fa-users"></i> 좌장/연자 명단
                     </button>
                     <button type="button" class="btn btn-secondary" onclick="openDisplaySettingsModal()">
                         <i class="fas fa-cog"></i> 표시 설정
@@ -551,6 +551,38 @@
         </div>
     </div>
 
+    <!-- 좌장·연자 참가자 일괄 등록 모달 -->
+    <div id="registerProgramPeopleModal" class="modal">
+        <div class="modal-content" style="max-width: 640px;">
+            <div class="modal-header">
+                <h3>좌장·연자 참가자 등록</h3>
+                <span class="close" onclick="closeRegisterProgramPeopleModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info" style="margin-bottom: 16px;">
+                    <i class="fas fa-info-circle"></i>
+                    프로그램에만 배치된 좌장·연자를 이 행사 <strong>참가자</strong>로 일괄 등록합니다.
+                    역대 좌장/연자·회원 명단 정보가 참가자 목록에 반영됩니다.
+                </div>
+                <p id="registerProgramPeopleSummary" style="font-weight: 600; margin-bottom: 12px;"></p>
+                <div id="registerProgramPeopleList" style="max-height: 320px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 6px;"></div>
+                <div id="registerProgramPeopleProgress" style="display: none; margin-top: 16px;">
+                    <div class="progress-bar">
+                        <div class="progress-bar-fill" id="registerProgramPeopleProgressBar"></div>
+                    </div>
+                    <p id="registerProgramPeopleStatus" style="text-align: center; margin-top: 8px; font-size: 13px; color: #666;"></p>
+                </div>
+                <div id="registerProgramPeopleResult" style="display: none; margin-top: 16px;"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeRegisterProgramPeopleModal()">닫기</button>
+                <button type="button" id="registerProgramPeopleConfirmBtn" class="btn btn-warning" onclick="registerAllProgramPeopleAsParticipants()">
+                    <i class="fas fa-user-plus"></i> 참가자로 등록
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 표시 설정 모달 -->
     <div id="displaySettingsModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
@@ -641,9 +673,13 @@
                         <input type="radio" name="exportFormat" value="rows" checked>
                         <span><strong>행 기반 형식</strong> - 각 발표자별로 한 행씩 (데이터 분석용)</span>
                     </label>
-                    <label class="display-option" style="background-color: #fff; padding: 10px;">
+                    <label class="display-option" style="background-color: #fff; padding: 10px; margin-bottom: 8px;">
                         <input type="radio" name="exportFormat" value="calendar">
                         <span><strong>캘린더 형식</strong> - 프로그램 북 레이아웃 (인쇄용, 날짜별 시트)</span>
+                    </label>
+                    <label class="display-option" style="background-color: #fff; padding: 10px;">
+                        <input type="radio" name="exportFormat" value="chairs_speakers">
+                        <span><strong>좌장/연자 명단</strong> - 순번·역할·세션·제출자료(CV/사진/PPT/Script) 포함</span>
                     </label>
                 </div>
                 
@@ -795,6 +831,15 @@
                             </p>
                         </div>
                     </div>
+                </div>
+
+                <div id="chairsSpeakersFormatOptions" style="display: none;">
+                    <p style="margin-bottom: 12px; color: #666;">프로그램 순서대로 좌장·연자 명단을 엑셀로보냅니다.</p>
+                    <ul style="margin: 0 0 0 18px; color: #666; font-size: 13px; line-height: 1.7;">
+                        <li>좌장은 인물당 1행 (세션명 합침), 연자는 발표 슬롯마다 1행</li>
+                        <li>한글/영문 이름, 이메일, 등록구분 포함</li>
+                        <li>CV · 사진 · PPT · Script 제출 여부 (O / X)</li>
+                    </ul>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1096,11 +1141,11 @@
     <div id="confirmMissingParticipantModal" class="modal">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
-                <h2>⚠️ 참가자를 찾을 수 없습니다</h2>
+                <h2>⚠️ 인물을 찾을 수 없습니다</h2>
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning" style="margin-bottom: 20px; padding: 15px; background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; color: #856404;">
-                    <strong>참가자 리스트에 없는 사람입니다</strong>
+                    <strong>역대 좌장/연자·회원 명단에서 찾을 수 없습니다</strong>
                 </div>
                 
                 <div style="background-color: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">

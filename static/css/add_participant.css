@@ -498,3 +498,153 @@ textarea.auto-resize:focus {
     font-size: 0.85rem;
     font-style: italic;
 }
+
+/* 인물 검색 */
+.person-lookup-section {
+    margin-bottom: 24px;
+    padding: 18px 20px;
+    background: #f8fafc;
+    border: 1.5px solid #dce3ec;
+    border-radius: 12px;
+}
+
+.person-lookup-section h3 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    color: var(--main-blue);
+}
+
+.person-lookup-bar {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.person-lookup-bar input {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-lookup {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 10px;
+    background: var(--main-blue);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, transform 0.15s;
+}
+
+.btn-lookup:hover:not(:disabled) {
+    background: var(--main-blue-light);
+    transform: translateY(-1px);
+}
+
+.btn-lookup:disabled {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.person-lookup-status {
+    margin-top: 10px;
+    font-size: 0.9rem;
+    color: #5c6b7a;
+}
+
+.person-lookup-status.error { color: #c0392b; }
+.person-lookup-status.success { color: #1e7e34; }
+.person-lookup-status.empty { color: #856404; }
+
+.person-lookup-results {
+    margin-top: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+    border: 1px solid #dce3ec;
+    border-radius: 10px;
+    background: #fff;
+}
+
+.person-lookup-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 10px 14px;
+    border: none;
+    border-bottom: 1px solid #eef2f6;
+    background: #fff;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.person-lookup-item:last-child { border-bottom: none; }
+.person-lookup-item:hover { background: #eef4ff; }
+
+.person-lookup-item-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.person-lookup-name {
+    font-weight: 600;
+    color: var(--main-blue);
+}
+
+.person-lookup-sub {
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: #6b7c93;
+}
+
+.person-source-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.person-source-tag.source-member {
+    background: #e3f2fd;
+    color: #1565c0;
+}
+
+.person-source-tag.source-history {
+    background: #f3e5f5;
+    color: #7b1fa2;
+}
+
+.person-source-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.person-source-badge.source-member {
+    background: #e3f2fd;
+    color: #0d47a1;
+}
+
+.person-source-badge.source-history {
+    background: #f3e5f5;
+    color: #6a1b9a;
+}
+
+.link-btn {
+    margin-left: auto;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 0.85rem;
+}

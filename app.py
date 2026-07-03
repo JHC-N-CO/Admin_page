@@ -35,6 +35,7 @@ from chairs_speakers_history import (
     find_duplicate_candidates,
     manual_merge_person_keys,
     dismiss_duplicate_group,
+    search_history_people,
 )
 
 app = Flask(__name__, static_folder='static')
@@ -138,6 +139,83 @@ _flask_mail.Connection.configure_host = _configure_mail_host_with_timeout
 
 def allowed_file(filename, allowed_extensions=ALLOWED_EXTENSIONS):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+def read_spreadsheet_dataframe(file_storage, dtype=str):
+    """xlsx/xls/csv 업로드 읽기. 웹에서보낸 HTML 표(.xls)도 지원."""
+    from io import BytesIO
+
+    filename = (file_storage.filename or '').lower()
+    content = file_storage.read()
+
+    if filename.endswith('.csv'):
+        return pd.read_csv(BytesIO(content), encoding='utf-8', dtype=dtype)
+
+    if filename.endswith('.xlsx'):
+        return pd.read_excel(BytesIO(content), dtype=dtype, engine='openpyxl')
+
+    # .xls — 실제 BIFF 파일이거나 HTML로 위장한 경우가 있음
+    head = content[:512].lstrip().lower()
+    if head.startswith(b'<html') or head.startswith(b'<!doctype') or b'<table' in head:
+        tables = pd.read_html(BytesIO(content), encoding='utf-8')
+        if not tables:
+            raise ValueError('HTML 파일에서 표를 찾을 수 없습니다.')
+        return tables[0].astype(str)
+
+    try:
+        return pd.read_excel(BytesIO(content), dtype=dtype, engine='xlrd')
+    except Exception:
+        tables = pd.read_html(BytesIO(content), encoding='utf-8')
+        if not tables:
+            raise
+        return tables[0].astype(str)
+
+def _normalize_excel_column_name(name):
+    return str(name).strip().lower().replace(' ', '').replace('(', '').replace(')', '').replace('.', '')
+
+def _is_ignored_upload_column(name):
+    """업로드 시 무시할 순번/번호 열 (회원 데이터가 아님)."""
+    return _normalize_excel_column_name(name) in {'no', '번호', '연번', '순번', 'index', 'num'}
+
+def _build_member_upload_field_map(df_columns, column_mapping):
+    """업로드 파일 컬럼 → DB 필드 매핑 (파일당 1회 계산)."""
+    normalized_to_actual = {
+        _normalize_excel_column_name(col): col
+        for col in df_columns
+        if not _is_ignored_upload_column(col)
+    }
+    field_map = {}
+
+    for excel_col, db_field in column_mapping.items():
+        if excel_col in df_columns and not _is_ignored_upload_column(excel_col):
+            field_map[excel_col] = db_field
+            continue
+        actual_col = normalized_to_actual.get(_normalize_excel_column_name(excel_col))
+        if actual_col and actual_col not in field_map:
+            field_map[actual_col] = db_field
+
+    return field_map
+
+def _find_upload_row_value(row, key_aliases):
+    for col in row.index:
+        if col.strip().lower() in key_aliases:
+            value = str(row[col]).strip()
+            if value and value.lower() not in ('nan', 'none', 'null'):
+                return value
+    return ''
+
+def _load_existing_member_keys():
+    rows = Member.query.with_entities(Member.username, Member.email, Member.license_number).all()
+    usernames = set()
+    emails = set()
+    licenses = set()
+    for username, email, license_number in rows:
+        if username:
+            usernames.add(username)
+        if email:
+            emails.add(email)
+        if license_number:
+            licenses.add(license_number)
+    return usernames, emails, licenses
 
 def sanitize(value):
     return value if isinstance(value, str) else str(value)
@@ -865,11 +943,8 @@ def upload_members():
         
         if file and allowed_file(file.filename, {'xlsx', 'xls', 'csv'}):
             try:
-                # 파일 읽기
-                if file.filename.endswith('.csv'):
-                    df = pd.read_csv(file, encoding='utf-8', dtype=str)
-                else:
-                    df = pd.read_excel(file, dtype=str)
+                # 파일 읽기 (HTML 위장 .xls 포함)
+                df = read_spreadsheet_dataframe(file, dtype=str)
                 
                 # NaN 값을 빈 문자열로 변환
                 df = df.fillna('')
@@ -894,11 +969,13 @@ def upload_members():
                     # 성명 관련 (이미지 컬럼명 포함)
                     '성명(KOR)': 'name_kor',
                     '성명': 'name_kor',
+                    '성명(국문)': 'name_kor',
                     'name_kor': 'name_kor',
                     '한글성명': 'name_kor',
                     '한국어성명': 'name_kor',
                     
                     '성명(ENG)': 'name_eng',
+                    '성명(영문)': 'name_eng',
                     'name_eng': 'name_eng',
                     '영문성명': 'name_eng',
                     'english_name': 'name_eng',
@@ -938,10 +1015,12 @@ def upload_members():
                     '소속(KOR)': 'workplace_name',
                     '소속(ENG)': 'workplace_name_eng',
                     '근무처': 'workplace_name',
+                    '근무처명': 'workplace_name',
                     'workplace_name': 'workplace_name',
                     'company': 'workplace_name',
                     '회사': 'workplace_name',
                     '근무처(영문)': 'workplace_name_eng',
+                    '근무처명(영문)': 'workplace_name_eng',
                     'workplace_name_eng': 'workplace_name_eng',
                     'company_eng': 'workplace_name_eng',
                     
@@ -949,9 +1028,11 @@ def upload_members():
                     '과(KOR)': 'specialty',
                     '과(ENG)': 'specialty_eng',
                     '과': 'specialty',
+                    '진료과목': 'specialty',
                     'specialty': 'specialty',
                     '전문분야': 'specialty',
                     '과(영문)': 'specialty_eng',
+                    '진료과목(영문)': 'specialty_eng',
                     'specialty_eng': 'specialty_eng',
                     '전문분야_영문': 'specialty_eng',
                     '부서': 'specialty',
@@ -992,159 +1073,113 @@ def upload_members():
                     'workplace_phone': 'workplace_phone',
                     'company_phone': 'workplace_phone'
                 }
-                
+
+                field_map = _build_member_upload_field_map(df.columns, column_mapping)
+                existing_usernames, existing_emails, existing_licenses = _load_existing_member_keys()
+                pending_usernames = set()
+                pending_emails = set()
+                pending_licenses = set()
+                default_password_hash = generate_password_hash('temp123!')
+
+                username_keys = {'아이디', 'id', 'user_id', 'username'}
+                name_kor_keys = {'성명(kor)', '성명(국문)', '성명', 'name_kor', '한글성명', '한국어성명'}
+                email_keys = {'email', '이메일', 'e-mail', 'mail'}
+                license_keys = {'면허번호', 'license number', 'license_number', 'license'}
+
+                total_rows = len(df)
+                print(f"회원 업로드 처리 시작: {total_rows}행")
+
                 # 각 행 처리
                 for index, row in df.iterrows():
                     try:
-                        # 필수 필드 검증 (유연한 컬럼명 매칭)
-                        username = ''
-                        name_kor = ''
-                        email = ''
-                        
-                        # 아이디 찾기 (이미지에는 없지만 시스템에서 사용)
-                        for col in row.index:
-                            col_lower = col.strip().lower()
-                            if col_lower in ['아이디', 'id', 'user_id', 'username']:
-                                username = str(row[col]).strip()
-                                break
-                        
-                        # 성명(KOR) 찾기
-                        for col in row.index:
-                            col_lower = col.strip().lower()
-                            if col_lower in ['성명(kor)', '성명', 'name_kor', '한글성명', '한국어성명']:
-                                name_kor = str(row[col]).strip()
-                                if name_kor and name_kor.lower() not in ['nan', 'none', 'null', '']:
-                                    break
-                                else:
-                                    name_kor = ''  # 빈 값이면 다시 빈 문자열로 설정
-                        
-                        # 이메일 찾기
-                        for col in row.index:
-                            col_lower = col.strip().lower()
-                            if col_lower in ['email', '이메일', 'e-mail', 'mail']:
-                                email = str(row[col]).strip()
-                                if email and email.lower() not in ['nan', 'none', 'null', '']:
-                                    break
-                                else:
-                                    email = ''  # 빈 값이면 다시 빈 문자열로 설정
-                        
-                        # 필수 필드 검증 (빈 문자열도 무효로 처리)
-                        if (not username or username == '') and (not name_kor or name_kor == '') and (not email or email == ''):
+                        username = _find_upload_row_value(row, username_keys)
+                        name_kor = _find_upload_row_value(row, name_kor_keys)
+                        email = _find_upload_row_value(row, email_keys)
+
+                        if not username and not name_kor and not email:
                             errors.append(f"행 {index + 2}: 최소 하나의 식별 정보(아이디, 성명(KOR), Email)가 필요합니다.")
                             failure_count += 1
                             continue
-                        
-                        # 중복 검사 (아이디, 이메일, 면허번호 확인)
-                        existing_member = None
-                        if username:
-                            existing_member = Member.query.filter(Member.username == username).first()
-                        if not existing_member and email:
-                            existing_member = Member.query.filter(Member.email == email).first()
-                        
-                        # 면허번호 중복 검사 (유연한 컬럼명 매칭)
-                        license_number = ''
-                        for col in row.index:
-                            col_lower = col.strip().lower()
-                            if col_lower in ['면허번호', 'license number', 'license_number', 'license']:
-                                license_number = str(row[col]).strip()
-                                break
-                        
-                        if license_number and not existing_member:
-                            existing_member = Member.query.filter(Member.license_number == license_number).first()
-                        
-                        if existing_member:
-                            if username and existing_member.username == username:
-                                errors.append(f"행 {index + 2}: 아이디 '{username}'가 이미 존재합니다.")
-                            elif email and existing_member.email == email:
-                                errors.append(f"행 {index + 2}: Email '{email}'가 이미 존재합니다.")
-                            elif license_number and existing_member.license_number == license_number:
-                                errors.append(f"행 {index + 2}: 면허번호 '{license_number}'가 이미 존재합니다.")
-                            else:
-                                errors.append(f"행 {index + 2}: 중복된 정보가 있습니다.")
+
+                        license_number = _find_upload_row_value(row, license_keys)
+
+                        duplicate_reason = None
+                        if username and (username in existing_usernames or username in pending_usernames):
+                            duplicate_reason = f"아이디 '{username}'가 이미 존재합니다."
+                        elif email and (email in existing_emails or email in pending_emails):
+                            duplicate_reason = f"Email '{email}'가 이미 존재합니다."
+                        elif license_number and (license_number in existing_licenses or license_number in pending_licenses):
+                            duplicate_reason = f"면허번호 '{license_number}'가 이미 존재합니다."
+
+                        if duplicate_reason:
+                            errors.append(f"행 {index + 2}: {duplicate_reason}")
                             failure_count += 1
                             continue
-                        
-                        # 데이터 매핑 (Excel에 있는 컬럼만)
+
                         member_data = {
-                            'password_hash': generate_password_hash('temp123!'),  # 임시 비밀번호 해시
+                            'password_hash': default_password_hash,
                             'is_active': True,
-                            'terms_agreed': True  # 관리자가 업로드했으므로 동의한 것으로 간주
+                            'terms_agreed': True,
                         }
-                        
-                        # 디버깅: 첫 3행만 출력
+
                         if index < 3:
                             print(f"[샘플] 행 {index + 2} 처리 중...")
-                        
-                        for excel_col, db_field in column_mapping.items():
-                            matched_col = None
-                            
-                            # 1. 정확한 매칭 시도
-                            if excel_col in row:
-                                matched_col = excel_col
+
+                        for actual_col, db_field in field_map.items():
+                            value = row[actual_col]
+                            if pd.isna(value) or value is None:
+                                value = ''
                             else:
-                                # 2. 유연한 매칭 시도 (대소문자, 공백, 특수문자 무시)
-                                excel_col_normalized = excel_col.strip().lower().replace(' ', '').replace('(', '').replace(')', '')
-                                for actual_col in row.index:
-                                    actual_col_normalized = actual_col.strip().lower().replace(' ', '').replace('(', '').replace(')', '')
-                                    if actual_col_normalized == excel_col_normalized:
-                                        matched_col = actual_col
-                                        break
-                            
-                            if matched_col:
-                                value = row[matched_col]
-                                if pd.isna(value) or value is None:
-                                    value = ''
+                                value = str(value).strip()
+
+                            if value and value.lower() not in ('nan', 'none', 'null', ''):
+                                if db_field == 'birth_date':
+                                    member_data[db_field] = parse_date(value)
                                 else:
-                                    value = str(value).strip()
-                                
-                                # 빈 문자열이나 NaN 값이 아닌 경우에만 저장
-                                if value and value.lower() not in ['nan', 'none', 'null', '']:
-                                    if db_field == 'birth_date':
-                                        member_data[db_field] = parse_date(value)
-                                    else:
-                                        member_data[db_field] = value
-                                    # 첫 3행만 매핑 정보 출력
-                                    if index < 3:
-                                        print(f"  ✅ 매핑됨: '{matched_col}' -> '{db_field}' = '{value[:50]}'")  # 값은 최대 50자만
-                        
-                        # 첫 3행만 최종 데이터 출력
+                                    member_data[db_field] = value
+                                if index < 3:
+                                    print(f"  ✅ 매핑됨: '{actual_col}' -> '{db_field}' = '{value[:50]}'")
+
                         if index < 3:
                             print(f"최종 member_data 키: {list(member_data.keys())}")
-                        
-                        # 필수 필드가 없으면 기본값 설정
+
                         if not member_data.get('username'):
-                            # 이메일이 있으면 이메일 앞부분을 아이디로 사용, 없으면 자동 생성
                             if member_data.get('email'):
                                 email_prefix = member_data['email'].split('@')[0]
                                 member_data['username'] = f"{email_prefix}_{datetime.now().strftime('%m%d%H%M')}"
                             else:
                                 member_data['username'] = f"user_{index + 1}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                        
-                        # name_kor가 없으면 기본값 설정 (필수 필드)
+
                         if not member_data.get('name_kor'):
-                            # name_eng이 있으면 그것을 사용, 없으면 first_name + last_name 조합 사용
                             if member_data.get('name_eng'):
                                 member_data['name_kor'] = member_data['name_eng']
                             elif member_data.get('first_name') and member_data.get('last_name'):
                                 member_data['name_kor'] = f"{member_data['last_name']} {member_data['first_name']}"
                             else:
                                 member_data['name_kor'] = f"회원_{index + 1}"
-                        
-                        # 이메일이 없으면 임시 이메일 생성
+
                         if not member_data.get('email'):
                             member_data['email'] = f"temp{index + 1}@example.com"
-                        
-                        # 새 회원 생성
-                        member = Member(**member_data)
-                        
-                        db.session.add(member)
+
+                        with db.session.begin_nested():
+                            member = Member(**member_data)
+                            db.session.add(member)
+
+                        pending_usernames.add(member_data['username'])
+                        if member_data.get('email'):
+                            pending_emails.add(member_data['email'])
+                        if member_data.get('license_number'):
+                            pending_licenses.add(member_data['license_number'])
+
                         success_count += 1
-                        
+
+                        if success_count % 200 == 0:
+                            db.session.commit()
+                            print(f"  ... {success_count}/{total_rows}행 처리 완료")
+
                     except Exception as e:
                         errors.append(f"행 {index + 2}: {str(e)}")
                         failure_count += 1
-                        # 개별 행 오류 시 세션 롤백
-                        db.session.rollback()
                         continue
                 
                 # 데이터베이스 저장
@@ -1160,7 +1195,8 @@ def upload_members():
                     'success': True,
                     'success_count': success_count,
                     'failure_count': failure_count,
-                    'errors': errors[:10]  # 최대 10개 에러만 반환
+                    'errors': errors[:200],
+                    'errors_total': len(errors),
                 })
                 
             except Exception as e:
@@ -1335,6 +1371,130 @@ def get_members_api():
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'오류가 발생했습니다: {str(e)}'}), 500
+
+def _member_to_person_lookup(member: Member) -> dict:
+    name_eng = member.name_eng or ''
+    if not name_eng:
+        if member.first_name and member.last_name:
+            name_eng = f'{member.first_name} {member.last_name}'
+        elif member.first_name:
+            name_eng = member.first_name
+        elif member.last_name:
+            name_eng = member.last_name
+
+    display_name = member.name_kor or name_eng or member.email or '(이름 없음)'
+    subtitle_parts = [p for p in [member.email, member.workplace_name, member.position] if p]
+
+    return {
+        'source': 'member',
+        'source_label': '회원 관리',
+        'ref_id': str(member.id),
+        'display_name': display_name,
+        'subtitle': ' · '.join(subtitle_parts),
+        'name_kor': member.name_kor or '',
+        'name_eng': name_eng,
+        'first_name': member.first_name or '',
+        'family_name': member.last_name or '',
+        'email': member.email or '',
+        'phone': member.mobile or member.phone or '',
+        'country': '',
+        'country_code': '',
+        'affiliation_kor': member.workplace_name or '',
+        'affiliation_eng': member.workplace_name_eng or '',
+        'department_kor': member.department_kor or member.specialty or '',
+        'department_eng': member.department_eng or member.specialty_eng or '',
+        'position': member.position or '',
+        'license_number': member.license_number or '',
+        'birth_date': member.birth_date.strftime('%Y-%m-%d') if member.birth_date else '',
+        'workplace_type': member.workplace_type or '',
+    }
+
+
+def _history_person_to_lookup(person: dict) -> dict:
+    first_name = _clean(person.get('이름(First Name)'))
+    family_name = _clean(person.get('성(Last Name)'))
+    name_kor = _clean(person.get('성명(KOR)'))
+    name_eng = _clean(person.get('성명(ENG)'))
+    if not name_eng and (first_name or family_name):
+        name_eng = f'{first_name} {family_name}'.strip()
+
+    email = _clean(person.get('이메일', '')).split(',')[0].strip()
+    display_name = name_kor or name_eng or email or '(이름 없음)'
+    subtitle_parts = [p for p in [email, _clean(person.get('소속(KOR)')), _clean(person.get('직위'))] if p]
+
+    birth = _clean(person.get('생년월일'))
+    if birth and len(birth) >= 10:
+        birth = birth[:10].replace('/', '-')
+
+    return {
+        'source': 'history',
+        'source_label': '역대 좌장/연자',
+        'ref_id': _clean(person.get('person_key')),
+        'display_name': display_name,
+        'subtitle': ' · '.join(subtitle_parts),
+        'name_kor': name_kor,
+        'name_eng': name_eng,
+        'first_name': first_name,
+        'family_name': family_name,
+        'email': email,
+        'phone': _clean(person.get('전화')),
+        'country': _clean(person.get('국가')),
+        'country_code': _clean(person.get('국가약어')),
+        'affiliation_kor': _clean(person.get('소속(KOR)')),
+        'affiliation_eng': _clean(person.get('소속(ENG)')),
+        'department_kor': _clean(person.get('과(KOR)')),
+        'department_eng': _clean(person.get('과(ENG)')),
+        'position': _clean(person.get('직위')),
+        'license_number': _clean(person.get('면허번호')),
+        'birth_date': birth,
+        'workplace_type': _clean(person.get('회원구분')),
+    }
+
+
+def _clean(value):
+    if value is None:
+        return ''
+    return str(value).strip()
+
+
+@app.route('/api/person_lookup', methods=['GET'])
+def person_lookup():
+    """회원 관리 · 역대 좌장/연자 명단 통합 검색 (참가자 수동 입력용)."""
+    try:
+        query = request.args.get('q', '').strip()
+        if len(query) < 2:
+            return jsonify({'success': True, 'results': [], 'message': '2글자 이상 입력하세요.'})
+
+        like = f'%{query}%'
+        members = Member.query.filter(
+            db.or_(
+                Member.name_kor.ilike(like),
+                Member.name_eng.ilike(like),
+                Member.email.ilike(like),
+                Member.first_name.ilike(like),
+                Member.last_name.ilike(like),
+                Member.phone.ilike(like),
+                Member.mobile.ilike(like),
+            )
+        ).limit(25).all()
+
+        results = [_member_to_person_lookup(m) for m in members]
+        seen_keys = {(r['source'], r.get('email', '').lower()) for r in results if r.get('email')}
+
+        for person in search_history_people(query, limit=25):
+            item = _history_person_to_lookup(person)
+            email_key = item.get('email', '').lower()
+            dedupe_key = (item['source'], email_key)
+            if email_key and dedupe_key in seen_keys:
+                continue
+            if email_key:
+                seen_keys.add(dedupe_key)
+            results.append(item)
+
+        return jsonify({'success': True, 'results': results, 'count': len(results)})
+    except Exception as e:
+        logging.error(f'person_lookup error: {e}')
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/create_event', methods=['POST'])
 def create_event():
@@ -4831,6 +4991,77 @@ def save_event_program(event_id):
         logging.error(f"Error saving event program: {str(e)}")
         return jsonify({'error': '프로그램 저장 중 오류가 발생했습니다.'}), 500
 
+
+def _build_history_people_lookup():
+    by_email = {}
+    by_kor_name = {}
+    for person in load_aggregated_history():
+        email = (person.get('이메일') or '').strip().lower()
+        if email:
+            by_email[email] = person
+        kor = (person.get('성명(KOR)') or '').strip()
+        if kor:
+            by_kor_name.setdefault(kor, []).append(person)
+    return by_email, by_kor_name
+
+
+def _lookup_history_person(entity, by_email, by_kor_name):
+    if not isinstance(entity, dict):
+        return None
+    email = (entity.get('email') or '').strip().lower()
+    if email and email in by_email:
+        return by_email[email]
+    kor = (entity.get('name_kor') or entity.get('name') or '').strip()
+    if not kor:
+        return None
+    matches = by_kor_name.get(kor, [])
+    if len(matches) == 1:
+        return matches[0]
+    if len(matches) > 1 and email:
+        for person in matches:
+            if (person.get('이메일') or '').strip().lower() == email:
+                return person
+    return None
+
+
+def _participant_english_name(participant):
+    if not participant:
+        return ''
+    eng = (participant.name_eng or '').strip()
+    if eng:
+        return eng
+    return f"{(participant.first_name or '').strip()} {(participant.family_name or '').strip()}".strip()
+
+
+def _resolve_person_names(entity, participant=None, history_person=None):
+    name_kor = ''
+    name_eng = ''
+    email = ''
+
+    if participant:
+        name_kor = (participant.name_kor or '').strip()
+        name_eng = _participant_english_name(participant)
+        email = (participant.email or '').strip()
+
+    if isinstance(entity, dict):
+        if not name_kor:
+            name_kor = (entity.get('name_kor') or entity.get('name') or '').strip()
+        if not name_eng:
+            name_eng = (entity.get('name_eng') or '').strip()
+        if not email:
+            email = (entity.get('email') or '').strip()
+
+    if history_person:
+        if not name_kor:
+            name_kor = (history_person.get('성명(KOR)') or '').strip()
+        if not name_eng:
+            name_eng = (history_person.get('성명(ENG)') or '').strip()
+        if not email:
+            email = (history_person.get('이메일') or '').strip()
+
+    return name_kor, name_eng, email
+
+
 @app.route('/api/event_program/<int:event_id>/chairs_speakers_excel')
 def export_chairs_speakers_excel(event_id):
     """행사 프로그램의 좌장/연자 명단을 순서대로 엑셀로 내보내기. (chair/speaker export)
@@ -4940,20 +5171,36 @@ def export_chairs_speakers_excel(event_id):
                 base = _base_abbr(s)
                 numbered_abbr[id(s)] = f"{base} {n}" if base else ''
 
-        # 참가자 ID 모아서 일괄 조회
+        # 참가자 ID 모아서 일괄 조회 (양수 ID만 — 풀 참조 임시 ID 제외)
         ids = set()
         for s in sessions:
             for ch in s.get('chairs') or []:
-                if isinstance(ch, dict) and ch.get('id'):
-                    ids.add(int(ch['id']))
+                if not isinstance(ch, dict):
+                    continue
+                pid = ch.get('id') or ch.get('participantId')
+                try:
+                    pid_int = int(pid)
+                    if pid_int > 0:
+                        ids.add(pid_int)
+                except (TypeError, ValueError):
+                    pass
             for sp in s.get('speakers') or []:
-                if isinstance(sp, dict) and sp.get('participantId'):
-                    ids.add(int(sp['participantId']))
+                if not isinstance(sp, dict):
+                    continue
+                pid = sp.get('participantId') or sp.get('id')
+                try:
+                    pid_int = int(pid)
+                    if pid_int > 0:
+                        ids.add(pid_int)
+                except (TypeError, ValueError):
+                    pass
 
         participants_by_id = {}
         if ids:
             for p in Participant.query.filter(Participant.id.in_(ids)).all():
                 participants_by_id[p.id] = p
+
+        history_by_email, history_by_kor_name = _build_history_people_lookup()
 
         def yn(v):
             return 'O' if v else 'X'
@@ -4971,9 +5218,15 @@ def export_chairs_speakers_excel(event_id):
             for ch in s.get('chairs') or []:
                 if not isinstance(ch, dict):
                     continue
-                pid = ch.get('id')
-                p = participants_by_id.get(int(pid)) if pid else None
-                key = ('id', int(pid)) if pid else (
+                pid = ch.get('id') or ch.get('participantId')
+                p = None
+                try:
+                    if pid and int(pid) > 0:
+                        p = participants_by_id.get(int(pid))
+                except (TypeError, ValueError):
+                    pass
+                history_person = _lookup_history_person(ch, history_by_email, history_by_kor_name)
+                key = ('id', p.id) if p else (
                     'kn', (ch.get('email') or '').strip().lower(),
                     (ch.get('name_kor') or ch.get('name') or '').strip(),
                     (ch.get('name_eng') or '').strip(),
@@ -4988,12 +5241,7 @@ def export_chairs_speakers_excel(event_id):
                     if role and role not in rec['_roles']:
                         rec['_roles'].append(role)
                     continue
-                name_kor = (p.name_kor if p else '') or ch.get('name_kor') or ch.get('name') or ''
-                name_eng = (
-                    f"{(p.first_name or '').strip()} {(p.family_name or '').strip()}".strip()
-                    if p else ''
-                ) or ch.get('name_eng') or ''
-                email = (p.email if p else '') or ch.get('email') or ''
+                name_kor, name_eng, email = _resolve_person_names(ch, p, history_person)
                 rec = {
                     '_roles': [role] if role else [],
                     '_sessions': [session_title] if session_title else [],
@@ -5016,14 +5264,15 @@ def export_chairs_speakers_excel(event_id):
             for sp in s.get('speakers') or []:
                 if not isinstance(sp, dict):
                     continue
-                pid = sp.get('participantId')
-                p = participants_by_id.get(int(pid)) if pid else None
-                name_kor = (p.name_kor if p else '') or sp.get('name') or ''
-                name_eng = (
-                    f"{(p.first_name or '').strip()} {(p.family_name or '').strip()}".strip()
-                    if p else ''
-                ) or ''
-                email = (p.email if p else '') or ''
+                pid = sp.get('participantId') or sp.get('id')
+                p = None
+                try:
+                    if pid and int(pid) > 0:
+                        p = participants_by_id.get(int(pid))
+                except (TypeError, ValueError):
+                    pass
+                history_person = _lookup_history_person(sp, history_by_email, history_by_kor_name)
+                name_kor, name_eng, email = _resolve_person_names(sp, p, history_person)
                 # 국내/해외 구분: country_code가 KOR/KR이면 국내, 그 외(값이 있으면)는 해외, 없으면 그냥 '연자'
                 cc = ((p.country_code if p else '') or sp.get('country_code') or '').strip().upper()
                 country_name = ((p.country if p else '') or sp.get('country') or '').strip().lower()
@@ -5377,6 +5626,8 @@ def _history_pool_item(person: dict) -> dict:
       'department_eng': (person.get('과(ENG)') or '').strip(),
       'position': (person.get('직위') or '').strip(),
       'license_number': (person.get('면허번호') or '').strip(),
+      'country': (person.get('국가') or '').strip(),
+      'country_code': (person.get('국가약어') or '').strip(),
   }
 
 
@@ -5385,7 +5636,34 @@ def _next_participant_code(event_id: int) -> str:
   return str(int(max_code) + 1 if max_code else 1)
 
 
-def _create_participant_from_member(event_id: int, member: Member) -> Participant:
+def _enrich_participant_from_program_data(participant: Participant, data: dict) -> None:
+    """프로그램에서 참가자로 연결할 때 역할·국가·등록구분 반영."""
+    role = (data.get('role') or '').strip()
+    if role:
+        existing_roles = [
+            r.strip() for r in (participant.role or '').replace('·', '/').split('/')
+            if r.strip()
+        ]
+        for part in role.replace('·', '/').split('/'):
+            part = part.strip()
+            if part and part not in existing_roles:
+                existing_roles.append(part)
+        participant.role = '/'.join(existing_roles) if existing_roles else role
+
+    country = (data.get('country') or '').strip()
+    if country:
+        participant.country = country
+
+    country_code = (data.get('country_code') or '').strip()
+    if country_code:
+        participant.country_code = country_code
+
+    if data.get('from_program_register') or data.get('registration'):
+        participant.registration = (data.get('registration') or '사전등록').strip()
+
+
+def _create_participant_from_member(event_id: int, member: Member, data: dict | None = None) -> Participant:
+  data = data or {}
   name_eng_value = member.name_eng
   if not name_eng_value:
       if member.first_name and member.last_name:
@@ -5412,6 +5690,10 @@ def _create_participant_from_member(event_id: int, member: Member) -> Participan
       license_number=member.license_number,
       birth_date=member.birth_date,
       workplace_type=member.workplace_type,
+      role=(data.get('role') or '').strip(),
+      country=(data.get('country') or '').strip(),
+      country_code=(data.get('country_code') or '').strip(),
+      registration=(data.get('registration') or '사전등록').strip(),
       accept_or_decline='대기',
   )
   db.session.add(participant)
@@ -5443,6 +5725,10 @@ def _create_participant_from_history(event_id: int, data: dict) -> Participant:
       phone=(data.get('phone') or '').strip(),
       position=(data.get('position') or '').strip(),
       license_number=(data.get('license_number') or '').strip(),
+      role=(data.get('role') or '').strip(),
+      country=(data.get('country') or '').strip(),
+      country_code=(data.get('country_code') or '').strip(),
+      registration=(data.get('registration') or '사전등록').strip(),
       accept_or_decline='대기',
   )
   db.session.add(participant)
@@ -5477,7 +5763,7 @@ def get_event_person_pool(event_id):
         history_items = []
         for person in load_aggregated_history():
             email = (person.get('이메일') or '').strip().lower()
-            if email and (email in participant_emails or email in member_emails):
+            if email and email in participant_emails:
                 continue
             history_items.append(_history_pool_item(person))
 
@@ -5518,8 +5804,10 @@ def resolve_person_for_event(event_id):
             if member.email:
                 existing = Participant.query.filter_by(event_id=event_id, email=member.email).first()
                 if existing:
+                    _enrich_participant_from_program_data(existing, data)
+                    db.session.commit()
                     return jsonify({'success': True, 'participant': _participant_pool_item(existing)})
-            participant = _create_participant_from_member(event_id, member)
+            participant = _create_participant_from_member(event_id, member, data)
             db.session.commit()
             return jsonify({'success': True, 'participant': _participant_pool_item(participant)})
 
@@ -5528,6 +5816,8 @@ def resolve_person_for_event(event_id):
             if email:
                 existing = Participant.query.filter_by(event_id=event_id, email=email).first()
                 if existing:
+                    _enrich_participant_from_program_data(existing, data)
+                    db.session.commit()
                     return jsonify({'success': True, 'participant': _participant_pool_item(existing)})
             participant = _create_participant_from_history(event_id, data)
             db.session.commit()

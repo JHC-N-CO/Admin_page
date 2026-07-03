@@ -315,11 +315,38 @@ def _read_csv(path: str) -> list[dict]:
         return list(csv.DictReader(f))
 
 
-def _merge_person_fields(target: dict, row: dict) -> None:
-    for field in PERSON_FIELDS:
-        val = _clean(row.get(field))
-        if val and not target.get(field):
-            target[field] = val
+def _parse_year_int(value: str) -> int:
+    """연도 문자열을 비교용 정수로 변환 (없으면 0)."""
+    year = _extract_year(_clean(value))
+    if year.isdigit() and len(year) == 4:
+        return int(year)
+    return 0
+
+
+def _merge_person_fields(target: dict, row: dict, year: str = '') -> None:
+    """동일 인물 병합 시 최신 연도 데이터를 우선 사용."""
+    incoming_year = _parse_year_int(year)
+    stored_year = _parse_year_int(target.get('_data_year', ''))
+
+    if incoming_year > stored_year:
+        for field in PERSON_FIELDS:
+            val = _clean(row.get(field))
+            if val:
+                target[field] = val
+        if incoming_year:
+            target['_data_year'] = str(incoming_year)
+    elif incoming_year == stored_year and incoming_year > 0:
+        for field in PERSON_FIELDS:
+            val = _clean(row.get(field))
+            if val:
+                target[field] = val
+    else:
+        for field in PERSON_FIELDS:
+            val = _clean(row.get(field))
+            if val and not target.get(field):
+                target[field] = val
+        if not target.get('_data_year') and incoming_year:
+            target['_data_year'] = str(incoming_year)
 
 
 def _format_year_tags(entries: list[dict]) -> str:
@@ -347,10 +374,10 @@ def load_aggregated_history() -> list[dict]:
         key = person_key_from_row(row, uf, preferred_key)
         if key not in people:
             people[key] = {'person_key': key}
-        _merge_person_fields(people[key], row)
+        year = _clean(row.get('연도'))
+        _merge_person_fields(people[key], row, year)
 
         parsed = parse_role_label(row.get('역할', ''))
-        year = _clean(row.get('연도'))
         if not year:
             continue
         entry = {
@@ -394,6 +421,7 @@ def load_aggregated_history() -> list[dict]:
             'session_titles': _format_title_list(sessions, 'session_title'),
             'presentation_titles': _format_title_list(sessions, 'presentation_title'),
         })
+        person.pop('_data_year', None)
         results.append(person)
 
     results.sort(key=lambda p: (_clean(p.get('성명(KOR)')) or _clean(p.get('성명(ENG)'))).lower())
@@ -563,3 +591,35 @@ def ensure_sessions_template() -> None:
     with open(SESSIONS_CSV, 'w', encoding='utf-8-sig', newline='') as f:
         writer = csv.DictWriter(f, fieldnames=SESSION_FIELDS)
         writer.writeheader()
+
+
+def search_history_people(query: str, limit: int = 25) -> list[dict]:
+    """이름·이메일로 역대 좌장/연자 명단 검색."""
+    q = _clean(query).lower()
+    if len(q) < 2:
+        return []
+
+    people = load_aggregated_history()
+    results: list[dict] = []
+    for person in people:
+        kor = _clean(person.get('성명(KOR)')).lower()
+        eng = _clean(person.get('성명(ENG)')).lower()
+        email = _normalize_email(person.get('이메일', ''))
+        first = _clean(person.get('이름(First Name)')).lower()
+        last = _clean(person.get('성(Last Name)')).lower()
+        full_eng = f'{first} {last}'.strip()
+
+        matched = (
+            q in kor
+            or q in eng
+            or (email and q in email)
+            or (first and q in first)
+            or (last and q in last)
+            or (full_eng and q in full_eng)
+        )
+        if not matched:
+            continue
+        results.append(person)
+        if len(results) >= limit:
+            break
+    return results

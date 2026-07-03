@@ -301,6 +301,14 @@ body {
     display: none !important;
 }
 
+.col-row-number {
+    width: 56px;
+    min-width: 56px;
+    text-align: center;
+    color: #666;
+    font-variant-numeric: tabular-nums;
+}
+
 /* Sortable table headers */
 .sortable {
     cursor: pointer;
@@ -342,34 +350,73 @@ body {
 .table-actions {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     margin-bottom: 20px;
     padding: 16px;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    flex-wrap: wrap;
 }
 
 /* Table actions button styles */
-.table-actions button.primary {
-    background-color: var(--primary-color);
-    color: white;
+.table-toolbar-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.table-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.table-actions button.primary,
+.table-actions button.danger {
     border: none;
     border-radius: 4px;
     padding: 8px 16px;
     cursor: pointer;
     font-size: 14px;
     font-weight: 500;
-    transition: background-color 0.3s ease;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.table-actions button.primary {
+    background-color: var(--primary-color);
+    color: white;
 }
 
 .table-actions button.primary:hover {
     background-color: var(--primary-hover);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.35);
+}
+
+.table-actions button.danger {
+    background-color: #fff;
+    color: #c0392b;
+    border: 1px solid #e8b4b0;
+}
+
+.table-actions button.danger:hover {
+    background-color: #c0392b;
+    color: #fff;
+    border-color: #c0392b;
+    box-shadow: 0 2px 8px rgba(192, 57, 43, 0.3);
+}
+
+.table-actions button.primary:active,
+.table-actions button.danger:active {
+    transform: translateY(1px);
 }
 
 .search-box {
-    flex: 1;
-    max-width: 300px;
+    flex: 0 1 300px;
+    width: 300px;
+    max-width: 100%;
 }
 
 .search-box input {
