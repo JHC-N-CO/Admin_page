@@ -158,10 +158,19 @@
         <div id="excelViewContainer" class="excel-view-container" style="display: none;">
             <div class="excel-view-toolbar">
                 <div class="excel-view-summary">
+                    <div class="excel-submode-toggle" role="group" aria-label="엑셀 뷰 전환">
+                        <button type="button" class="excel-submode-btn active" data-excel-submode="program">
+                            <i class="fas fa-stream"></i> 프로그램 뷰
+                        </button>
+                        <button type="button" class="excel-submode-btn" data-excel-submode="people">
+                            <i class="fas fa-users"></i> 좌장·연자 뷰
+                        </button>
+                    </div>
                     <span id="excelViewRowCount">총 0행</span>
+                    <span id="excelViewSubModeHint" class="excel-view-submode-hint" style="display: none;"></span>
                 </div>
                 <div class="excel-view-controls">
-                    <div class="excel-view-filters" style="display: flex; align-items: center; gap: 15px; margin-right: 15px;">
+                    <div class="excel-view-filters excel-view-program-filters" style="display: flex; align-items: center; gap: 15px; margin-right: 15px;">
                         <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666;">
                             <span style="font-weight: 600;">필터:</span>
                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
@@ -192,6 +201,17 @@
                                 <i class="fas fa-redo"></i> 필터 초기화
                             </button>
                         </div>
+                    </div>
+                    <div class="excel-view-filters excel-view-people-filters" style="display: none; align-items: center; gap: 8px; margin-right: 15px; font-size: 13px; color: #666;">
+                        <span style="font-weight: 600;">역할:</span>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="filterPeopleChair" checked style="width: 16px; height: 16px;">
+                            <span>좌장</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                            <input type="checkbox" id="filterPeopleSpeaker" checked style="width: 16px; height: 16px;">
+                            <span>연자</span>
+                        </label>
                     </div>
                     <div class="excel-search">
                         <i class="fas fa-search"></i>
@@ -1282,6 +1302,20 @@
                     <i class="fas fa-user-plus"></i> 참가자로 추가
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div id="peopleSessionsPopupModal" class="title-modal" hidden>
+        <div class="title-modal-backdrop"></div>
+        <div class="title-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="peopleSessionsPopupTitle">
+            <div class="title-modal-header">
+                <div>
+                    <h3 id="peopleSessionsPopupTitle">참여 세션</h3>
+                    <p id="peopleSessionsPopupPersonName" class="title-modal-subtitle"></p>
+                </div>
+                <button type="button" class="title-modal-close" aria-label="닫기">&times;</button>
+            </div>
+            <div id="peopleSessionsPopupBody" class="title-modal-body"></div>
         </div>
     </div>
 

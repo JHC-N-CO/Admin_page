@@ -5565,6 +5565,14 @@ def _participant_pool_item(p: Participant) -> dict:
       'role': p.role,
       'position': p.position,
       'license_number': p.license_number,
+      'registration': p.registration or '',
+      'accept_or_decline': p.accept_or_decline or '',
+      'cv': p.cv or '',
+      'photo': p.photo or '',
+      'ppt': p.ppt or '',
+      'script': p.script or '',
+      'agree': p.agree or '',
+      'code': p.code,
   }
 
 

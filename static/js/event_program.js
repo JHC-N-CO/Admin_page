@@ -214,9 +214,14 @@ let displaySettings = {
 
 let currentViewMode = 'calendar';
 const excelViewState = {
+    subMode: 'program',
     headers: [],
     rows: [],
     filteredRows: [],
+    peopleRows: [],
+    filteredPeopleRows: [],
+    peopleFilters: { chair: true, speaker: true },
+    peopleSort: { key: null, dir: 'asc' },
     searchTerm: '',
     exportSettings: null,
     initialized: false,
@@ -557,6 +562,7 @@ document.addEventListener('DOMContentLoaded', function() {
     loadParticipants();
     setupEventListeners();
     initializeViewModeControls();
+    bindPeopleSessionsModal();
     // startCurrentTimeIndicator(); // 현재 시간 표시선 제거됨
     
     // 자동 충돌 해결 비활성화 (날짜별 세션 혼합 방지)
@@ -4548,6 +4554,29 @@ function initializeViewModeControls() {
             setViewMode(viewMode);
         });
     });
+
+    const subModeButtons = document.querySelectorAll('.excel-submode-btn');
+    subModeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const subMode = button.getAttribute('data-excel-submode');
+            setExcelSubMode(subMode);
+        });
+    });
+
+    const peopleRoleCheckboxes = {
+        chair: document.getElementById('filterPeopleChair'),
+        speaker: document.getElementById('filterPeopleSpeaker'),
+    };
+    Object.keys(peopleRoleCheckboxes).forEach(key => {
+        const checkbox = peopleRoleCheckboxes[key];
+        if (checkbox) {
+            checkbox.checked = excelViewState.peopleFilters[key] !== false;
+            checkbox.addEventListener('change', () => {
+                excelViewState.peopleFilters[key] = checkbox.checked;
+                applyPeopleViewFilters();
+            });
+        }
+    });
     
     const searchInput = document.getElementById('excelViewSearchInput');
     if (searchInput) {
@@ -4658,7 +4687,9 @@ function setViewMode(mode) {
         if (currentViewMode === 'excel') {
             calendarContainer.style.display = 'none';
             excelContainer.style.display = 'block';
-            refreshExcelViewData(!excelViewState.initialized);
+            excelViewState.initialized = false;
+            updateExcelViewToolbarForMode();
+            refreshExcelViewData(true);
         } else {
             calendarContainer.style.display = '';
             excelContainer.style.display = 'none';
@@ -4666,48 +4697,113 @@ function setViewMode(mode) {
     }
 }
 
+function setExcelSubMode(subMode) {
+    if (!subMode || subMode === excelViewState.subMode) {
+        return;
+    }
+
+    excelViewState.subMode = subMode;
+
+    document.querySelectorAll('.excel-submode-btn').forEach(button => {
+        const buttonMode = button.getAttribute('data-excel-submode');
+        button.classList.toggle('active', buttonMode === subMode);
+    });
+
+    // 검색어 초기화 (뷰마다 검색 대상이 다름)
+    const searchInput = document.getElementById('excelViewSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+    }
+    excelViewState.searchTerm = '';
+
+    excelViewState.initialized = false;
+    updateExcelViewToolbarForMode();
+    refreshExcelViewData(true);
+}
+
+function updateExcelViewToolbarForMode() {
+    const isPeople = excelViewState.subMode === 'people';
+    const programFilters = document.querySelector('.excel-view-program-filters');
+    const peopleFilters = document.querySelector('.excel-view-people-filters');
+    const hint = document.getElementById('excelViewSubModeHint');
+    const searchInput = document.getElementById('excelViewSearchInput');
+    const exportBtn = document.getElementById('excelViewExportBtn');
+
+    if (programFilters) {
+        programFilters.style.display = isPeople ? 'none' : '';
+    }
+    if (peopleFilters) {
+        peopleFilters.style.display = isPeople ? 'flex' : 'none';
+    }
+    if (hint) {
+        if (isPeople) {
+            hint.style.display = 'inline';
+            hint.textContent = '· 프로그램 좌장·연자 중복 제거';
+        } else {
+            hint.style.display = 'none';
+            hint.textContent = '';
+        }
+    }
+    if (searchInput) {
+        searchInput.placeholder = isPeople
+            ? '검색 (이름, 이메일, 소속, 세션)'
+            : '검색 (세션명, 발표자, 장소 등)';
+    }
+    if (exportBtn) {
+        exportBtn.style.display = isPeople ? 'none' : '';
+    }
+}
+
 function refreshExcelViewData(forceRegenerate = false) {
     const excelContainer = document.getElementById('excelViewContainer');
     if (!excelContainer) return;
 
+    updateExcelViewToolbarForMode();
+
     const runRefresh = () => {
         try {
             if (!excelViewState.initialized || forceRegenerate) {
-                // 캘린더 뷰와 동일한 세션 번호를보내기 데이터에 반영
                 if (typeof assignSessionNumbers === 'function' && Array.isArray(sessions) && sessions.length > 0) {
                     assignSessionNumbers();
                 }
-                // 엑셀 뷰에서는 모든 컬럼을 포함하도록 설정
-                const allColumnsSettings = {
-                    date: true,
-                    sessionType: true,
-                    sessionAbbr: true,
-                    sessionTitle: true,
-                    venue: true,
-                    sessionTime: true,
-                    chairName: true,
-                    chairCountry: true,
-                    chairAffiliation: true,
-                    chairEmail: true,
-                    chairPhone: true,
-                    chairAffiliationEng: true,
-                    chairDepartmentEng: true,
-                    chairPosition: true,
-                    speakerName: true,
-                    speakerCountry: true,
-                    speakerAffiliation: true,
-                    speakerEmail: true,
-                    speakerPhone: true,
-                    speakerAffiliationEng: true,
-                    speakerDepartmentEng: true,
-                    speakerPosition: true,
-                    speakerTopic: true,
-                    speakerTime: true
-                };
-                const { headers, rows, exportSettings } = generateRowExportData(allColumnsSettings);
-                excelViewState.headers = headers;
-                excelViewState.rows = rows;
-                excelViewState.exportSettings = exportSettings;
+
+                if (excelViewState.subMode === 'people') {
+                    excelViewState.peopleRows = generatePeopleViewData();
+                    excelViewState.headers = [];
+                    excelViewState.rows = [];
+                } else {
+                    const allColumnsSettings = {
+                        date: true,
+                        sessionType: true,
+                        sessionAbbr: true,
+                        sessionTitle: true,
+                        venue: true,
+                        sessionTime: true,
+                        chairName: true,
+                        chairCountry: true,
+                        chairAffiliation: true,
+                        chairEmail: true,
+                        chairPhone: true,
+                        chairAffiliationEng: true,
+                        chairDepartmentEng: true,
+                        chairPosition: true,
+                        speakerName: true,
+                        speakerCountry: true,
+                        speakerAffiliation: true,
+                        speakerEmail: true,
+                        speakerPhone: true,
+                        speakerAffiliationEng: true,
+                        speakerDepartmentEng: true,
+                        speakerPosition: true,
+                        speakerTopic: true,
+                        speakerTime: true
+                    };
+                    const { headers, rows, exportSettings } = generateRowExportData(allColumnsSettings);
+                    excelViewState.headers = headers;
+                    excelViewState.rows = rows;
+                    excelViewState.exportSettings = exportSettings;
+                    excelViewState.peopleRows = [];
+                }
                 excelViewState.initialized = true;
             }
             applyExcelViewFilters();
@@ -4727,6 +4823,11 @@ function refreshExcelViewData(forceRegenerate = false) {
 
 function applyExcelViewFilters() {
     if (!excelViewState.initialized) return;
+
+    if (excelViewState.subMode === 'people') {
+        applyPeopleViewFilters();
+        return;
+    }
     
     const searchTerm = excelViewState.searchTerm || '';
     const filters = excelViewState.filters || {
@@ -4989,7 +5090,598 @@ function applyExcelViewFilters() {
     renderExcelViewTable();
 }
 
+function getPersonDedupKeyFromEntity(entity) {
+    if (!entity) return '';
+    const participantId = Number(entity.participantId ?? entity.id ?? 0);
+    if (participantId > 0) {
+        return `participant:${participantId}`;
+    }
+    return getProgramPersonRegistrationKey(entity);
+}
+
+function isProgramSpecialPerson(entity) {
+    if (!entity) return true;
+    if (entity.isSpecialKeyword) return true;
+    const name = getProgramPersonDisplayName(entity);
+    if (!name) return true;
+    const upper = name.toUpperCase();
+    const specials = ['TBD', 'DISCUSSION', 'Q&A', 'QA', 'BREAK', 'LUNCH', 'COFFEE BREAK'];
+    return specials.includes(upper);
+}
+
+function findParticipantRecordForEntity(entity) {
+    const participantId = Number(entity?.participantId ?? entity?.id ?? 0);
+    if (participantId > 0) {
+        const byId = participants.find((p) => Number(p.id) === participantId);
+        if (byId) return byId;
+    }
+    const email = (entity?.email || '').trim().toLowerCase();
+    if (email) {
+        return participants.find((p) => (p.email || '').trim().toLowerCase() === email) || null;
+    }
+    return null;
+}
+
+function getProgramPersonRowStatus(entity, participant) {
+    const isRegistered = Boolean(participant && Number(participant.id) > 0);
+    if (isRegistered) return 'registered';
+    if (needsProgramPersonRegistration(entity)) return 'pending';
+    return 'unmatched';
+}
+
+function getPeopleViewSummary(rows) {
+    const list = rows || excelViewState.peopleRows || [];
+    const summary = { total: list.length, registered: 0, pending: 0, unmatched: 0 };
+    list.forEach((row) => {
+        if (row.rowStatus === 'registered') summary.registered += 1;
+        else if (row.rowStatus === 'pending') summary.pending += 1;
+        else summary.unmatched += 1;
+    });
+    return summary;
+}
+
+function formatPeopleViewCountLabel(summary) {
+    if (!summary || summary.total === 0) return '총 0명';
+    const parts = [`총 ${summary.total.toLocaleString()}명`];
+    if (summary.pending > 0) parts.push(`등록가능 ${summary.pending.toLocaleString()}`);
+    if (summary.unmatched > 0) parts.push(`수동확인 ${summary.unmatched.toLocaleString()}`);
+    if (summary.registered > 0) parts.push(`등록완료 ${summary.registered.toLocaleString()}`);
+    return parts.join(' · ');
+}
+
+function makePeopleSessionEntryKey(entry) {
+    return [
+        entry.sessionLabel || '',
+        entry.role || '',
+        entry.topic || '',
+        entry.lectureTime || '',
+    ].join('::');
+}
+
+function formatPeopleSessionEntryDisplay(entry) {
+    const label = entry.sessionLabel || '';
+    if (entry.role === '연자' && entry.topic) {
+        return `${label} — ${entry.topic}`;
+    }
+    return label;
+}
+
+function normalizePeopleSessionEntries(input) {
+    if (Array.isArray(input) && input.length > 0) {
+        return input;
+    }
+    return String(input || '').split('\n').map((line) => line.trim()).filter(Boolean).map((line) => {
+        const parsed = parsePeopleSessionLine(line);
+        const topicSep = line.indexOf(' — ');
+        if (topicSep >= 0) {
+            return {
+                sessionLabel: line.slice(0, topicSep),
+                role: '연자',
+                topic: line.slice(topicSep + 3),
+                lectureTime: '',
+                date: parsed.date,
+                startTime: parsed.time,
+            };
+        }
+        return {
+            sessionLabel: line,
+            role: '',
+            topic: '',
+            lectureTime: '',
+            date: parsed.date,
+            startTime: parsed.time,
+        };
+    });
+}
+
+function generatePeopleViewData() {
+    const unique = new Map();
+
+    const sortedSessions = [...sessions].sort((a, b) => {
+        const dateA = a.date || '';
+        const dateB = b.date || '';
+        if (dateA !== dateB) return dateA.localeCompare(dateB);
+        const timeA = a.startTime || '';
+        const timeB = b.startTime || '';
+        if (timeA !== timeB) return timeA.localeCompare(timeB);
+        return (a.venue || '').localeCompare(b.venue || '');
+    });
+
+    sortedSessions.forEach((session) => {
+        const date = session.date || '';
+        const startTime = session.startTime || '';
+        const sortKey = `${date} ${startTime}`.trim();
+        const sessionLabel = [date, startTime, session.title || ''].filter(Boolean).join(' ');
+
+        const entries = [];
+        if (Array.isArray(session.chairs)) {
+            session.chairs.forEach((chair) => entries.push({ entity: chair, role: '좌장' }));
+        } else if (session.chairId || session.chair) {
+            entries.push({
+                entity: {
+                    participantId: session.chairId,
+                    id: session.chairId,
+                    name: session.chair,
+                },
+                role: '좌장',
+            });
+        }
+        if (Array.isArray(session.speakers)) {
+            session.speakers.forEach((speaker) => entries.push({ entity: speaker, role: '연자' }));
+        }
+
+        entries.forEach(({ entity, role }) => {
+            if (isProgramSpecialPerson(entity)) return;
+
+            const key = getPersonDedupKeyFromEntity(entity);
+            if (!key) return;
+
+            const contact = resolveProgramPersonContact(entity) || entity;
+            const participant = findParticipantRecordForEntity(entity);
+            const rowStatus = getProgramPersonRowStatus(entity, participant);
+
+            const topic = (entity.topic || '').trim();
+            const lectureStart = (entity.startTime || '').trim();
+            const lectureEnd = (entity.endTime || '').trim();
+            const lectureTime = lectureStart && lectureEnd
+                ? `${lectureStart}-${lectureEnd}`
+                : lectureStart;
+            const sessionEntry = {
+                sessionLabel,
+                role,
+                topic,
+                lectureTime,
+                date,
+                startTime,
+            };
+
+            if (!unique.has(key)) {
+                unique.set(key, {
+                    key,
+                    entity,
+                    rowStatus,
+                    roles: new Set([role]),
+                    firstSortKey: sortKey || 'zzzz',
+                    firstDateTime: [date, startTime].filter(Boolean).join(' '),
+                    sessionEntries: sessionLabel ? [sessionEntry] : [],
+                    nameKor: contact.name_kor || contact.name || '',
+                    nameEng: contact.name_eng || composeNameFromParts(contact.first_name, contact.family_name) || '',
+                    country: contact.country || '',
+                    countryCode: contact.country_code || '',
+                    affiliation: contact.affiliation_kor || contact.affiliation || '',
+                    email: contact.email || '',
+                    participantId: participant?.id || (Number(entity.participantId ?? entity.id) > 0 ? Number(entity.participantId ?? entity.id) : null),
+                    participant,
+                    registered: rowStatus === 'registered',
+                });
+            } else {
+                const rec = unique.get(key);
+                rec.roles.add(role);
+                if (rowStatus === 'registered' || (rowStatus === 'pending' && rec.rowStatus === 'unmatched')) {
+                    rec.rowStatus = rowStatus;
+                }
+                if (sortKey && (rec.firstSortKey === 'zzzz' || sortKey < rec.firstSortKey)) {
+                    rec.firstSortKey = sortKey;
+                    rec.firstDateTime = [date, startTime].filter(Boolean).join(' ');
+                }
+                if (sessionLabel) {
+                    const entryKey = makePeopleSessionEntryKey(sessionEntry);
+                    const exists = (rec.sessionEntries || []).some((e) => makePeopleSessionEntryKey(e) === entryKey);
+                    if (!exists) {
+                        if (!rec.sessionEntries) rec.sessionEntries = [];
+                        rec.sessionEntries.push(sessionEntry);
+                    }
+                }
+                if (!rec.participant && participant) {
+                    rec.participant = participant;
+                    rec.participantId = participant.id;
+                    rec.registered = true;
+                }
+            }
+        });
+    });
+
+    return Array.from(unique.values())
+        .map((rec) => ({
+            ...rec,
+            rolesArray: Array.from(rec.roles),
+            isChair: rec.roles.has('좌장'),
+            isSpeaker: rec.roles.has('연자'),
+            roleLabel: Array.from(rec.roles).sort().join('/'),
+            sessionCount: (rec.sessionEntries || []).length,
+            sessionEntries: rec.sessionEntries || [],
+            sessionsText: (rec.sessionEntries || []).map(formatPeopleSessionEntryDisplay).join('\n'),
+        }))
+        .sort((a, b) => a.firstSortKey.localeCompare(b.firstSortKey));
+}
+
+function applyPeopleViewFilters() {
+    const searchTerm = (excelViewState.searchTerm || '').toLowerCase();
+    const roleFilters = excelViewState.peopleFilters || { chair: true, speaker: true };
+    let filtered = [...(excelViewState.peopleRows || [])];
+
+    // 역할 필터 (좌장/연자). 둘 다 해제 시 결과 없음.
+    filtered = filtered.filter((row) => {
+        const matchChair = roleFilters.chair && row.isChair;
+        const matchSpeaker = roleFilters.speaker && row.isSpeaker;
+        return matchChair || matchSpeaker;
+    });
+
+    if (searchTerm) {
+        filtered = filtered.filter((row) => {
+            const haystack = [
+                row.nameKor,
+                row.nameEng,
+                row.email,
+                row.affiliation,
+                row.country,
+                row.roleLabel,
+                row.sessionsText,
+            ].join(' ').toLowerCase();
+            return haystack.includes(searchTerm);
+        });
+    }
+
+    // 정렬: 이름(KOR/ENG) 선택 시 해당 이름순, 아니면 기본(첫 세션 일시순)
+    const sort = excelViewState.peopleSort || { key: null, dir: 'asc' };
+    if (sort.key === 'nameKor' || sort.key === 'nameEng') {
+        const dir = sort.dir === 'desc' ? -1 : 1;
+        const collator = new Intl.Collator(['ko', 'en'], { sensitivity: 'base', numeric: true });
+        filtered.sort((a, b) => {
+            const va = (a[sort.key] || '').trim();
+            const vb = (b[sort.key] || '').trim();
+            // 빈 값은 항상 뒤로
+            if (!va && !vb) return 0;
+            if (!va) return 1;
+            if (!vb) return -1;
+            return collator.compare(va, vb) * dir;
+        });
+    }
+
+    excelViewState.filteredPeopleRows = filtered;
+    renderPeopleViewTable();
+}
+
+function togglePeopleSort(key) {
+    const sort = excelViewState.peopleSort || { key: null, dir: 'asc' };
+    if (sort.key === key) {
+        if (sort.dir === 'asc') {
+            excelViewState.peopleSort = { key, dir: 'desc' };
+        } else {
+            // 3번째 클릭 시 기본 정렬(첫 세션 일시순)로 복귀
+            excelViewState.peopleSort = { key: null, dir: 'asc' };
+        }
+    } else {
+        excelViewState.peopleSort = { key, dir: 'asc' };
+    }
+    applyPeopleViewFilters();
+}
+
+function formatAcceptDeclineStatus(status) {
+    if (status === 'Accept') return '<span class="accept-status">승인</span>';
+    if (status === 'Decline') return '<span class="decline-status">거절</span>';
+    return status || '-';
+}
+
+function renderAttachmentCell(filepath) {
+    if (!filepath || filepath === 'nan') return '';
+  const escaped = String(filepath).replace(/'/g, "\\'");
+    return `<a href="#" onclick="downloadProgramPersonFile('${escaped}', event); return false;" class="attachment-icon" title="다운로드">📎</a>`;
+}
+
+function openParticipantEditPopup(participantId) {
+    if (!participantId) return;
+    window.open(`/edit_participant/${participantId}`, '_blank', 'width=500,height=800,scrollbars=yes,resizable=yes');
+}
+
+async function downloadProgramPersonFile(filepath, event) {
+    if (event) event.preventDefault();
+    try {
+        const response = await fetch(`/download_file_path/${encodeURIComponent(filepath)}`, { method: 'GET' });
+        if (!response.ok) {
+            alert('파일 다운로드에 실패했습니다.');
+            return;
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filepath.split('/').pop() || 'downloaded_file';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        console.error('File download error:', error);
+        alert('파일 다운로드 중 오류가 발생했습니다.');
+    }
+}
+
+function parsePeopleSessionLine(line) {
+    const trimmed = (line || '').trim();
+    const parts = trimmed.split(/\s+/);
+    if (parts.length >= 3 && /^\d{4}-\d{2}-\d{2}$/.test(parts[0]) && /^\d{2}:\d{2}/.test(parts[1])) {
+        return {
+            date: parts[0],
+            time: parts[1],
+            title: parts.slice(2).join(' '),
+        };
+    }
+    return { date: '', time: '', title: trimmed };
+}
+
+function buildPeopleSessionsModalBody(sessionEntries) {
+    const bodyEl = document.createElement('div');
+    const entries = normalizePeopleSessionEntries(sessionEntries);
+
+    if (entries.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'title-modal-empty';
+        empty.textContent = '참여 세션이 없습니다.';
+        bodyEl.appendChild(empty);
+        return bodyEl;
+    }
+
+    entries.forEach((entry) => {
+        const parsed = parsePeopleSessionLine(entry.sessionLabel || '');
+        const date = entry.date || parsed.date;
+        const sessionTime = entry.startTime || parsed.time;
+        const sessionTitle = parsed.title || entry.sessionLabel || '';
+        const item = document.createElement('div');
+        item.className = 'title-modal-item';
+
+        const metaParts = [];
+        if (date) metaParts.push({ cls: 'title-modal-year', text: date });
+        if (sessionTime) metaParts.push({ cls: 'title-modal-role', text: sessionTime });
+        if (entry.role) metaParts.push({ cls: 'title-modal-role', text: entry.role });
+        if (entry.lectureTime) metaParts.push({ cls: 'title-modal-role', text: entry.lectureTime });
+
+        if (metaParts.length > 0) {
+            const meta = document.createElement('div');
+            meta.className = 'title-modal-meta';
+            metaParts.forEach(({ cls, text }) => {
+                const el = document.createElement('span');
+                el.className = cls;
+                el.textContent = text;
+                meta.appendChild(el);
+            });
+            item.appendChild(meta);
+        }
+
+        if (sessionTitle) {
+            const text = document.createElement('div');
+            text.className = 'title-modal-text';
+            text.textContent = sessionTitle;
+            item.appendChild(text);
+        }
+
+        if (entry.role === '연자' && entry.topic) {
+            const presentation = document.createElement('div');
+            presentation.className = 'people-session-presentation';
+            presentation.textContent = entry.topic;
+            item.appendChild(presentation);
+        }
+
+        bodyEl.appendChild(item);
+    });
+
+    return bodyEl;
+}
+
+function bindPeopleSessionsModal() {
+    const modal = document.getElementById('peopleSessionsPopupModal');
+    if (!modal || modal.dataset.bound === '1') return;
+
+    modal.querySelector('.title-modal-backdrop')?.addEventListener('click', closePeopleSessionsPopup);
+    modal.querySelector('.title-modal-close')?.addEventListener('click', closePeopleSessionsPopup);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) {
+            closePeopleSessionsPopup();
+        }
+    });
+    modal.dataset.bound = '1';
+}
+
+function openPeopleSessionsPopup(personName, sessionEntries) {
+    const modal = document.getElementById('peopleSessionsPopupModal');
+    const titleEl = document.getElementById('peopleSessionsPopupTitle');
+    const subtitleEl = document.getElementById('peopleSessionsPopupPersonName');
+    const bodyEl = document.getElementById('peopleSessionsPopupBody');
+    if (!modal || !bodyEl) return;
+
+    bindPeopleSessionsModal();
+
+    if (titleEl) titleEl.textContent = '참여 세션';
+    if (subtitleEl) subtitleEl.textContent = personName || '';
+
+    bodyEl.innerHTML = '';
+    bodyEl.appendChild(buildPeopleSessionsModalBody(sessionEntries));
+
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+}
+
+function closePeopleSessionsPopup() {
+    const modal = document.getElementById('peopleSessionsPopupModal');
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.body.style.overflow = '';
+}
+
+function renderPeopleViewTable() {
+    const table = document.getElementById('excelViewTable');
+    const tableHead = table?.querySelector('thead');
+    const tableBody = table?.querySelector('tbody');
+    const emptyState = document.getElementById('excelViewEmptyState');
+    const rowCountLabel = document.getElementById('excelViewRowCount');
+
+    if (!table || !tableHead || !tableBody) return;
+
+    table.classList.add('excel-table--people');
+
+    const headers = [
+        { label: '번호' },
+        { label: '역할' },
+        { label: '이름(KOR)', sortKey: 'nameKor' },
+        { label: '이름(ENG)', sortKey: 'nameEng' },
+        { label: '국가' },
+        { label: '국가약어' },
+        { label: '소속' },
+        { label: '이메일' },
+        { label: '참여 세션' },
+        { label: '등록구분' },
+        { label: '승인/거절' },
+        { label: 'CV' },
+        { label: '사진' },
+        { label: 'PPT' },
+        { label: 'Script' },
+        { label: '동의여부' },
+        { label: '관리' },
+    ];
+
+    tableHead.innerHTML = '';
+    tableBody.innerHTML = '';
+
+    const sort = excelViewState.peopleSort || { key: null, dir: 'asc' };
+    const headerRow = document.createElement('tr');
+    headers.forEach((col) => {
+        const th = document.createElement('th');
+        if (col.sortKey) {
+            th.classList.add('people-sortable');
+            let indicator = '';
+            if (sort.key === col.sortKey) {
+                indicator = sort.dir === 'desc' ? ' ▼' : ' ▲';
+            }
+            th.textContent = col.label + indicator;
+            th.title = '클릭하여 정렬';
+            th.addEventListener('click', () => togglePeopleSort(col.sortKey));
+        } else {
+            th.textContent = col.label;
+        }
+        headerRow.appendChild(th);
+    });
+    tableHead.appendChild(headerRow);
+
+    const rows = excelViewState.filteredPeopleRows || [];
+
+    if (rows.length === 0) {
+        tableBody.style.display = 'none';
+        if (emptyState) {
+            emptyState.innerHTML = `
+                <i class="fas fa-users"></i>
+                <p>표시할 좌장·연자가 없습니다.</p>
+            `;
+            emptyState.style.display = 'flex';
+        }
+    } else {
+        tableBody.style.display = '';
+        rows.forEach((row, index) => {
+            const p = row.participant || {};
+            const tr = document.createElement('tr');
+            if (row.rowStatus === 'unmatched') {
+                tr.classList.add('people-view-unmatched');
+            }
+
+            const registrationLabel = row.rowStatus === 'registered'
+                ? (p.registration || '등록됨')
+                : row.rowStatus === 'pending'
+                    ? '미등록'
+                    : '수동확인 필요';
+
+            const cells = [
+                String(index + 1),
+                row.roleLabel || '',
+                row.nameKor || '',
+                row.nameEng || '',
+                row.country || p.country || '',
+                row.countryCode || p.country_code || '',
+                row.affiliation || p.affiliation_kor || p.affiliation || '',
+                row.email || p.email || '',
+                row.sessionsText || '',
+                registrationLabel,
+                formatAcceptDeclineStatus(p.accept_or_decline),
+                renderAttachmentCell(p.cv),
+                renderAttachmentCell(p.photo),
+                renderAttachmentCell(p.ppt),
+                renderAttachmentCell(p.script),
+                p.agree || '',
+                row.participantId
+                    ? `<a href="#" class="action-link" onclick="openParticipantEditPopup(${row.participantId}); return false;">수정</a>`
+                    : '<span style="color:#999;">-</span>',
+            ];
+
+            const SESSIONS_COL_INDEX = 8;
+
+            cells.forEach((cellHtml, cellIndex) => {
+                const td = document.createElement('td');
+                const isHtml = cellIndex >= 10 && cellIndex <= 16;
+
+                if (cellIndex === SESSIONS_COL_INDEX) {
+                    const sessionsFull = String(cellHtml || '');
+                    const displayText = sessionsFull.replace(/\n/g, ' / ').trim();
+                    if (sessionsFull.trim()) {
+                        td.className = 'people-sessions-cell';
+                        td.title = '클릭하여 참여 세션 전체 보기';
+                        const div = document.createElement('div');
+                        div.textContent = displayText;
+                        td.appendChild(div);
+                        td.addEventListener('click', () => {
+                            openPeopleSessionsPopup(
+                                row.nameKor || row.nameEng || '',
+                                row.sessionEntries || row.sessionsText
+                            );
+                        });
+                    } else {
+                        td.textContent = '-';
+                        td.style.color = '#999';
+                    }
+                } else if (isHtml) {
+                    td.innerHTML = cellHtml;
+                } else {
+                    const fullText = String(cellHtml || '');
+                    const div = document.createElement('div');
+                    // 한 줄 표시: 줄바꿈은 공백/구분자로, 넘치면 말줄임 + 전체는 tooltip
+                    div.textContent = fullText.replace(/\n/g, ' / ');
+                    td.appendChild(div);
+                    td.title = fullText;
+                }
+                tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+        });
+        if (emptyState) emptyState.style.display = 'none';
+    }
+
+    if (rowCountLabel) {
+        rowCountLabel.textContent = formatPeopleViewCountLabel(getPeopleViewSummary(rows));
+    }
+}
+
 function renderExcelViewTable() {
+    if (excelViewState.subMode === 'people') {
+        renderPeopleViewTable();
+        return;
+    }
     const table = document.getElementById('excelViewTable');
     const tableHead = table?.querySelector('thead');
     const tableBody = table?.querySelector('tbody');
@@ -4997,6 +5689,8 @@ function renderExcelViewTable() {
     const rowCountLabel = document.getElementById('excelViewRowCount');
     
     if (!table || !tableHead || !tableBody) return;
+
+    table.classList.remove('excel-table--people');
     
     tableHead.innerHTML = '';
     tableBody.innerHTML = '';
@@ -6383,17 +7077,33 @@ function resolvePersonForProgram(person) {
         return person;
     }
 
-    if (person.source === 'participant' || (!person.source && person.id && Number(person.id) > 0)) {
+    if (person.source === 'participant' || (!person.source && person.id && Number(person.id) > 0 && !person.isPoolReference)) {
         return {
             ...person,
             participantId: person.id,
             id: person.id,
-            poolSource: 'participant',
+            poolSource: person.poolSource || 'participant',
+        };
+    }
+
+    const existingPoolRef = String(person.poolRef || person.pool_id || '');
+    if (person.isPoolReference && existingPoolRef) {
+        const poolSource = person.poolSource || person.source
+            || (existingPoolRef.startsWith('history:') ? 'history'
+                : existingPoolRef.startsWith('member:') ? 'member' : 'pool');
+        return {
+            ...person,
+            poolRef: existingPoolRef,
+            pool_id: existingPoolRef,
+            poolSource,
+            isPoolReference: true,
         };
     }
 
     const name = person.name || person.name_kor || person.name_eng || '';
     const tempId = -(Date.now() + Math.random() * 1000);
+    const poolRef = person.pool_id || person.poolRef || '';
+    const poolSource = person.source || person.poolSource || 'pool';
     return {
         participantId: tempId,
         id: tempId,
@@ -6412,9 +7122,10 @@ function resolvePersonForProgram(person) {
         country_code: person.country_code || '',
         position: person.position || '',
         phone: person.phone || '',
-        poolSource: person.source || 'pool',
-        poolRef: person.pool_id || '',
-        isPoolReference: true,
+        poolSource,
+        poolRef,
+        pool_id: poolRef,
+        isPoolReference: Boolean(poolRef),
     };
 }
 
@@ -6595,6 +7306,84 @@ function collectProgramPeoplePendingRegistration() {
     return Array.from(unique.values());
 }
 
+function computeUnregisteredProgramPeople() {
+    // 좌장·연자 뷀(generatePeopleViewData)와 동일한 중복 제거 기준으로 인물을 모은 뒤,
+    // 참가자 레코드가 없는(=등록 안 된) 사람만 사유와 함께 반환한다.
+    const unique = new Map();
+
+    sessions.forEach((session) => {
+        iterProgramSessionPeople(session).forEach(({ entity, role }) => {
+            if (isProgramSpecialPerson(entity)) return;
+            const key = getPersonDedupKeyFromEntity(entity);
+            if (!key) return;
+            if (!unique.has(key)) {
+                unique.set(key, { key, entity, roles: new Set([role]) });
+            } else {
+                unique.get(key).roles.add(role);
+            }
+        });
+    });
+
+    const result = { total: unique.size, registered: 0, unregistered: [] };
+
+    unique.forEach(({ entity, roles }) => {
+        const participant = findParticipantRecordForEntity(entity);
+        const participantId = Number(entity.participantId ?? entity.id ?? 0);
+        const isRegistered = Boolean(participant) || participantId > 0;
+        if (isRegistered) {
+            result.registered += 1;
+            return;
+        }
+
+        const poolRef = String(entity.poolRef || entity.pool_id || '');
+        const poolSource = entity.poolSource || entity.source || '';
+        const matchedPool =
+            poolRef.startsWith('history:') || poolRef.startsWith('member:') ||
+            poolSource === 'history' || poolSource === 'member' ||
+            (entity.isPoolReference && poolRef);
+
+        let reason;
+        if (!matchedPool) {
+            reason = '역대 명단·회원 어디에도 매칭되지 않음 (등록 대상에서 제외 → 수동 입력 필요)';
+        } else {
+            reason = '역대명단/회원 매칭됨이나 참가자 미생성 (이메일 없음 또는 동일 이메일 병합/등록 실패)';
+        }
+
+        result.unregistered.push({
+            key: entity.poolRef || entity.pool_id || entity.key || '',
+            nameKor: entity.name_kor || entity.name || '',
+            nameEng: entity.name_eng || '',
+            email: entity.email || '',
+            poolRef,
+            poolSource,
+            roleLabel: Array.from(roles).sort().join('/'),
+            reason,
+        });
+    });
+
+    return result;
+}
+
+function diagnoseUnregisteredProgramPeople() {
+    const diag = computeUnregisteredProgramPeople();
+    console.log(`[진단] 좌장·연자 뷰 인원: ${diag.total}명 / 등록됨: ${diag.registered}명 / 미등록: ${diag.unregistered.length}명`);
+    if (diag.unregistered.length > 0) {
+        console.table(diag.unregistered.map((p) => ({
+            이름: p.nameKor || p.nameEng,
+            영문명: p.nameEng,
+            역할: p.roleLabel,
+            이메일: p.email,
+            출처: p.poolRef || p.poolSource || '(없음)',
+            사유: p.reason,
+        })));
+    }
+    return diag;
+}
+
+if (typeof window !== 'undefined') {
+    window.diagnoseUnregisteredProgramPeople = diagnoseUnregisteredProgramPeople;
+}
+
 function poolPersonFromProgramEntity(entity, programRole = '') {
     const poolRef = entity.poolRef || entity.pool_id || '';
     const cached = poolRef ? findPersonByPoolRef(poolRef) : null;
@@ -6678,10 +7467,18 @@ function updateRegisterProgramPeopleButton() {
     if (!btn) return;
 
     const pending = collectProgramPeoplePendingRegistration();
+    const summary = getPeopleViewSummary(excelViewState.peopleRows || generatePeopleViewData());
+
     if (pending.length > 0) {
         btn.style.display = '';
         btn.disabled = false;
-        btn.innerHTML = `<i class="fas fa-user-plus"></i> 좌장·연자 참가자 등록 (${pending.length})`;
+        const totalHint = summary.total > pending.length
+            ? ` / 전체 ${summary.total}`
+            : '';
+        btn.innerHTML = `<i class="fas fa-user-plus"></i> 좌장·연자 참가자 등록 (${pending.length}${totalHint})`;
+        btn.title = summary.unmatched > 0
+            ? `역대명단·회원에 매칭된 ${pending.length}명을 등록합니다. 수동확인 필요 ${summary.unmatched}명은 제외됩니다.`
+            : '프로그램에만 배치된 좌장·연자를 이 행사 참가자로 일괄 등록';
     } else {
         btn.style.display = 'none';
     }
@@ -6804,18 +7601,29 @@ async function registerAllProgramPeopleAsParticipants() {
     }
 
     updateRegisterProgramPeopleButton();
+
+    const diag = diagnoseUnregisteredProgramPeople();
+
     progressWrap.style.display = 'none';
     resultEl.style.display = 'block';
     resultEl.innerHTML = `
-        <div class="alert alert-success" style="margin-bottom: ${failures.length ? '12px' : '0'};">
+        <div class="alert alert-success" style="margin-bottom: ${failures.length || diag.unregistered.length ? '12px' : '0'};">
             <strong>등록 완료:</strong> ${successes.length}명
             ${successes.length ? `<div style="margin-top: 6px; font-size: 13px;">${successes.join(', ')}</div>` : ''}
         </div>
         ${failures.length ? `
-            <div class="alert alert-danger" style="margin-bottom: 0;">
+            <div class="alert alert-danger" style="margin-bottom: ${diag.unregistered.length ? '12px' : '0'};">
                 <strong>실패:</strong> ${failures.length}명
                 <ul style="margin: 8px 0 0 18px; font-size: 13px;">
                     ${failures.map((f) => `<li>${f.name}: ${f.reason}</li>`).join('')}
+                </ul>
+            </div>
+        ` : ''}
+        ${diag.unregistered.length ? `
+            <div class="alert alert-warning" style="margin-bottom: 0;">
+                <strong>좌장·연자 뷰(${diag.total}명) 중 참가자 미등록: ${diag.unregistered.length}명</strong>
+                <ul style="margin: 8px 0 0 18px; font-size: 13px;">
+                    ${diag.unregistered.map((p) => `<li>${p.nameKor || p.nameEng}${p.roleLabel ? ` (${p.roleLabel})` : ''}: ${p.reason}</li>`).join('')}
                 </ul>
             </div>
         ` : ''}
@@ -7821,8 +8629,48 @@ function updateSessionTypeDropdown(selectedValue = null) {
 
 /**
  * 동명이인 감지 및 선택 시스템
+ * - 동명이인이 있는 세션마다 항상 사용자에게 선택을 요청
+ * - 자동으로 나머지 동명이인을 배정하지 않음
  */
-let duplicateNameSelections = new Map(); // Store user selections for duplicate names
+let duplicateNameSelections = new Map();
+
+function getHomonymOccurrenceKey(sessionTitle, speakerIndex, name, roleLabel) {
+    return `${sessionTitle}::${speakerIndex}::${name}::${roleLabel}`;
+}
+
+function getSavedHomonymOccurrence(name, sessionTitle, speakerIndex, roleLabel) {
+    const key = (name || '').trim();
+    const state = duplicateNameSelections.get(key);
+    if (!state) return null;
+    const occKey = getHomonymOccurrenceKey(sessionTitle, speakerIndex, name, roleLabel);
+    const poolRef = state.occurrences.get(occKey);
+    return poolRef ? findPersonByPoolRef(poolRef) : null;
+}
+
+function saveDuplicateSelection(name, sessionTitle, speakerIndex, roleLabel, resolved, sessionContext = {}) {
+    const poolRef = resolved?.poolRef || resolved?.pool_id || '';
+    if (!poolRef) return;
+    const key = (name || '').trim();
+    if (!duplicateNameSelections.has(key)) {
+        duplicateNameSelections.set(key, { occurrences: new Map() });
+    }
+    const state = duplicateNameSelections.get(key);
+    const occKey = getHomonymOccurrenceKey(sessionTitle, speakerIndex, name, roleLabel);
+    state.occurrences.set(occKey, poolRef);
+}
+
+async function promptAndResolveHomonym(name, sessionTitle, speakerIndex, roleLabel, matches, sessionContext) {
+    const saved = getSavedHomonymOccurrence(name, sessionTitle, speakerIndex, roleLabel);
+    if (saved) {
+        return resolvePersonForProgram(saved);
+    }
+
+    const selected = await promptPersonSelection(name, sessionTitle, speakerIndex, matches, roleLabel, sessionContext);
+    if (!selected) return null;
+    const resolved = resolvePersonForProgram(selected);
+    saveDuplicateSelection(name, sessionTitle, speakerIndex, roleLabel, resolved, sessionContext);
+    return resolved;
+}
 let currentDuplicateModal = null;
 let currentPersonConfirmResolve = null;
 
@@ -7964,7 +8812,7 @@ function hasDuplicateNames(name) {
     return matches.length > 1;
 }
 
-function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, roleLabel = '발표자', matches = null) {
+function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, roleLabel = '발표자', matches = null, sessionContext = null) {
     const matchList = matches || findParticipantsByName(name);
     
     if (matchList.length <= 1) {
@@ -7972,7 +8820,7 @@ function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, role
         return;
     }
     
-    console.log(`🔄 Found ${matchList.length} participants with name "${name}"`);
+    console.log(`🔄 Found ${matchList.length} homonym candidates for "${name}" in session "${sessionTitle}"`);
     
     // Remove any existing duplicate name modal
     const existingModal = document.getElementById('duplicateNameModal');
@@ -8002,7 +8850,7 @@ function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, role
                         세션: <strong>"${sessionTitle}"</strong><br>
                         ${roleLabel}: <strong>"${name}"</strong>${roleLabel === '발표자' ? ` (${roleDescription})` : ''}
                     </div>
-                    <p>아래에서 올바른 인물을 선택해주세요:</p>
+                    <p>이 세션에 맞는 인물을 아래에서 선택해주세요:</p>
                     <div class="duplicate-participants-list">
                         ${matchList.map((participant) => {
                             const poolRef = encodeURIComponent(participant.pool_id || `participant:${participant.id}`);
@@ -8075,7 +8923,8 @@ function showDuplicateNameModal(name, sessionTitle, speakerIndex, callback, role
         sessionTitle: sessionTitle,
         speakerIndex: speakerIndex,
         callback: callback,
-        roleLabel: roleLabel
+        roleLabel: roleLabel,
+        sessionContext: sessionContext || null,
     };
 
     ensureModalOverlayVisible('duplicateNameModal', 10050);
@@ -8093,11 +8942,15 @@ async function selectDuplicatePerson(poolRefEncoded, name, sessionTitle, speaker
     }
 
     const selectedParticipant = resolvePersonForProgram(person);
+    saveDuplicateSelection(
+        name,
+        sessionTitle,
+        speakerIndex,
+        roleLabel,
+        selectedParticipant,
+        currentDuplicateModal?.sessionContext || {}
+    );
 
-    const key = `${sessionTitle}_${speakerIndex}_${name}_${roleLabel}`;
-    duplicateNameSelections.set(key, selectedParticipant.id);
-    console.log(`🔍 Found selected participant:`, selectedParticipant);
-    
     if (currentDuplicateModal && currentDuplicateModal.callback) {
         console.log(`🎯 Calling callback for ${name} with participant:`, selectedParticipant);
         try {
@@ -8258,11 +9111,11 @@ function skipPoolPersonConfirm() {
     if (resolve) resolve('skip');
 }
 
-function promptPersonSelection(name, sessionTitle, speakerIndex, matches, roleLabel) {
+function promptPersonSelection(name, sessionTitle, speakerIndex, matches, roleLabel, sessionContext = null) {
     return new Promise((resolve) => {
         showDuplicateNameModal(name, sessionTitle, speakerIndex, (selectedParticipant) => {
             resolve(selectedParticipant || null);
-        }, roleLabel, matches);
+        }, roleLabel, matches, sessionContext);
     });
 }
 
@@ -8460,6 +9313,7 @@ async function processExcelUpload() {
     }
     
     console.log('📂 Processing Excel file:', file.name);
+    duplicateNameSelections.clear();
     
     // Progress 표시
     document.getElementById('uploadProgress').style.display = 'block';
@@ -9029,7 +9883,7 @@ function normalizeTime(timeValue) {
  * 엑셀 데이터로 세션 생성
  */
 // 비동기적으로 동명이인을 처리하는 함수
-async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex) {
+async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex, sessionContext = {}) {
     console.log(`🔍 Processing ${speaker.isSpeaker !== false ? 'speaker' : 'chair'}: ${speaker.name} for session: ${sessionTitle}`);
     console.log(`   isSpeaker flag: ${speaker.isSpeaker}`);
     console.log(`   isSpecialKeyword flag: ${speaker.isSpecialKeyword}`);
@@ -9060,8 +9914,8 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
         return resolved;
     }
     if (historyMatches.length > 1) {
-        const selected = await promptPersonSelection(name, sessionTitle, speakerIndex, historyMatches, roleLabel);
-        if (!selected) {
+        const resolved = await promptAndResolveHomonym(name, sessionTitle, speakerIndex, roleLabel, historyMatches, sessionContext);
+        if (!resolved) {
             const tempParticipantId = -(Date.now() + Math.random() * 1000);
             return {
                 participantId: tempParticipantId,
@@ -9072,7 +9926,7 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
                 isTemporary: true
             };
         }
-        return resolvePersonForProgram(selected);
+        return resolved;
     }
 
     // 2) 회원 — 확인 후 사용
@@ -9088,11 +9942,11 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
             return resolvePersonForProgram(confirmed);
         }
     } else if (memberMatches.length > 1) {
-        const selected = await promptPersonSelection(name, sessionTitle, speakerIndex, memberMatches, roleLabel);
-        if (!selected) {
+        const resolved = await promptAndResolveHomonym(name, sessionTitle, speakerIndex, roleLabel, memberMatches, sessionContext);
+        if (!resolved) {
             throw new Error(`"${name}" 회원 선택을 건너뛰었습니다.`);
         }
-        return resolvePersonForProgram(selected);
+        return resolved;
     }
 
     // 3) 이 행사 참가자 — 자동 (역대/회원에 없을 때)
@@ -9102,8 +9956,8 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
         return resolvePersonForProgram(participantMatches[0]);
     }
     if (participantMatches.length > 1) {
-        const selected = await promptPersonSelection(name, sessionTitle, speakerIndex, participantMatches, roleLabel);
-        if (!selected) {
+        const resolved = await promptAndResolveHomonym(name, sessionTitle, speakerIndex, roleLabel, participantMatches, sessionContext);
+        if (!resolved) {
             const tempParticipantId = -(Date.now() + Math.random() * 1000);
             return {
                 participantId: tempParticipantId,
@@ -9114,7 +9968,7 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex)
                 isTemporary: true
             };
         }
-        return resolvePersonForProgram(selected);
+        return resolved;
     }
 
     // 4) 없음 — 직접 입력/검색
@@ -9173,6 +10027,13 @@ async function createSessionsFromExcel(parsedSessions) {
                 chairNames = [sessionData.chairName.trim()];
             }
             
+            const sessionContext = {
+                title: sessionData.title,
+                venue: sessionData.venue,
+                date: sessionData.date,
+                sessionType: sessionData.sessionType,
+            };
+
             // 좌장이 없고, 좌장이 필요한 세션인 경우만 경고
             if (chairNames.length === 0) {
                 if (!isNoChairSession) {
@@ -9203,7 +10064,8 @@ async function createSessionsFromExcel(parsedSessions) {
                     const chairParticipant = await processSpeakerWithDuplicates(
                         { name: chairName, isSpeaker: false }, 
                         sessionData.title, 
-                        -1 // 좌장은 speakerIndex -1
+                        chairIdx,
+                        sessionContext
                     );
                     
                     if (chairParticipant) {
@@ -9239,7 +10101,7 @@ async function createSessionsFromExcel(parsedSessions) {
                 console.log(`⏳ About to call processSpeakerWithDuplicates for "${speaker.name}"`);
                 
                 try {
-                    const speakerParticipant = await processSpeakerWithDuplicates(speaker, sessionData.title, speakerIdx);
+                    const speakerParticipant = await processSpeakerWithDuplicates(speaker, sessionData.title, speakerIdx, sessionContext);
                     console.log(`✅ processSpeakerWithDuplicates completed for "${speaker.name}":`, speakerParticipant);
                     
                     if (speakerParticipant.isTemporary) {

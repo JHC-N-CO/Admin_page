@@ -171,30 +171,6 @@
                                     <label for="col-registration">등록구분</label>
                                 </div>
                                 <div class="column-option">
-                                    <input type="checkbox" id="col-accept-decline" data-column="accept_decline" checked>
-                                    <label for="col-accept-decline">승인/거절</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-cv" data-column="cv" checked>
-                                    <label for="col-cv">CV</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-photo" data-column="photo" checked>
-                                    <label for="col-photo">사진</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-ppt" data-column="ppt" checked>
-                                    <label for="col-ppt">PPT</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-script" data-column="script" checked>
-                                    <label for="col-script">Script</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-agree" data-column="agree" checked>
-                                    <label for="col-agree">동의여부</label>
-                                </div>
-                                <div class="column-option">
                                     <input type="checkbox" id="col-remark-user" data-column="remark_user" checked>
                                     <label for="col-remark-user">비고(사용자)</label>
                                 </div>
@@ -254,12 +230,6 @@
                                     <th class="sortable" data-column="birth_date" data-sort="birth_date">생년월일</th>
                                     <th class="sortable" data-column="workplace_type" data-sort="workplace_type">회원구분</th>
                                     <th class="sortable" data-column="registration" data-sort="registration">등록구분</th>
-                                    <th class="sortable" data-column="accept_decline" data-sort="accept_decline">승인/거절</th>
-                                    <th data-column="cv">CV</th>
-                                    <th data-column="photo">사진</th>
-                                    <th data-column="ppt">PPT</th>
-                                    <th data-column="script">Script</th>
-                                    <th class="sortable" data-column="agree" data-sort="agree">동의여부</th>
                                     <th class="sortable" data-column="remark_user" data-sort="remark_user">비고(사용자)</th>
                                     <th class="sortable" data-column="remark_admin" data-sort="remark_admin">비고(관리자)</th>
                                     <th data-column="check_in_time">체크인</th>
@@ -301,44 +271,6 @@
                                     <td data-column="birth_date">{{ participant[18].strftime('%Y-%m-%d') if participant[18] else '' }}</td>
                                     <td data-column="workplace_type">{{ participant[19] }}</td>
                                     <td data-column="registration">{{ participant[20] }}</td>
-                                    <td data-column="accept_decline" class="accept-decline">
-                                        {% if participant[21] == 'Decline' %}
-                                            {% set decline_reason = participant[31] if participant[31] else '거절 사유 없음' %}
-                                            {% set short_reason = decline_reason[:5] + '...' if decline_reason|length > 5 else decline_reason %}
-                                            <span class="decline-status" 
-                                                  data-decline-reason="{{ short_reason }}"
-                                                  data-full-reason="{{ decline_reason }}"
-                                                  data-participant-name="{{ participant[6] if participant[6] else '참가자' }}"
-                                                  onclick="showDeclineReason(this)">
-                                                거절
-                                            </span>
-                                        {% elif participant[21] == 'Accept' %}
-                                            <span class="accept-status">승인</span>
-                                        {% else %}
-                                            {{ participant[21] }}
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="cv">
-                                        {% if participant[22] and participant[22] not in ['nan', '', None] and participant[22] | length > 0 %}
-                                            <a href="#" onclick="downloadFile('{{ participant[22] | e }}', event)" class="attachment-icon">📎</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="photo">
-                                        {% if participant[23] and participant[23] not in ['nan', '', None] and participant[23] | length > 0 %}
-                                            <a href="#" onclick="downloadFile('{{ participant[23] | e }}', event)" class="attachment-icon">📎</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="ppt">
-                                        {% if participant[24] and participant[24] not in ['nan', '', None] and participant[24] | length > 0 %}
-                                            <a href="#" onclick="downloadFile('{{ participant[24] | e }}', event)" class="attachment-icon">📎</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="script">
-                                        {% if participant[25] and participant[25] not in ['nan', '', None] and participant[25] | length > 0 %}
-                                            <a href="#" onclick="downloadFile('{{ participant[25] | e }}', event)" class="attachment-icon">📎</a>
-                                        {% endif %}
-                                    </td>
-                                    <td data-column="agree">{{ participant[26] }}</td>
                                     <td data-column="remark_user">{{ participant[27] }}</td>
                                     <td data-column="remark_admin">{{ participant[28] }}</td>
                                     <td data-column="check_in_time" class="check-in-time">{{ participant[29] }}</td>
