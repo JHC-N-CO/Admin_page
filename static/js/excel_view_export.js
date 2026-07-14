@@ -194,7 +194,7 @@ function exportFilteredExcelView() {
         } else {
             // 일반 형식
             // 선택된 컬럼 인덱스 가져오기
-            let selectedColumns = Array.from(document.querySelectorAll('.excel-view-column-checkbox:checked'))
+            const selectedColumns = Array.from(document.querySelectorAll('.excel-view-column-checkbox:checked'))
                 .map(cb => parseInt(cb.getAttribute('data-column-index')))
                 .sort((a, b) => a - b);
 

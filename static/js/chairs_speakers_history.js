@@ -7,11 +7,11 @@ const PERSON_COLUMNS = [
 
 const DETAIL_COLUMN_LABELS = {
     profile: '프로필',
-    session: '세션 제목',
-    presentation: '발표 제목',
+    years: '참여 연도',
+    titles: '세션/발표 제목',
 };
 
-const TABLE_COLSPAN = PERSON_COLUMNS.length + 6; // checkbox + year cols + session/presentation
+const TABLE_COLSPAN = PERSON_COLUMNS.length + 5; // checkbox + 번호 + profile + 참여연도 + 세션/발표 제목
 
 let allPeople = [];
 let displayedPeople = [];
@@ -272,6 +272,166 @@ function applyFilters() {
     renderTable(displayedPeople);
 }
 
+function hasParticipationYears(person) {
+    return Boolean(person.chair_years || person.speaker_years || person.panel_years);
+}
+
+function formatParticipationYearsSummary(person) {
+    const parts = [];
+    if (person.chair_years) parts.push(`좌장 ${person.chair_years}`);
+    if (person.speaker_years) parts.push(`연자 ${person.speaker_years}`);
+    if (person.panel_years) parts.push(`패널 ${person.panel_years}`);
+    return parts.join(' / ');
+}
+
+function roleYearClass(roleType) {
+    if (roleType === '좌장') return 'title-modal-year-chair';
+    if (roleType === '패널') return 'title-modal-year-panel';
+    return 'title-modal-year-speaker';
+}
+
+function formatYearTagsHtml(text, roleType) {
+    if (!text) return '';
+    const yearClass = roleYearClass(roleType);
+    return text.split(',')
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((tag) => `<span class="title-modal-year ${yearClass}">${escapeHtml(tag)}</span>`)
+        .join(' ');
+}
+
+function hasTitles(person) {
+    return Boolean(person.session_titles || person.presentation_titles);
+}
+
+function formatPresentationTitlesByRole(person, roleType) {
+    const items = (person.sessions || []).filter(
+        (s) => s.role_type === roleType && s.presentation_title
+    );
+    if (items.length) {
+        return items.map((s) => {
+            const title = s.presentation_title || '';
+            return s.year ? `${s.year}: ${title}` : title;
+        }).join(' | ');
+    }
+    return '';
+}
+
+function formatTitlesSummary(person) {
+    const parts = [];
+    if (person.session_titles) {
+        parts.push(`좌장 ${person.session_titles}`);
+    }
+    const speakerTitles = formatPresentationTitlesByRole(person, '연자');
+    const panelTitles = formatPresentationTitlesByRole(person, '패널');
+    if (speakerTitles) {
+        parts.push(`연자 ${speakerTitles}`);
+    }
+    if (panelTitles) {
+        parts.push(`패널 ${panelTitles}`);
+    }
+    if (!speakerTitles && !panelTitles && person.presentation_titles) {
+        parts.push(`연자 ${person.presentation_titles}`);
+    }
+    return parts.join(' / ');
+}
+
+function roleSectionClass(roleType) {
+    if (roleType === '좌장') return 'title-modal-section-chair';
+    if (roleType === '패널') return 'title-modal-section-panel';
+    return 'title-modal-section-speaker';
+}
+
+function buildYearsModalHtml(person) {
+    if (!person) {
+        return '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
+    }
+
+    const sections = [
+        { label: '좌장', roleType: '좌장', text: person.chair_years || '' },
+        { label: '연자', roleType: '연자', text: person.speaker_years || '' },
+        { label: '패널', roleType: '패널', text: person.panel_years || '' },
+    ].filter((section) => section.text);
+
+    if (!sections.length) {
+        return '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
+    }
+
+    return sections.map((section) => `
+        <div class="title-modal-section">
+            <div class="title-modal-section-heading ${roleSectionClass(section.roleType)}">${escapeHtml(section.label)}</div>
+            <div class="title-modal-year-tags">${formatYearTagsHtml(section.text, section.roleType)}</div>
+        </div>
+    `).join('');
+}
+
+function buildTitlesModalHtml(person) {
+    if (!person) {
+        return '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
+    }
+
+    const sessions = person.sessions || [];
+    const sections = [
+        {
+            label: '좌장 · 세션 제목',
+            roleType: '좌장',
+            field: 'session_title',
+            items: sessions.filter((s) => s.session_title),
+        },
+        {
+            label: '연자 · 발표 제목',
+            roleType: '연자',
+            field: 'presentation_title',
+            items: sessions.filter((s) => s.presentation_title && s.role_type === '연자'),
+        },
+        {
+            label: '패널 · 발표 제목',
+            roleType: '패널',
+            field: 'presentation_title',
+            items: sessions.filter((s) => s.presentation_title && s.role_type === '패널'),
+        },
+    ].filter((section) => section.items.length);
+
+    if (!sections.length) {
+        const fallback = [];
+        if (person.session_titles) {
+            fallback.push(`
+                <div class="title-modal-section">
+                    <div class="title-modal-section-heading title-modal-section-chair">좌장 · 세션 제목</div>
+                    <div class="title-modal-text">${escapeHtml(person.session_titles)}</div>
+                </div>
+            `);
+        }
+        if (person.presentation_titles) {
+            fallback.push(`
+                <div class="title-modal-section">
+                    <div class="title-modal-section-heading title-modal-section-speaker">연자 · 발표 제목</div>
+                    <div class="title-modal-text">${escapeHtml(person.presentation_titles)}</div>
+                </div>
+            `);
+        }
+        if (fallback.length) {
+            return fallback.join('');
+        }
+        return '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
+    }
+
+    return sections.map((section) => `
+        <div class="title-modal-section">
+            <div class="title-modal-section-heading ${roleSectionClass(section.roleType)}">${escapeHtml(section.label)}</div>
+            ${section.items.map((s) => `
+                <div class="title-modal-item">
+                    <div class="title-modal-meta">
+                        <span class="title-modal-year ${roleYearClass(s.role_type)}">${escapeHtml(s.year || '')}</span>
+                        <span class="title-modal-role">${escapeHtml(s.role_type || '')}${formatRoleContext(s)}</span>
+                    </div>
+                    <div class="title-modal-text">${escapeHtml(s[section.field])}</div>
+                </div>
+            `).join('')}
+        </div>
+    `).join('');
+}
+
 function renderTable(people) {
     const tbody = document.getElementById('historyTableBody');
     const selectAll = document.getElementById('selectAllCheckbox');
@@ -283,9 +443,7 @@ function renderTable(people) {
         return;
     }
 
-    tbody.innerHTML = people.map((person) => {
-        const sessionTitles = person.session_titles || '';
-        const presentationTitles = person.presentation_titles || '';
+    tbody.innerHTML = people.map((person, index) => {
         const personKey = escapeHtml(person.person_key || '');
         const nameLabel = escapeHtml(person['성명(KOR)'] || person['성명(ENG)'] || '이름 없음');
         const personCells = PERSON_COLUMNS.map((col) => {
@@ -301,19 +459,27 @@ function renderTable(people) {
             <td class="col-check">
                 <input type="checkbox" class="history-row-checkbox" value="${personKey}" data-name="${nameLabel}" onchange="updateSelectedCount()">
             </td>
+            <td class="col-num">${index + 1}</td>
             ${personCells}
             ${renderDetailCell(person['프로필'] || '', personKey, nameLabel, 'profile')}
-            <td class="year-col" title="${escapeHtml(person.chair_years || '')}">${escapeHtml(person.chair_years || '')}</td>
-            <td class="year-col" title="${escapeHtml(person.speaker_years || '')}">${escapeHtml(person.speaker_years || '')}</td>
-            <td class="year-col" title="${escapeHtml(person.panel_years || '')}">${escapeHtml(person.panel_years || '')}</td>
-            ${renderDetailCell(sessionTitles, personKey, nameLabel, 'session', person.sessions)}
-            ${renderDetailCell(presentationTitles, personKey, nameLabel, 'presentation', person.sessions)}
+            ${renderDetailCell(
+                hasParticipationYears(person) ? formatParticipationYearsSummary(person) : '',
+                personKey,
+                nameLabel,
+                'years'
+            )}
+            ${renderDetailCell(
+                hasTitles(person) ? formatTitlesSummary(person) : '',
+                personKey,
+                nameLabel,
+                'titles'
+            )}
         </tr>`;
     }).join('');
     updateSelectedCount();
 }
 
-function renderDetailCell(text, personKey, nameLabel, type, sessions) {
+function renderDetailCell(text, personKey, nameLabel, type) {
     if (!text) {
         return '<td class="col-narrow-detail session-cell"></td>';
     }
@@ -363,11 +529,10 @@ function openTitleModal(personKey, personName, type) {
         body.innerHTML = profileText
             ? `<div class="title-modal-text">${escapeHtml(profileText)}</div>`
             : '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
-    } else {
-        const fallbackText = type === 'session'
-            ? (person?.session_titles || '')
-            : (person?.presentation_titles || '');
-        body.innerHTML = buildTitleModalHtml(person ? person.sessions : [], type, fallbackText);
+    } else if (type === 'years') {
+        body.innerHTML = buildYearsModalHtml(person);
+    } else if (type === 'titles') {
+        body.innerHTML = buildTitlesModalHtml(person);
     }
 
     modal.hidden = false;
@@ -392,28 +557,6 @@ function formatRoleContext(session) {
         parts.push(session.dept);
     }
     return parts.length ? ` (${parts.join('·')})` : '';
-}
-
-function buildTitleModalHtml(sessions, type, fallbackText = '') {
-    const field = type === 'session' ? 'session_title' : 'presentation_title';
-    const items = (sessions || []).filter((s) => s[field]);
-
-    if (!items.length) {
-        if (fallbackText) {
-            return `<div class="title-modal-text">${escapeHtml(fallbackText)}</div>`;
-        }
-        return '<p class="title-modal-empty">표시할 내용이 없습니다.</p>';
-    }
-
-    return items.map((s) => `
-        <div class="title-modal-item">
-            <div class="title-modal-meta">
-                <span class="title-modal-year">${escapeHtml(s.year || '')}</span>
-                <span class="title-modal-role">${escapeHtml(s.role_type || '')}${formatRoleContext(s)}</span>
-            </div>
-            <div class="title-modal-text">${escapeHtml(s[field])}</div>
-        </div>
-    `).join('');
 }
 
 function getSelectedKeys() {

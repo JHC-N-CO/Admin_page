@@ -1464,10 +1464,12 @@ body {
 
 .excel-table--people .people-sessions-cell {
     cursor: pointer;
-    color: #202124;
+    color: #2c3e50;
+    font-weight: 600;
 }
 
 .excel-table--people .people-sessions-cell:hover > div {
+    color: #3498db;
     text-decoration: underline;
 }
 

@@ -61,7 +61,6 @@
                   <th>시작일</th>
                   <th>종료일</th>
                   <th>참가자 수</th>
-                  <th>관리</th>
                   <th>참가자 등록</th>
                 </tr>
               </thead>
@@ -69,12 +68,11 @@
                 {% for event in events %}
                 <tr>
                   <td><input type="checkbox" name="selected_events" value="{{ event[0] }}"></td>
-                  <td>{{ event[1] }}</td>
+                  <td><a class="event-name-link" href="/event/{{ event[0] }}">{{ event[1] }}</a></td>
                   <td>{{ event[4] }}</td>
                   <td>{{ event[2] }}</td>
                   <td>{{ event[3] }}</td>
                   <td>{{ event[5] }}</td>
-                  <td><a class="action-link" href="/event/{{ event[0] }}">관리</a></td>
                   <td><a class="action-link register-link" href="/register/{{ event[0] }}" target="_blank">참가자 등록</a></td>
                 </tr>
                 {% endfor %}

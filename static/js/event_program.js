@@ -5253,6 +5253,7 @@ function generatePeopleViewData() {
                 lectureTime,
                 date,
                 startTime,
+                venue: (session.venue || '').trim(),
             };
 
             if (!unique.has(key)) {
@@ -5453,6 +5454,7 @@ function buildPeopleSessionsModalBody(sessionEntries) {
         const metaParts = [];
         if (date) metaParts.push({ cls: 'title-modal-year', text: date });
         if (sessionTime) metaParts.push({ cls: 'title-modal-role', text: sessionTime });
+        if (entry.venue) metaParts.push({ cls: 'title-modal-role', text: entry.venue });
         if (entry.role) metaParts.push({ cls: 'title-modal-role', text: entry.role });
         if (entry.lectureTime) metaParts.push({ cls: 'title-modal-role', text: entry.lectureTime });
 
