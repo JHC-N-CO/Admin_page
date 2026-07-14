@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from flask_mail import Mail, Message
 import unicodedata
 import logging
+from typing import Optional
 from datetime import datetime, timedelta
 from io import BytesIO
 import qrcode
@@ -5670,7 +5671,7 @@ def _enrich_participant_from_program_data(participant: Participant, data: dict) 
         participant.registration = (data.get('registration') or '사전등록').strip()
 
 
-def _create_participant_from_member(event_id: int, member: Member, data: dict | None = None) -> Participant:
+def _create_participant_from_member(event_id: int, member: Member, data: Optional[dict] = None) -> Participant:
   data = data or {}
   name_eng_value = member.name_eng
   if not name_eng_value:

@@ -2149,18 +2149,19 @@ function cleanSessionData() {
         }
         
         // 발표자 데이터 정리
+        // 발표 주제/발표 시간은 비어 있을 수 있으므로(예: Invited Conversation 형식 세션) 이름만 필수로 검증
         if (session.speakers && session.speakers.length > 0) {
             session.speakers = session.speakers.filter(speaker => {
-                if (!speaker.name || !speaker.topic || !speaker.startTime || !speaker.endTime) {
+                const name = (speaker.name || speaker.name_kor || speaker.name_eng || '').trim();
+                if (!name) {
                     return false;
                 }
                 
-                const name = speaker.name.trim();
-                const topic = speaker.topic.trim();
+                const topic = (speaker.topic || '').trim();
                 
                 // 실제 의미 없는 텍스트만 필터링
-                if (name.toLowerCase() === 'aaaa' || name.toLowerCase() === 'test' || name.length === 0 ||
-                    topic.toLowerCase() === 'aaaa' || topic.toLowerCase() === 'test' || topic.length === 0) {
+                if (name.toLowerCase() === 'aaaa' || name.toLowerCase() === 'test' ||
+                    topic.toLowerCase() === 'aaaa' || topic.toLowerCase() === 'test') {
                     return false;
                 }
                 
