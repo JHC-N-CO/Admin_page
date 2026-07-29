@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>회원 홈</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/member_auth.css') }}">
+</head>
+<body>
+    {% include 'includes/member_topbar.html' %}
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>회원 홈</h1>
+                <p>로그인되었습니다.</p>
+            </div>
+
+            <div class="member-info">
+                <p><strong>이름</strong> {{ member.name_kor or '-' }}</p>
+                <p><strong>아이디</strong> {{ member.username }}</p>
+                <p><strong>이메일</strong> {{ member.email or '-' }}</p>
+            </div>
+
+            <p class="auth-note">행사 참가 등록은 각 행사의 「참가자 등록」 링크에서 진행하세요.</p>
+        </div>
+    </div>
+</body>
+</html>

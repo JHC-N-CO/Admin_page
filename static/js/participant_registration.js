@@ -2,55 +2,69 @@
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('참가자 등록 페이지 로드됨');
-    
-    // 폼 요소들
+
     const form = document.getElementById('registrationForm');
+    if (!form) {
+        return;
+    }
+
     const specialtySelect = document.getElementById('specialty');
     const specialtyOtherInput = document.getElementById('specialty_other');
     const registrationFeeSelect = document.getElementById('registration_fee');
-    
-    // 진료과목 선택 이벤트
-    specialtySelect.addEventListener('change', function() {
-        if (this.value === '기타') {
+
+    if (specialtySelect) {
+        specialtySelect.addEventListener('change', function() {
+            if (this.value === '기타') {
+                specialtyOtherInput.style.display = 'block';
+                specialtyOtherInput.required = true;
+            } else {
+                specialtyOtherInput.style.display = 'none';
+                specialtyOtherInput.required = false;
+                specialtyOtherInput.value = '';
+            }
+        });
+        if (specialtySelect.value === '기타' && specialtyOtherInput) {
             specialtyOtherInput.style.display = 'block';
             specialtyOtherInput.required = true;
-        } else {
-            specialtyOtherInput.style.display = 'none';
-            specialtyOtherInput.required = false;
-            specialtyOtherInput.value = '';
         }
-    });
-    
-    // 등록비 자동 계산
-    registrationFeeSelect.addEventListener('change', function() {
-        updateRegistrationFee();
-    });
-    
-    // 전화번호 포맷팅
+    }
+
+    if (registrationFeeSelect) {
+        registrationFeeSelect.addEventListener('change', function() {
+            updateRegistrationFee();
+        });
+    }
+
     const phoneInput = document.getElementById('phone');
-    phoneInput.addEventListener('input', function() {
-        formatPhoneNumber(this);
-    });
-    
-    // 이메일 유효성 검사
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function() {
+            const form = document.getElementById('registrationForm');
+            if (form && form.dataset.flow === 'overseas') {
+                return;
+            }
+            formatPhoneNumber(this);
+        });
+    }
+
     const emailInput = document.getElementById('email');
-    emailInput.addEventListener('blur', function() {
-        validateEmail(this);
-    });
-    
-    // 면허번호 유효성 검사
+    if (emailInput) {
+        emailInput.addEventListener('blur', function() {
+            validateEmail(this);
+        });
+    }
+
     const licenseInput = document.getElementById('license_number');
-    licenseInput.addEventListener('blur', function() {
-        validateLicenseNumber(this);
-    });
-    
-    // 폼 제출 이벤트
+    if (licenseInput) {
+        licenseInput.addEventListener('blur', function() {
+            validateLicenseNumber(this);
+        });
+    }
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         submitRegistration();
     });
-    
-    // 실시간 유효성 검사
+
     const requiredFields = form.querySelectorAll('[required]');
     requiredFields.forEach(field => {
         field.addEventListener('blur', function() {
@@ -91,9 +105,17 @@ function validateEmail(input) {
 
 // 면허번호 유효성 검사
 function validateLicenseNumber(input) {
+    if (!input) return true;
+    const form = document.getElementById('registrationForm');
+    const isOverseas = form && form.dataset.flow === 'overseas';
+    if (isOverseas && !input.value.trim()) {
+        clearError(input);
+        return true;
+    }
+
     const licenseRegex = /^\d{6}$/;
     const isValid = licenseRegex.test(input.value);
-    
+
     if (input.value && !isValid) {
         showError(input, '면허번호는 6자리 숫자로 입력해주세요.');
         return false;
@@ -116,6 +138,10 @@ function validateField(field) {
     }
     
     if (field.name === 'license_number') {
+        if (!field.value.trim() && field.hasAttribute('required')) {
+            showError(field, '필수 입력 항목입니다.');
+            return false;
+        }
         return validateLicenseNumber(field);
     }
     
@@ -163,12 +189,18 @@ function updateRegistrationFee() {
 function checkLicense() {
     const licenseInput = document.getElementById('license_number');
     const licenseNumber = licenseInput.value.trim();
-    
+    const form = document.getElementById('registrationForm');
+    const isOverseas = form && form.dataset.flow === 'overseas';
+
     if (!licenseNumber) {
+        if (isOverseas) {
+            alert('면허번호가 없으면 중복확인을 생략합니다.');
+            return;
+        }
         alert('면허번호를 입력해주세요.');
         return;
     }
-    
+
     if (!validateLicenseNumber(licenseInput)) {
         return;
     }
@@ -301,6 +333,10 @@ function submitRegistration() {
 
 // 등록 성공 처리
 function showRegistrationSuccess(data) {
+    if (data.redirect_url) {
+        window.location.href = data.redirect_url;
+        return;
+    }
     const container = document.querySelector('.container');
     container.innerHTML = `
         <div class="success-container">

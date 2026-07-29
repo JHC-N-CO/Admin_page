@@ -115,6 +115,7 @@ class Member(db.Model):
     workplace_name = db.Column(db.String(200))
     workplace_name_eng = db.Column(db.String(200))
     workplace_type = db.Column(db.String(50))  # 의과대학, 종합병원, 개원, 휴직, 기타
+    member_type = db.Column(db.String(50))  # 정회원, 준회원, 종신회원
     position = db.Column(db.String(50))  # 전문의, 전공의, 기타
     specialty = db.Column(db.String(100))  # 신경과, 소아과, 신경외과, 정신과, 기타
     specialty_eng = db.Column(db.String(100))

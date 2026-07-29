@@ -1,0 +1,177 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Noto Sans KR', Arial, sans-serif;
+    background: #f7f8fb;
+    color: #222;
+    min-height: 100vh;
+}
+
+.gateway-page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 56px 20px 72px;
+}
+
+.gateway-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.gateway-brand {
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: #3d4799;
+    margin-bottom: 10px;
+}
+
+.gateway-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 12px;
+}
+
+.gateway-event-name {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.gateway-event-meta {
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.5;
+}
+
+.gateway-meta-sep {
+    margin: 0 4px;
+    color: #bbb;
+}
+
+.gateway-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.gateway-card {
+    background: #fff;
+    border: 1px solid #e0e3ed;
+    border-radius: 12px;
+    padding: 28px 24px 24px;
+    box-shadow: 0 8px 28px rgba(40, 50, 90, 0.06);
+}
+
+.gateway-card-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 8px;
+}
+
+.gateway-card-desc {
+    font-size: 0.9rem;
+    color: #666;
+    line-height: 1.5;
+    margin-bottom: 22px;
+    min-height: 2.7em;
+}
+
+.gateway-links {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.gateway-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.gateway-link-primary {
+    background: #3d4799;
+    color: #fff;
+    border: 1px solid #3d4799;
+}
+
+.gateway-link-primary:hover {
+    background: #2f387a;
+    border-color: #2f387a;
+}
+
+.gateway-link-secondary {
+    background: #f1f3f4;
+    color: #202124;
+    border: 1px solid #dadce0;
+}
+
+.gateway-link-secondary:hover {
+    background: #e8eaed;
+}
+
+.gateway-link-outline {
+    background: #fff;
+    color: #3d4799;
+    border: 1.5px solid #c5cae9;
+}
+
+.gateway-link-outline:hover {
+    background: #f5f6fb;
+    border-color: #3d4799;
+}
+
+@media (max-width: 680px) {
+    .gateway-page {
+        padding: 36px 16px 56px;
+    }
+
+    .gateway-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gateway-card-desc {
+        min-height: 0;
+    }
+}
+
+.member-topbar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    font-size: 0.9rem;
+}
+
+.member-topbar-name {
+    color: #666;
+    font-weight: 500;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.member-topbar-logout {
+    color: #3d4799;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.member-topbar-logout:hover {
+    text-decoration: underline;
+}

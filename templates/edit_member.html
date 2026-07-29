@@ -49,9 +49,9 @@
                             <div class="form-group">
                                 <label class="form-label">회원구분</label>
                                 <div class="radio-group">
-                                    <label class="radio-item"><input type="radio" name="workplace_type" value="정회원" {% if member.workplace_type == '정회원' %}checked{% endif %}> 정회원(전문의)</label>
-                                    <label class="radio-item"><input type="radio" name="workplace_type" value="준회원" {% if member.workplace_type == '준회원' %}checked{% endif %}> 준회원(전공의)</label>
-                                    <label class="radio-item"><input type="radio" name="workplace_type" value="종신회원" {% if member.workplace_type == '종신회원' %}checked{% endif %}> 종신회원</label>
+                                    <label class="radio-item"><input type="radio" name="workplace_type" value="정회원" {% if (member.member_type or member.workplace_type) == '정회원' %}checked{% endif %}> 정회원(전문의)</label>
+                                    <label class="radio-item"><input type="radio" name="workplace_type" value="준회원" {% if (member.member_type or member.workplace_type) == '준회원' %}checked{% endif %}> 준회원(전공의)</label>
+                                    <label class="radio-item"><input type="radio" name="workplace_type" value="종신회원" {% if (member.member_type or member.workplace_type) == '종신회원' %}checked{% endif %}> 종신회원</label>
                                 </div>
                             </div>
                             

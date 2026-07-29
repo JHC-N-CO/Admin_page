@@ -1,0 +1,6 @@
+{% if current_member %}
+<nav class="member-topbar" aria-label="회원 메뉴">
+    <span class="member-topbar-name">{{ current_member.name_kor or current_member.username }}</span>
+    <a href="{{ url_for('member_logout') }}" class="member-topbar-logout">Logout</a>
+</nav>
+{% endif %}

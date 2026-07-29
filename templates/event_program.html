@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/event_program.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     
     <style>
         /* 툴바 버튼 hover 효과 */
@@ -25,6 +26,7 @@
     
     <!-- SheetJS 라이브러리 (엑셀 처리용) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="{{ url_for('static', filename='js/email_compose.js') }}"></script>
     <script src="{{ url_for('static', filename='js/excel_view_export.js') }}"></script>
 </head>
@@ -159,18 +161,18 @@
             <div class="excel-view-toolbar">
                 <div class="excel-view-summary">
                     <div class="excel-submode-toggle" role="group" aria-label="엑셀 뷰 전환">
-                        <button type="button" class="excel-submode-btn active" data-excel-submode="program">
-                            <i class="fas fa-stream"></i> 프로그램 뷰
-                        </button>
-                        <button type="button" class="excel-submode-btn" data-excel-submode="people">
+                        <button type="button" class="excel-submode-btn active" data-excel-submode="people">
                             <i class="fas fa-users"></i> 좌장·연자 뷰
+                        </button>
+                        <button type="button" class="excel-submode-btn" data-excel-submode="program">
+                            <i class="fas fa-stream"></i> 프로그램 뷰
                         </button>
                     </div>
                     <span id="excelViewRowCount">총 0행</span>
                     <span id="excelViewSubModeHint" class="excel-view-submode-hint" style="display: none;"></span>
                 </div>
                 <div class="excel-view-controls">
-                    <div class="excel-view-filters excel-view-program-filters" style="display: flex; align-items: center; gap: 15px; margin-right: 15px;">
+                    <div class="excel-view-filters excel-view-program-filters" style="display: none; align-items: center; gap: 15px; margin-right: 15px;">
                         <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666;">
                             <span style="font-weight: 600;">필터:</span>
                             <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
@@ -202,7 +204,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="excel-view-filters excel-view-people-filters" style="display: none; align-items: center; gap: 8px; margin-right: 15px; font-size: 13px; color: #666;">
+                    <div class="excel-view-filters excel-view-people-filters" style="display: flex; align-items: center; gap: 8px; margin-right: 15px; font-size: 13px; color: #666;">
                         <span style="font-weight: 600;">역할:</span>
                         <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
                             <input type="checkbox" id="filterPeopleChair" checked style="width: 16px; height: 16px;">
@@ -920,57 +922,7 @@
                 <div style="margin-bottom: 20px;">
                     <h3 style="font-size: 16px; margin-bottom: 10px;">이메일 작성</h3>
                     <input type="text" id="emailSubject" placeholder="제목을 입력하세요" style="width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                    <div id="emailEditorToolbar" style="border: 1px solid #dadce0; border-bottom: none; padding: 4px 8px; background-color: #f8f9fa; border-radius: 4px 4px 0 0; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
-                        <button type="button" class="toolbar-btn" onclick="formatText('bold')" title="굵게" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
-                            <i class="fas fa-bold" style="font-size: 14px; color: #5f6368;"></i>
-                        </button>
-                        <button type="button" class="toolbar-btn" onclick="formatText('italic')" title="기울임" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
-                            <i class="fas fa-italic" style="font-size: 14px; color: #5f6368;"></i>
-                        </button>
-                        <button type="button" class="toolbar-btn" onclick="formatText('underline')" title="밑줄" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
-                            <i class="fas fa-underline" style="font-size: 14px; color: #5f6368;"></i>
-                        </button>
-                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
-                        <div style="position: relative; display: inline-block;">
-                            <select id="fontFamilySelect" class="toolbar-select" onchange="applyFontFamily(this.value)" title="폰트" style="padding: 6px 24px 6px 8px; border: none; background: transparent; font-size: 13px; color: #202124; cursor: pointer; appearance: none; font-weight: 500; border-radius: 4px; transition: background-color 0.2s;">
-                                <option value="Sans Serif">Sans Serif</option>
-                                <option value="Arial">Arial</option>
-                                <option value="Helvetica">Helvetica</option>
-                                <option value="Times New Roman">Times New Roman</option>
-                                <option value="Courier New">Courier New</option>
-                                <option value="Verdana">Verdana</option>
-                                <option value="Georgia">Georgia</option>
-                                <option value="Palatino">Palatino</option>
-                                <option value="Garamond">Garamond</option>
-                                <option value="Comic Sans MS">Comic Sans MS</option>
-                                <option value="Trebuchet MS">Trebuchet MS</option>
-                                <option value="Arial Black">Arial Black</option>
-                                <option value="Impact">Impact</option>
-                            </select>
-                            <span style="position: absolute; top: 50%; transform: translateY(-50%); right: 6px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368; pointer-events: none;"></span>
-                        </div>
-                        <button type="button" class="toolbar-btn" onclick="showFontSizePicker()" title="글자 크기" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; position: relative; transition: background-color 0.2s;">
-                            <span style="font-size: 14px; color: #5f6368; font-weight: 500; font-family: sans-serif;">
-                                <span style="font-size: 16px; vertical-align: top;">T</span><span style="font-size: 12px; vertical-align: bottom;">T</span>
-                            </span>
-                            <span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368;"></span>
-                        </button>
-                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
-                        <button type="button" class="toolbar-btn" onclick="showColorPicker(event)" title="글자 색상 및 배경 색상" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; position: relative; transition: background-color 0.2s;">
-                            <span style="font-size: 16px; color: #5f6368; font-weight: bold; font-family: serif;">A</span>
-                            <span style="position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); width: 14px; height: 2px; background: #202124;"></span>
-                            <span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 4px solid #5f6368;"></span>
-                        </button>
-                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
-                        <button type="button" class="toolbar-btn" onclick="insertImage()" title="이미지 삽입" style="padding: 6px 8px; border: none; background: transparent; cursor: pointer; border-radius: 4px; transition: background-color 0.2s;">
-                            <i class="fas fa-image" style="font-size: 14px; color: #5f6368;"></i>
-                        </button>
-                        <div style="width: 1px; height: 20px; background: #dadce0; margin: 0 4px;"></div>
-                        <button type="button" class="toolbar-btn word-upload-btn" onclick="uploadWordDocuments()" title="워드 문서 업로드 (여러 개 가능)" style="padding: 6px 8px; border: none; background: #2B579A; cursor: pointer; border-radius: 4px; font-size: 13px; color: white; transition: background-color 0.2s;">
-                            <i class="fas fa-file-word" style="font-size: 14px;"></i> 워드 문서
-                        </button>
-                    </div>
-                    <div id="emailEditor" contenteditable="true" style="min-height: 300px; padding: 15px; border: 1px solid #ddd; border-radius: 0 0 4px 4px; background-color: #fff; overflow-y: auto;" placeholder="이메일 내용을 작성하세요..."></div>
+                    <div id="emailEditorQuill" style="min-height: 300px;"></div>
                     <input type="file" id="wordDocumentInput" accept=".doc,.docx" multiple style="display: none;">
                     <input type="file" id="imageInput" accept="image/*" style="display: none;">
                     <div id="uploadedWordFiles" style="margin-top: 10px; padding: 12px; background-color: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; display: none;">

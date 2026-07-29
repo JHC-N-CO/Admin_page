@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>등록 완료 - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/member_auth.css') }}">
+</head>
+<body>
+    {% include 'includes/member_topbar.html' %}
+    <div class="auth-page">
+        <div class="auth-card">
+            <div class="auth-header">
+                <h1>참가 등록 완료</h1>
+                <p>{{ event.name }}</p>
+            </div>
+            <div class="member-info">
+                <p><strong>등록번호</strong> {{ registration_id }}</p>
+                <p><strong>성명</strong> {{ name_kor }}</p>
+                <p><strong>이메일</strong> {{ email }}</p>
+            </div>
+            <p class="auth-note">등록이 완료되었습니다.</p>
+            <div class="auth-actions">
+                <a href="{{ url_for('participant_registration', event_id=event.id) }}" class="btn btn-primary btn-block">등록 화면으로</a>
+                {% if current_member %}
+                <a href="{{ url_for('member_home') }}" class="btn btn-secondary btn-block" style="margin-top:10px;">회원 홈</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

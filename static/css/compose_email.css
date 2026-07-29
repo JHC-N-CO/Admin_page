@@ -6,8 +6,8 @@ body {
 }
 
 .container {
-    max-width: 600px;
-    margin: 50px auto;
+    max-width: 700px;
+    margin: 30px auto;
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -33,145 +33,36 @@ input[type="text"], input[type="email"] {
     border: 1px solid #ddd;
     border-radius: 4px;
     font-size: 14px;
+    box-sizing: border-box;
 }
 
-.editor {
-    width: 100%;
-    min-height: 150px;
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+/* Quill 에디터 영역 */
+#editor {
+    min-height: 250px;
     font-size: 14px;
-    background-color: #fff;
-    overflow-y: auto;
-    position: relative;
 }
 
-/* 텍스트 요소들이 이미지 위에 오지 않도록 - 이미지는 인라인 블록으로 텍스트와 같은 레벨에 배치 */
-
-.editor:empty:before {
-    content: attr(placeholder);
-    color: #999;
+#editor .ql-editor {
+    min-height: 250px;
 }
 
-.editor img {
+#editor img {
     max-width: 100%;
     height: auto;
-    margin: 5px 0;
-    cursor: pointer;
 }
 
-/* 이미지 리사이즈 관련 스타일 */
-.editor .image-wrapper {
-    position: relative;
-    display: inline-block;
-    max-width: 100%;
-    margin: 5px 5px 5px 0;
-    vertical-align: top;
-    user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    z-index: 0;
-    clear: both;
+.ql-toolbar.ql-snow {
+    border-radius: 4px 4px 0 0;
+    border-color: #ddd;
 }
 
-.editor .image-wrapper img {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    margin: 0;
-    user-select: none;
-    pointer-events: auto;
-    vertical-align: top;
-    position: relative;
+.ql-container.ql-snow {
+    border-radius: 0 0 4px 4px;
+    border-color: #ddd;
+    margin-bottom: 15px;
 }
 
-.editor .image-wrapper.resizing {
-    pointer-events: auto;
-}
-
-.editor .image-wrapper.resizing img {
-    pointer-events: auto;
-}
-
-.editor .image-wrapper.image-selected {
-    outline: 2px solid #4285f4;
-    outline-offset: 2px;
-    border-radius: 4px;
-}
-
-.editor .image-wrapper.image-selected img {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-}
-
-.editor .image-resize-handle {
-    position: absolute;
-    background-color: #4285f4;
-    border: 2px solid white;
-    display: none;
-    z-index: 1000;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    transition: background-color 0.1s ease;
-}
-
-.editor .image-resize-handle:hover {
-    background-color: #357ae8;
-}
-
-/* 모서리 핸들 */
-.editor .image-resize-handle-top-left,
-.editor .image-resize-handle-top-right,
-.editor .image-resize-handle-bottom-left,
-.editor .image-resize-handle-bottom-right {
-    width: 12px;
-    height: 12px;
-    border-radius: 2px;
-}
-
-/* 변 핸들 */
-.editor .image-resize-handle-top,
-.editor .image-resize-handle-bottom {
-    width: 24px;
-    height: 6px;
-    border-radius: 3px;
-}
-
-.editor .image-resize-handle-left,
-.editor .image-resize-handle-right {
-    width: 6px;
-    height: 24px;
-    border-radius: 3px;
-}
-
-.editor .image-delete-btn {
-    position: absolute !important;
-    top: -12px !important;
-    right: -12px !important;
-    width: 24px;
-    height: 24px;
-    background-color: #f44336;
-    color: white;
-    border-radius: 50%;
-    cursor: pointer;
-    display: none;
-    z-index: 1001;
-    text-align: center;
-    line-height: 24px;
-    font-size: 18px;
-    font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-    transition: transform 0.1s ease;
-}
-
-.editor .image-delete-btn:hover {
-    transform: scale(1.1);
-    background-color: #d32f2f;
-}
-
-button {
+button[type="submit"] {
     padding: 10px;
     background-color: #4285F4;
     color: #fff;
@@ -181,7 +72,7 @@ button {
     font-size: 16px;
 }
 
-button:hover {
+button[type="submit"]:hover {
     background-color: #357AE8;
 }
 
@@ -190,17 +81,24 @@ button:hover {
     color: #666;
 }
 
-label {
+.checkbox-label {
     display: flex;
     align-items: center;
-    margin-bottom: 15px;
+    font-size: 14px;
+    margin: 10px 0 15px;
 }
 
-input[type="checkbox"] {
+.checkbox-label input[type="checkbox"] {
     margin-right: 10px;
+    width: auto;
 }
 
-/* compose_email.css */
+.loading-container {
+    display: none;
+    text-align: center;
+    margin-top: 10px;
+}
+
 #loading {
     color: #666;
     font-size: 14px;
@@ -213,7 +111,7 @@ input[type="checkbox"] {
     border: 2px solid #4285F4;
     border-top: 2px solid transparent;
     border-radius: 50%;
-    animation: spin 1s linear infinite; /* 애니메이션 적용 */
+    animation: spin 1s linear infinite;
     margin-right: 5px;
     vertical-align: middle;
 }
@@ -235,16 +133,4 @@ input[type="checkbox"] {
 
 #loading.success #loading-text {
     color: #28a745;
-}
-
-/* --- Extracted from compose_email.html inline styles --- */
-.checkbox-label {
-    font-size: 14px;
-    margin-top: 10px;
-}
-
-.loading-container {
-    display: none;
-    text-align: center;
-    margin-top: 10px;
 }

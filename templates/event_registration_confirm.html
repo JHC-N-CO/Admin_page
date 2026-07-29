@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>등록 확인 - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/member_auth.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/event_registration_confirm.css') }}">
+</head>
+<body>
+    {% include 'includes/member_topbar.html' %}
+    <div class="auth-page">
+        <div class="auth-card confirm-card">
+            <div class="auth-header">
+                <h1>등록 확인</h1>
+                <p>{{ event.name }}</p>
+            </div>
+
+            {% if error %}
+            <div class="error-message">{{ error }}</div>
+            {% endif %}
+
+            {% if searched and not participant and not error %}
+            <div class="confirm-empty">
+                입력하신 이름·이메일로 등록된 내역이 없습니다.
+            </div>
+            {% endif %}
+
+            {% if participant %}
+            <div class="member-info confirm-result">
+                <p><strong>등록번호</strong> {{ participant.code or '-' }}</p>
+                <p><strong>성명</strong> {{ participant.name_kor or '-' }}</p>
+                <p><strong>이메일</strong> {{ participant.email or '-' }}</p>
+                <p><strong>등록구분</strong> {{ participant.registration or '-' }}</p>
+                <p><strong>상태</strong>
+                    {% if participant.accept_or_decline == 'Accept' %}승인
+                    {% elif participant.accept_or_decline == 'Decline' %}거절
+                    {% else %}{{ participant.accept_or_decline or '대기' }}{% endif %}
+                </p>
+            </div>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('event_registration_confirm', event_id=event.id) }}" class="auth-form">
+                <div class="form-group">
+                    <label for="name_kor">성명</label>
+                    <input type="text" id="name_kor" name="name_kor" required
+                           value="{{ name_kor or '' }}" placeholder="홍길동" autocomplete="name">
+                </div>
+                <div class="form-group">
+                    <label for="email">이메일</label>
+                    <input type="email" id="email" name="email" required
+                           value="{{ email or '' }}" placeholder="example@email.com" autocomplete="email">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">확인</button>
+            </form>
+
+            <div class="auth-actions" style="margin-top: 16px;">
+                <a href="{{ url_for('participant_registration', event_id=event.id) }}" class="btn btn-secondary btn-block">등록 화면으로</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

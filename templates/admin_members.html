@@ -179,7 +179,21 @@
                                     <td data-column="position">{{ member.position }}</td>
                                     <td data-column="license_number">{{ member.license_number }}</td>
                                     <td data-column="birth_date">{{ member.birth_date.strftime('%Y-%m-%d') if member.birth_date else '' }}</td>
-                                    <td data-column="workplace_type">{{ member.workplace_type }}</td>
+                                    <td data-column="workplace_type"
+                                        data-member-id="{{ member.id }}"
+                                        data-is-active="{{ '1' if member.is_active else '0' }}"
+                                        data-member-type="{{ get_member_membership_type(member) }}">
+                                        {% if not member.is_active %}
+                                        <a href="#" class="approval-pending-link"
+                                           data-member-id="{{ member.id }}"
+                                           data-name="{{ member.name_kor or '' }}"
+                                           data-username="{{ member.username or '' }}"
+                                           data-email="{{ member.email or '' }}"
+                                           data-member-type="{{ get_member_membership_type(member) }}">승인대기</a>
+                                        {% else %}
+                                        {{ format_member_type_label(get_member_membership_type(member)) }}
+                                        {% endif %}
+                                    </td>
                                     <td data-column="actions">
                                         <a href="#" onclick="openPopup('/members/edit/{{ member.id }}'); return false;" class="action-link">수정</a>
                                     </td>
@@ -193,9 +207,35 @@
             </div>
         </div>
     </div>
-    
 
-    
+    <div id="memberApproveModal" class="member-approve-modal" hidden>
+        <div class="member-approve-backdrop"></div>
+        <div class="member-approve-dialog" role="dialog" aria-modal="true" aria-labelledby="memberApproveTitle">
+            <div class="member-approve-header">
+                <h3 id="memberApproveTitle">회원 승인</h3>
+                <button type="button" class="member-approve-close" aria-label="닫기">&times;</button>
+            </div>
+            <div class="member-approve-body">
+                <p class="member-approve-desc">아래 가입 신청을 확인한 뒤 회원구분을 확인하고 승인하세요. 승인되면 로그인할 수 있습니다.</p>
+                <dl class="member-approve-info">
+                    <div><dt>성명</dt><dd id="approveName">-</dd></div>
+                    <div><dt>아이디</dt><dd id="approveUsername">-</dd></div>
+                    <div><dt>이메일</dt><dd id="approveEmail">-</dd></div>
+                </dl>
+                <div class="member-approve-type">
+                    <p class="member-approve-type-label">회원구분</p>
+                    <label class="member-approve-radio"><input type="radio" name="approve_member_type" value="정회원"> 정회원(전문의)</label>
+                    <label class="member-approve-radio"><input type="radio" name="approve_member_type" value="준회원"> 준회원(전공의)</label>
+                    <label class="member-approve-radio"><input type="radio" name="approve_member_type" value="종신회원"> 종신회원</label>
+                </div>
+            </div>
+            <div class="member-approve-actions">
+                <button type="button" class="btn-approve-cancel">취소</button>
+                <button type="button" class="btn-approve-confirm">승인</button>
+            </div>
+        </div>
+    </div>
+
     <script src="../static/js/admin_members.js"></script>
 </body>
 </html> 

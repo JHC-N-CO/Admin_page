@@ -3,175 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>참가자 등록 - {{ event.name }}</title>
+    <title>참가 등록 - {{ event.name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/participant_registration.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header class="header">
-            <div class="logo">
-                <h1>대한뇌전증학회</h1>
-                <p>Korean Epilepsy Society</p>
-            </div>
-            <div class="event-info">
-                <h2>{{ event.name }}</h2>
-                <div class="event-details">
-                    <p><strong>일시:</strong> {{ event.start_date.strftime('%Y-%m-%d') }} ~ {{ event.end_date.strftime('%Y-%m-%d') }}</p>
-                    <p><strong>장소:</strong> 
-                        {% if event.location %}
-                            {{ event.location }}
-                        {% else %}
-                            <span class="no-location">장소가 설정되지 않았습니다</span>
-                        {% endif %}
-                    </p>
-                    <p><strong>마감일:</strong> {{ (event.start_date - timedelta(days=5)).strftime('%Y-%m-%d') }} 까지</p>
-                </div>
-            </div>
+    {% include 'includes/member_topbar.html' %}
+    <div class="reg-page">
+        <header class="reg-header">
+            <p class="reg-brand">대한뇌전증학회</p>
+            <h1 class="reg-title">
+                {% if is_member_flow %}회원 참가 등록
+                {% elif nonmember_type == 'overseas' %}비회원 참가 등록 (해외)
+                {% elif nonmember_type == 'domestic' %}비회원 참가 등록 (국내)
+                {% else %}참가 등록{% endif %}
+            </h1>
+            <p class="reg-event-name">{{ event.name }}</p>
+            <p class="reg-event-meta">
+                {% if event.start_date %}{{ event.start_date.strftime('%Y-%m-%d') }}{% endif %}
+                {% if event.end_date %} – {{ event.end_date.strftime('%Y-%m-%d') }}{% endif %}
+                {% if event.location %}<span class="reg-meta-sep">·</span> {{ event.location }}{% endif %}
+            </p>
         </header>
 
-        <div class="registration-form-container">
-            <div class="form-header">
-                <h3>참가자 등록</h3>
-                <p class="required-note">* 표시는 필수입력사항입니다.</p>
+        <div class="reg-card">
+            {% if member %}
+            <p class="reg-hint">회원 정보가 자동으로 입력되었습니다. 확인·수정 후 등록하세요.</p>
+            {% elif nonmember_type == 'overseas' %}
+            <p class="reg-hint">해외 참가자 정보를 입력해 주세요. * 표시는 필수 항목입니다.</p>
+            {% else %}
+            <p class="reg-hint">* 표시는 필수 항목입니다.</p>
+            {% endif %}
+
+            {% if already_registered %}
+            <div class="reg-notice">
+                이미 이 행사에 참가 등록되어 있습니다.
+                <strong>등록번호 {{ already_registered.code }}</strong>
             </div>
+            <div class="reg-actions">
+                <a href="{{ url_for('participant_registration', event_id=event.id) }}" class="btn btn-secondary">등록 화면으로</a>
+            </div>
+            {% else %}
+            <form id="registrationForm" method="POST" action="/register_participant/{{ event.id }}"
+                  data-flow="{% if is_member_flow %}member{% elif nonmember_type %}{{ nonmember_type }}{% else %}domestic{% endif %}">
+                {% if is_member_flow %}
+                <input type="hidden" name="registration_source" value="member">
+                {% elif nonmember_type == 'overseas' %}
+                <input type="hidden" name="registration_source" value="overseas">
+                {% else %}
+                <input type="hidden" name="registration_source" value="domestic">
+                {% endif %}
 
-            <form id="registrationForm" method="POST" action="/register_participant/{{ event.id }}">
-                <div class="form-section">
-                    <h4>신청자 정보</h4>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="registration_type">등록구분 *</label>
-                            <select id="registration_type" name="registration_type" required>
-                                <option value="">- 선택 -</option>
-                                <option value="전문의">전문의</option>
-                                <option value="전공의">전공의</option>
-                                <option value="기타">기타</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="name_kor">성명 *</label>
-                            <input type="text" id="name_kor" name="name_kor" required>
+                {% if nonmember_type == 'overseas' %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="country">Country *</label>
+                        <input type="text" id="country" name="country" required
+                               value="{{ prefill.country or '' }}" placeholder="United States">
+                    </div>
+                    <div class="form-group">
+                        <label for="country_code">Country Code *</label>
+                        <input type="text" id="country_code" name="country_code" required maxlength="3"
+                               value="{{ prefill.country_code or '' }}" placeholder="USA">
+                    </div>
+                </div>
+                {% else %}
+                <input type="hidden" name="country" value="Korea">
+                <input type="hidden" name="country_code" value="KOR">
+                {% endif %}
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="registration_type">등록구분 *</label>
+                        <select id="registration_type" name="registration_type" required>
+                            <option value="">선택</option>
+                            <option value="전문의" {% if prefill.registration_type == '전문의' %}selected{% endif %}>전문의</option>
+                            <option value="전공의" {% if prefill.registration_type == '전공의' %}selected{% endif %}>전공의</option>
+                            <option value="기타" {% if prefill.registration_type == '기타' %}selected{% endif %}>기타</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="name_kor">성명{% if nonmember_type != 'overseas' %} *{% endif %}</label>
+                        <input type="text" id="name_kor" name="name_kor"
+                               {% if nonmember_type != 'overseas' %}required{% endif %}
+                               value="{{ prefill.name_kor or '' }}"
+                               placeholder="{% if nonmember_type == 'overseas' %}선택 (한글명){% else %}홍길동{% endif %}">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first_name">Given Name *</label>
+                        <input type="text" id="first_name" name="first_name" required value="{{ prefill.first_name or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="family_name">Family Name *</label>
+                        <input type="text" id="family_name" name="family_name" required value="{{ prefill.family_name or '' }}">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="license_number">면허번호{% if nonmember_type != 'overseas' %} *{% endif %}</label>
+                        <div class="input-with-action">
+                            <input type="text" id="license_number" name="license_number"
+                                   {% if nonmember_type != 'overseas' %}required{% endif %}
+                                   value="{{ prefill.license_number or '' }}"
+                                   placeholder="{% if nonmember_type == 'overseas' %}선택{% else %}{% endif %}">
+                            <button type="button" class="link-btn" onclick="checkLicense()">중복확인</button>
                         </div>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="first_name">Given Name *</label>
-                            <input type="text" id="first_name" name="first_name" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="family_name">Family Name *</label>
-                            <input type="text" id="family_name" name="family_name" required>
-                        </div>
+                    <div class="form-group">
+                        <label for="specialty">진료과목 *</label>
+                        <select id="specialty" name="specialty" required>
+                            <option value="">선택</option>
+                            {% set specialty_options = ['신경과', '소아청소년과', '신경외과', '정신과'] %}
+                            {% for opt in specialty_options %}
+                            <option value="{{ opt }}" {% if prefill.specialty == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                            <option value="기타" {% if prefill.specialty == '기타' %}selected{% endif %}>기타</option>
+                        </select>
+                        <input type="text" id="specialty_other" name="specialty_other"
+                               class="specialty-other"
+                               placeholder="기타 과목 입력"
+                               value="{{ prefill.specialty_other or '' }}"
+                               style="display: {% if prefill.specialty == '기타' %}block{% else %}none{% endif %};">
                     </div>
+                </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="license_number">면허번호 *</label>
-                            <input type="text" id="license_number" name="license_number" required>
-                            <button type="button" class="check-btn" onclick="checkLicense()">중복확인</button>
-                        </div>
-                        <div class="form-group">
-                            <label for="specialty">진료과목(과) *</label>
-                            <select id="specialty" name="specialty" required>
-                                <option value="">- 선택 -</option>
-                                <option value="신경과">신경과</option>
-                                <option value="소아청소년과">소아청소년과</option>
-                                <option value="신경외과">신경외과</option>
-                                <option value="정신과">정신과</option>
-                                <option value="기타">기타(직접입력)</option>
-                            </select>
-                            <input type="text" id="specialty_other" name="specialty_other" placeholder="기타 과목 입력" style="display: none;">
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="phone">휴대전화 *</label>
+                        <input type="tel" id="phone" name="phone"
+                               placeholder="{% if nonmember_type == 'overseas' %}+1-555-000-0000{% else %}010-1234-5678{% endif %}"
+                               required value="{{ prefill.phone or '' }}">
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="phone">휴대전화 *</label>
-                            <input type="tel" id="phone" name="phone" placeholder="010-1234-5678" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="email">이메일 *</label>
-                            <input type="email" id="email" name="email" required>
-                            <button type="button" class="check-btn" onclick="checkEmail()">중복확인</button>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="workplace_name">근무처명 *</label>
-                            <input type="text" id="workplace_name" name="workplace_name" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="workplace_type">근무처 구분 *</label>
-                            <select id="workplace_type" name="workplace_type" required>
-                                <option value="">- 선택 -</option>
-                                <option value="개원의">개원의</option>
-                                <option value="봉직의">봉직의</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="affiliation_eng">Affiliation *</label>
-                            <input type="text" id="affiliation_eng" name="affiliation_eng" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="rating_required">평점 필요여부 *</label>
-                            <select id="rating_required" name="rating_required" required>
-                                <option value="">- 선택 -</option>
-                                <option value="예">예</option>
-                                <option value="아니오">아니오</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="registration_fee">등록비 *</label>
-                            <select id="registration_fee" name="registration_fee" required>
-                                <option value="">- 선택 -</option>
-                                <option value="전문의">전문의 (40,000원)</option>
-                                <option value="전공의">전공의 (0원)</option>
-                                <option value="일반/기타">일반/기타 (40,000원)</option>
-                                <option value="기사/간호사/연구원">기사/간호사/연구원 (0원)</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group full-width">
-                            <label for="remark_user">비고</label>
-                            <textarea id="remark_user" name="remark_user" rows="3" placeholder="추가 요청사항이나 특이사항이 있으시면 입력해주세요."></textarea>
+                    <div class="form-group">
+                        <label for="email">이메일 *</label>
+                        <div class="input-with-action">
+                            <input type="email" id="email" name="email" required value="{{ prefill.email or '' }}">
+                            <button type="button" class="link-btn" onclick="checkEmail()">중복확인</button>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-section">
-                    <h4>개인정보 처리방침 동의</h4>
-                    <div class="checkbox-group">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="agree_terms" name="agree_terms" required>
-                            <span class="checkmark"></span>
-                            개인정보 수집 및 이용에 동의합니다. *
-                        </label>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="workplace_name">근무처명 *</label>
+                        <input type="text" id="workplace_name" name="workplace_name" required value="{{ prefill.workplace_name or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="workplace_type">근무처 구분 *</label>
+                        <select id="workplace_type" name="workplace_type" required>
+                            <option value="">선택</option>
+                            <option value="개원의" {% if prefill.workplace_type == '개원의' %}selected{% endif %}>개원의</option>
+                            <option value="봉직의" {% if prefill.workplace_type == '봉직의' %}selected{% endif %}>봉직의</option>
+                            {% if nonmember_type == 'overseas' %}
+                            <option value="기타" {% if prefill.workplace_type == '기타' %}selected{% endif %}>기타</option>
+                            {% endif %}
+                        </select>
                     </div>
                 </div>
 
-                <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="history.back()">취소</button>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="affiliation_eng">Affiliation *</label>
+                        <input type="text" id="affiliation_eng" name="affiliation_eng" required value="{{ prefill.affiliation_eng or '' }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="rating_required">평점 필요여부 *</label>
+                        <select id="rating_required" name="rating_required" required>
+                            <option value="">선택</option>
+                            <option value="예" {% if prefill.rating_required == '예' %}selected{% endif %}>예</option>
+                            <option value="아니오" {% if prefill.rating_required == '아니오' %}selected{% endif %}>아니오</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="registration_fee">등록비 *</label>
+                        <select id="registration_fee" name="registration_fee" required>
+                            <option value="">선택</option>
+                            <option value="전문의" {% if prefill.registration_fee == '전문의' %}selected{% endif %}>전문의 (40,000원)</option>
+                            <option value="전공의" {% if prefill.registration_fee == '전공의' %}selected{% endif %}>전공의 (0원)</option>
+                            <option value="일반/기타" {% if prefill.registration_fee == '일반/기타' %}selected{% endif %}>일반/기타 (40,000원)</option>
+                            <option value="기사/간호사/연구원" {% if prefill.registration_fee == '기사/간호사/연구원' %}selected{% endif %}>기사/간호사/연구원 (0원)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group full-width">
+                        <label for="remark_user">비고</label>
+                        <textarea id="remark_user" name="remark_user" rows="3" placeholder="요청사항이 있으면 입력해 주세요.">{{ prefill.remark_user or '' }}</textarea>
+                    </div>
+                </div>
+
+                <div class="reg-agree">
+                    <label class="agree-label">
+                        <input type="checkbox" id="agree_terms" name="agree_terms" required>
+                        개인정보 수집 및 이용에 동의합니다.
+                    </label>
+                </div>
+
+                <div class="reg-actions">
+                    <a href="{{ url_for('participant_registration', event_id=event.id) }}" class="btn btn-secondary">취소</a>
                     <button type="submit" class="btn btn-primary">등록</button>
                 </div>
             </form>
+            {% endif %}
         </div>
-
-        <footer class="footer">
-            <p>(04501) 서울시 중구 만리재로 185 KCC 파크타운 101동 308호</p>
-            <p>Tel : 02-362-9662 · Fax : 02-362-9663 · E-mail : epilepsy@kes.or.kr</p>
-            <p>ⓒ 대한뇌전증학회 Korean Epilepsy Society. All rights reserved.</p>
-        </footer>
     </div>
 
     <script src="{{ url_for('static', filename='js/participant_registration.js') }}"></script>

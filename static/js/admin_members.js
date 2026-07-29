@@ -356,4 +356,88 @@ function exportMembers() {
 // Open popup function
 function openPopup(url) {
     window.open(url, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
-} 
+}
+
+(function initMemberApproval() {
+    const modal = document.getElementById('memberApproveModal');
+    if (!modal) return;
+
+    let pendingMemberId = null;
+    let pendingCell = null;
+
+    const nameEl = document.getElementById('approveName');
+    const usernameEl = document.getElementById('approveUsername');
+    const emailEl = document.getElementById('approveEmail');
+    const confirmBtn = modal.querySelector('.btn-approve-confirm');
+    const typeRadios = () => Array.from(modal.querySelectorAll('input[name="approve_member_type"]'));
+
+    function openApproveModal(link) {
+        pendingMemberId = link.dataset.memberId;
+        pendingCell = link.closest('td[data-column="workplace_type"]');
+        nameEl.textContent = link.dataset.name || '-';
+        usernameEl.textContent = link.dataset.username || '-';
+        emailEl.textContent = link.dataset.email || '-';
+        const currentType = link.dataset.memberType || '';
+        typeRadios().forEach((radio) => {
+            radio.checked = radio.value === currentType;
+        });
+        confirmBtn.disabled = false;
+        modal.hidden = false;
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeApproveModal() {
+        modal.hidden = true;
+        document.body.style.overflow = '';
+        pendingMemberId = null;
+        pendingCell = null;
+    }
+
+    document.getElementById('members-table')?.addEventListener('click', (e) => {
+        const link = e.target.closest('.approval-pending-link');
+        if (!link) return;
+        e.preventDefault();
+        openApproveModal(link);
+    });
+
+    modal.querySelector('.member-approve-backdrop')?.addEventListener('click', closeApproveModal);
+    modal.querySelector('.member-approve-close')?.addEventListener('click', closeApproveModal);
+    modal.querySelector('.btn-approve-cancel')?.addEventListener('click', closeApproveModal);
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) {
+            closeApproveModal();
+        }
+    });
+
+    confirmBtn?.addEventListener('click', async () => {
+        if (!pendingMemberId) return;
+        const selected = typeRadios().find((radio) => radio.checked);
+        if (!selected) {
+            alert('회원구분을 선택해 주세요.');
+            return;
+        }
+        confirmBtn.disabled = true;
+        try {
+            const res = await fetch(`/members/approve/${pendingMemberId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ member_type: selected.value }),
+            });
+            const data = await res.json();
+            if (!data.success) {
+                throw new Error(data.message || '승인 실패');
+            }
+            if (pendingCell) {
+                pendingCell.dataset.isActive = '1';
+                pendingCell.dataset.memberType = data.member_type || selected.value;
+                pendingCell.textContent = data.workplace_type_label || data.member_type || selected.value;
+            }
+            closeApproveModal();
+        } catch (err) {
+            alert(err.message || '승인 중 오류가 발생했습니다.');
+            confirmBtn.disabled = false;
+        }
+    });
+})();
+ 

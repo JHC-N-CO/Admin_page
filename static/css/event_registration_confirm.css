@@ -1,0 +1,50 @@
+.confirm-card {
+    max-width: 460px;
+}
+
+.confirm-empty {
+    background: #f8f9fa;
+    border: 1px solid #e0e3ed;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    font-size: 0.95em;
+    color: #5f6368;
+    text-align: center;
+    line-height: 1.5;
+}
+
+.confirm-result {
+    margin-bottom: 20px;
+}
+
+.member-topbar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 20px;
+    font-size: 0.9rem;
+}
+
+.member-topbar-name {
+    color: #666;
+    font-weight: 500;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.member-topbar-logout {
+    color: #3d4799;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.member-topbar-logout:hover {
+    text-decoration: underline;
+}

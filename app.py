@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory, after_this_request, make_response
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory, after_this_request, make_response, session
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -357,6 +357,31 @@ def migrate_existing_events():
                 print("members table columns already exist")
             else:
                 print(f"Error adding members table columns: {e}")
+
+        # members.member_type (정회원/준회원/종신회원)
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(db.text("ALTER TABLE members ADD COLUMN member_type VARCHAR(50);"))
+                connection.commit()
+            print("Added member_type column to members table")
+        except Exception as e:
+            if "already exists" in str(e) or "duplicate column" in str(e).lower():
+                print("member_type column already exists in members table")
+            else:
+                print(f"Error adding member_type column: {e}")
+
+        # 기존 workplace_type에 회원구분이 들어 있던 행을 member_type으로 이전
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(db.text("""
+                    UPDATE members
+                    SET member_type = workplace_type
+                    WHERE (member_type IS NULL OR member_type = '')
+                      AND workplace_type IN ('정회원', '준회원', '종신회원')
+                """))
+                connection.commit()
+        except Exception as e:
+            print(f"Error backfilling member_type: {e}")
         
         # participants 테이블에 name_eng 컬럼 추가
         try:
@@ -451,16 +476,86 @@ def admin_event_page():
     
     return render_template('admin_event.html', events=events)
 
+MEMBER_TYPE_LABELS = {
+    '정회원': '정회원(전문의)',
+    '준회원': '준회원(전공의)',
+    '종신회원': '종신회원',
+}
+
+
+def format_member_type_label(member_type):
+    if not member_type:
+        return ''
+    return MEMBER_TYPE_LABELS.get(member_type, member_type)
+
+
+def get_member_membership_type(member):
+    """표시/승인용 회원구분. member_type 우선, 없으면 기존 workplace_type 호환."""
+    member_type = getattr(member, 'member_type', None) or ''
+    if member_type in MEMBER_TYPE_LABELS:
+        return member_type
+    workplace_type = member.workplace_type or ''
+    if workplace_type in MEMBER_TYPE_LABELS:
+        return workplace_type
+    return member_type or ''
+
+
 @app.route('/members')
 def members_page():
     """회원 목록 페이지"""
     members = Member.query.order_by(Member.created_at.desc()).all()
-    response = make_response(render_template('admin_members.html', members=members))
+    response = make_response(render_template(
+        'admin_members.html',
+        members=members,
+        member_type_labels=MEMBER_TYPE_LABELS,
+        get_member_membership_type=get_member_membership_type,
+        format_member_type_label=format_member_type_label,
+    ))
     # 캐시 방지 헤더 추가
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     return response
+
+
+@app.route('/members/approve/<int:member_id>', methods=['POST'])
+def approve_member(member_id):
+    """승인 대기 회원을 활성화"""
+    try:
+        member = Member.query.get_or_404(member_id)
+        data = request.get_json(silent=True) or {}
+        selected_type = (data.get('member_type') or data.get('workplace_type') or '').strip()
+        if selected_type in MEMBER_TYPE_LABELS:
+            member.member_type = selected_type
+
+        if member.is_active:
+            db.session.commit()
+            membership = get_member_membership_type(member)
+            return jsonify({
+                'success': True,
+                'message': '이미 승인된 회원입니다.',
+                'member_type': membership,
+                'workplace_type': membership,
+                'workplace_type_label': format_member_type_label(membership),
+                'is_active': True,
+            })
+
+        member.is_active = True
+        db.session.commit()
+        membership = get_member_membership_type(member)
+        return jsonify({
+            'success': True,
+            'message': '회원이 승인되었습니다.',
+            'member_type': membership,
+            'workplace_type': membership,
+            'workplace_type_label': format_member_type_label(membership),
+            'is_active': True,
+        })
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error approving member {member_id}: {str(e)}")
+        return jsonify({'success': False, 'message': f'승인 중 오류: {str(e)}'}), 500
+
 
 @app.route('/add_member', methods=['GET', 'POST'])
 def add_member():
@@ -505,7 +600,8 @@ def add_member():
                 license_number=request.form.get('license_number'),
                 workplace_name=request.form.get('workplace_name'),
                 workplace_name_eng=request.form.get('workplace_name_eng'),
-                workplace_type=request.form.get('workplace_type'),
+                workplace_type=request.form.get('workplace_type_detail') or None,
+                member_type=request.form.get('workplace_type') or request.form.get('member_type'),
                 position=request.form.get('position'),
                 specialty=request.form.get('specialty'),
                 specialty_eng=request.form.get('specialty_eng'),
@@ -658,7 +754,8 @@ def register_step3():
                 license_number=request.form.get('license_number'),
                 workplace_name=request.form.get('workplace_name'),
                 workplace_name_eng=request.form.get('workplace_name_eng'),
-                workplace_type=request.form.get('workplace_type'),
+                workplace_type=request.form.get('workplace_type'),  # 근무처구분
+                member_type=request.form.get('member_type'),  # 회원구분
                 position=request.form.get('position'),
                 specialty=request.form.get('specialty'),
                 specialty_eng=request.form.get('specialty_eng'),
@@ -680,7 +777,8 @@ def register_step3():
                 email_receipt=request.form.get('email_receipt') == 'true',
                 mail_receipt=request.form.get('mail_receipt') == 'true',
                 terms_agreed=True,
-                terms_agreed_at=datetime.utcnow()
+                terms_agreed_at=datetime.utcnow(),
+                is_active=False,  # 관리자 승인 후 로그인 가능
             )
             
             # 프로필 사진 업로드
@@ -714,6 +812,117 @@ def register_step4():
     """회원가입 4단계: 가입완료"""
     success = request.args.get('success', '')
     return render_template('register_step4.html', success=success)
+
+
+def _get_logged_in_member():
+    """세션의 member_id로 활성 회원을 조회. 없으면 None."""
+    member_id = session.get('member_id')
+    if not member_id:
+        return None
+    member = Member.query.get(member_id)
+    if not member or not member.is_active:
+        session.pop('member_id', None)
+        session.pop('member_username', None)
+        return None
+    return member
+
+
+def _safe_next_url(raw_next):
+    """오픈 리다이렉트 방지: 같은 사이트 상대 경로만 허용."""
+    if not raw_next:
+        return None
+    raw_next = raw_next.strip()
+    if raw_next.startswith('/') and not raw_next.startswith('//'):
+        return raw_next
+    return None
+
+
+@app.context_processor
+def inject_current_member():
+    """템플릿에서 로그인 회원·Logout 표시용"""
+    return {'current_member': _get_logged_in_member()}
+
+
+@app.route('/member/login', methods=['GET', 'POST'])
+def member_login():
+    """회원 로그인 (ID / PW)"""
+    next_url = _safe_next_url(request.args.get('next') or request.form.get('next'))
+
+    if request.method == 'GET' and _get_logged_in_member():
+        return redirect(next_url or url_for('member_home'))
+
+    if request.method == 'POST':
+        username = (request.form.get('username') or '').strip()
+        password = request.form.get('password') or ''
+
+        if not username or not password:
+            return render_template(
+                'member_login.html',
+                error='아이디와 비밀번호를 모두 입력해주세요.',
+                next=next_url or '',
+                username=username,
+            )
+
+        member = Member.query.filter_by(username=username).first()
+        if not member or not check_password_hash(member.password_hash, password):
+            return render_template(
+                'member_login.html',
+                error='아이디 또는 비밀번호가 올바르지 않습니다.',
+                next=next_url or '',
+                username=username,
+            )
+
+        if not member.is_active:
+            return render_template(
+                'member_login.html',
+                error='관리자 승인 대기 중인 계정입니다. 승인 후 로그인해 주세요.',
+                next=next_url or '',
+                username=username,
+            )
+
+        session['member_id'] = member.id
+        session['member_username'] = member.username
+        return redirect(next_url or url_for('member_home'))
+
+    return render_template('member_login.html', next=next_url or '', username='')
+
+
+@app.route('/member/logout')
+def member_logout():
+    """회원 로그아웃"""
+    session.pop('member_id', None)
+    session.pop('member_username', None)
+    return redirect(url_for('member_login'))
+
+
+@app.route('/member')
+def member_home():
+    """로그인 후 회원 홈 (참가 등록 연결은 다음 단계)"""
+    member = _get_logged_in_member()
+    if not member:
+        return redirect(url_for('member_login', next=url_for('member_home')))
+    return render_template('member_home.html', member=member)
+
+
+@app.route('/member/find-id')
+def member_find_id():
+    """아이디 찾기 (준비중)"""
+    return render_template(
+        'member_find_placeholder.html',
+        title='아이디 찾기',
+        message='아이디 찾기 기능은 준비 중입니다.',
+    )
+
+
+@app.route('/member/find-password')
+def member_find_password():
+    """비밀번호 찾기 (준비중)"""
+    return render_template(
+        'member_find_placeholder.html',
+        title='비밀번호 찾기',
+        message='비밀번호 찾기 기능은 준비 중입니다.',
+    )
+
 
 @app.route('/api/check-username', methods=['POST'])
 def check_username():
@@ -802,7 +1011,12 @@ def edit_member(member_id):
             member.license_number = request.form.get('license_number')
             member.workplace_name = request.form.get('workplace_name')
             member.workplace_name_eng = request.form.get('workplace_name_eng')
-            member.workplace_type = request.form.get('workplace_type')
+            membership = request.form.get('workplace_type') or request.form.get('member_type')
+            if membership in MEMBER_TYPE_LABELS:
+                member.member_type = membership
+            workplace_detail = request.form.get('workplace_type_detail')
+            if workplace_detail is not None:
+                member.workplace_type = workplace_detail or None
             member.position = request.form.get('position')
             member.specialty = request.form.get('specialty')
             member.specialty_eng = request.form.get('specialty_eng')
@@ -893,7 +1107,7 @@ def download_members_excel():
             '직위': lambda m: m.position,
             '면허번호': lambda m: m.license_number,
             '생년월일': lambda m: m.birth_date.strftime('%Y-%m-%d') if m.birth_date else '',
-            '회원구분': lambda m: m.workplace_type
+            '회원구분': lambda m: format_member_type_label(get_member_membership_type(m)) or m.member_type or m.workplace_type
         }
         
         # DataFrame 생성
@@ -1064,10 +1278,11 @@ def upload_members():
                     'birth': 'birth_date',
                     '생일': 'birth_date',
                     
-                    '회원구분': 'workplace_type',
-                    'Membership Type': 'workplace_type',
+                    '회원구분': 'member_type',
+                    'Membership Type': 'member_type',
+                    'member_type': 'member_type',
                     'workplace_type': 'workplace_type',
-                    'member_type': 'workplace_type',
+                    '근무처구분': 'workplace_type',
                     
                     # 추가 전화 필드들
                     '근무처전화': 'workplace_phone',
@@ -3924,19 +4139,204 @@ def select_columns():
     ]
     return render_template('select_columns.html', event_id=event_id, participants=participants, columns=columns)
 
-# 참가자 등록 페이지 (관리자용)
+# 참가자 등록 진입 화면 (회원/비회원)
 @app.route('/register/<int:event_id>')
 def participant_registration(event_id):
-    """참가자 등록 페이지"""
+    """참가 등록 게이트웨이"""
     event = Event.query.get_or_404(event_id)
-    return render_template('participant_registration.html', event=event, timedelta=timedelta)
+    return render_template('event_registration_gateway.html', event=event)
 
-# 공개 참가자 등록 페이지
+
+@app.route('/register/<int:event_id>/coming-soon')
+def participant_registration_coming_soon(event_id):
+    """예전 준비중 URL 호환 — 기능별 실제 페이지로 이동"""
+    feature = (request.args.get('feature') or '').strip()
+    if feature in ('member-confirm', 'nonmember-confirm'):
+        return redirect(url_for('event_registration_confirm', event_id=event_id))
+    if feature == 'domestic':
+        return redirect(url_for('nonmember_event_registration', event_id=event_id, path_type='domestic'))
+    if feature == 'overseas':
+        return redirect(url_for('nonmember_event_registration', event_id=event_id, path_type='overseas'))
+    return redirect(url_for('participant_registration', event_id=event_id))
+
+
+@app.route('/register/<int:event_id>/confirm', methods=['GET', 'POST'])
+def event_registration_confirm(event_id):
+    """이름 + 이메일로 참가 등록 확인"""
+    event = Event.query.get_or_404(event_id)
+    name_kor = ''
+    email = ''
+    participant = None
+    searched = False
+    error = None
+
+    if request.method == 'POST':
+        name_kor = (request.form.get('name_kor') or '').strip()
+        email = (request.form.get('email') or '').strip()
+        searched = True
+
+        if not name_kor or not email:
+            error = '성명과 이메일을 모두 입력해 주세요.'
+        else:
+            participant = Participant.query.filter(
+                Participant.event_id == event_id,
+                Participant.name_kor == name_kor,
+                Participant.email == email,
+            ).first()
+
+    return render_template(
+        'event_registration_confirm.html',
+        event=event,
+        name_kor=name_kor,
+        email=email,
+        participant=participant,
+        searched=searched,
+        error=error,
+    )
+
+
+def _map_member_to_registration_prefill(member) -> dict:
+    """Member → 참가 등록 폼 prefill"""
+    specialty_options = {'신경과', '소아청소년과', '신경외과', '정신과'}
+    raw_specialty = (member.specialty or '').strip()
+    if raw_specialty in specialty_options:
+        specialty = raw_specialty
+        specialty_other = ''
+    elif raw_specialty:
+        specialty = '기타'
+        specialty_other = raw_specialty
+    else:
+        specialty = ''
+        specialty_other = ''
+
+    membership = get_member_membership_type(member)
+    position = (member.position or '').strip()
+    if membership == '준회원' or position == '전공의':
+        registration_type = '전공의'
+        registration_fee = '전공의'
+    elif membership in ('정회원', '종신회원') or position == '전문의':
+        registration_type = '전문의'
+        registration_fee = '전문의'
+    else:
+        registration_type = ''
+        registration_fee = ''
+
+    workplace_category = (member.workplace_type or '').strip()
+    if workplace_category in ('개원의', '봉직의'):
+        form_workplace_type = workplace_category
+    elif workplace_category in ('개원', '의원'):
+        form_workplace_type = '개원의'
+    elif workplace_category:
+        form_workplace_type = '봉직의'
+    else:
+        form_workplace_type = ''
+
+    phone = (member.mobile or member.phone or '').strip()
+
+    return {
+        'registration_type': registration_type,
+        'name_kor': member.name_kor or '',
+        'first_name': member.first_name or '',
+        'family_name': member.last_name or '',
+        'license_number': member.license_number or '',
+        'specialty': specialty,
+        'specialty_other': specialty_other,
+        'phone': phone,
+        'email': member.email or '',
+        'workplace_name': member.workplace_name or '',
+        'workplace_type': form_workplace_type,
+        'affiliation_eng': member.workplace_name_eng or '',
+        'rating_required': '',
+        'registration_fee': registration_fee,
+        'remark_user': '',
+    }
+
+
+@app.route('/register/<int:event_id>/member')
+def member_event_registration(event_id):
+    """학회 회원 로그인 후 참가 등록"""
+    event = Event.query.get_or_404(event_id)
+    member = _get_logged_in_member()
+    if not member:
+        return redirect(url_for(
+            'member_login',
+            next=url_for('member_event_registration', event_id=event_id),
+        ))
+
+    already = None
+    if member.email:
+        already = Participant.query.filter_by(event_id=event_id, email=member.email).first()
+    if not already and member.license_number:
+        already = Participant.query.filter_by(
+            event_id=event_id,
+            license_number=member.license_number,
+        ).first()
+
+    return render_template(
+        'participant_registration.html',
+        event=event,
+        timedelta=timedelta,
+        member=member,
+        is_member_flow=True,
+        nonmember_type=None,
+        already_registered=already,
+        prefill=_map_member_to_registration_prefill(member) if not already else {},
+    )
+
+
+@app.route('/register/<int:event_id>/nonmember/<path_type>')
+def nonmember_event_registration(event_id, path_type):
+    """비회원 국내/해외 참가 등록"""
+    path_type = (path_type or '').strip().lower()
+    if path_type not in ('domestic', 'overseas'):
+        return redirect(url_for('participant_registration', event_id=event_id))
+
+    event = Event.query.get_or_404(event_id)
+    title = '비회원 참가 등록 (국내)' if path_type == 'domestic' else '비회원 참가 등록 (해외)'
+    return render_template(
+        'participant_registration.html',
+        event=event,
+        timedelta=timedelta,
+        member=None,
+        is_member_flow=False,
+        nonmember_type=path_type,
+        page_title=title,
+        already_registered=None,
+        prefill={},
+    )
+
+
+@app.route('/register/<int:event_id>/done')
+def event_registration_done(event_id):
+    """참가 등록 완료"""
+    event = Event.query.get_or_404(event_id)
+    return render_template(
+        'event_registration_done.html',
+        event=event,
+        registration_id=request.args.get('code', ''),
+        name_kor=request.args.get('name', ''),
+        email=request.args.get('email', ''),
+        member_logged_in=bool(_get_logged_in_member()),
+    )
+
+
+# 공개 참가자 등록 페이지 (레거시 직접 폼 — 관리/테스트용)
 @app.route('/public/register/<int:event_id>')
 def public_participant_registration(event_id):
-    """공개 참가자 등록 페이지"""
+    """공개 참가자 등록 폼 (게이트웨이 없이 직접)"""
     event = Event.query.get_or_404(event_id)
-    return render_template('participant_registration.html', event=event, timedelta=timedelta, is_public=True)
+    return render_template(
+        'participant_registration.html',
+        event=event,
+        timedelta=timedelta,
+        is_public=True,
+        is_member_flow=False,
+        nonmember_type='domestic',
+        member=None,
+        already_registered=None,
+        prefill={},
+    )
+
 
 # 참가자 등록 처리
 @app.route('/register_participant/<int:event_id>', methods=['POST'])
@@ -3944,13 +4344,13 @@ def register_participant(event_id):
     """참가자 등록 처리"""
     try:
         event = Event.query.get_or_404(event_id)
-        
+
         # 폼 데이터 수집
         registration_type = request.form.get('registration_type')
-        name_kor = request.form.get('name_kor')
-        first_name = request.form.get('first_name')
-        family_name = request.form.get('family_name')
-        license_number = request.form.get('license_number')
+        name_kor = (request.form.get('name_kor') or '').strip()
+        first_name = (request.form.get('first_name') or '').strip()
+        family_name = (request.form.get('family_name') or '').strip()
+        license_number = (request.form.get('license_number') or '').strip()
         specialty = request.form.get('specialty')
         specialty_other = request.form.get('specialty_other')
         phone = request.form.get('phone')
@@ -3962,14 +4362,21 @@ def register_participant(event_id):
         registration_fee = request.form.get('registration_fee')
         remark_user = request.form.get('remark_user')
         agree_terms = request.form.get('agree_terms')
-        
+        registration_source = (request.form.get('registration_source') or '').strip()
+        country = (request.form.get('country') or '').strip()
+        country_code = (request.form.get('country_code') or '').strip().upper()
+
+        is_overseas = registration_source == 'overseas'
+        is_domestic = registration_source in ('domestic', 'member')
+
+        if is_overseas and not name_kor:
+            name_kor = f"{first_name} {family_name}".strip()
+
         # 필수 필드 검증
         required_fields = {
             'registration_type': registration_type,
-            'name_kor': name_kor,
             'first_name': first_name,
             'family_name': family_name,
-            'license_number': license_number,
             'specialty': specialty,
             'phone': phone,
             'email': email,
@@ -3977,23 +4384,35 @@ def register_participant(event_id):
             'workplace_type': workplace_type,
             'affiliation_eng': affiliation_eng,
             'rating_required': rating_required,
-            'registration_fee': registration_fee
+            'registration_fee': registration_fee,
         }
-        
+        if not is_overseas:
+            required_fields['name_kor'] = name_kor
+            required_fields['license_number'] = license_number
+        else:
+            required_fields['country'] = country
+            required_fields['country_code'] = country_code
+
         for field, value in required_fields.items():
-            if not value or not value.strip():
+            if not value or not str(value).strip():
                 return jsonify({
                     'success': False,
                     'message': f'{field} 필드는 필수입니다.'
                 }), 400
-        
+
+        if not name_kor:
+            return jsonify({
+                'success': False,
+                'message': '성명 필드는 필수입니다.'
+            }), 400
+
         # 약관 동의 확인
         if not agree_terms:
             return jsonify({
                 'success': False,
                 'message': '개인정보 처리방침에 동의해주세요.'
             }), 400
-        
+
         # 이메일 중복 확인
         existing_email = Participant.query.filter_by(email=email, event_id=event_id).first()
         if existing_email:
@@ -4001,22 +4420,34 @@ def register_participant(event_id):
                 'success': False,
                 'message': '이미 등록된 이메일입니다.'
             }), 400
-        
-        # 면허번호 중복 확인
-        existing_license = Participant.query.filter_by(license_number=license_number, event_id=event_id).first()
-        if existing_license:
-            return jsonify({
-                'success': False,
-                'message': '이미 등록된 면허번호입니다.'
-            }), 400
-        
+
+        # 면허번호 중복 확인 (값이 있을 때만)
+        if license_number:
+            existing_license = Participant.query.filter_by(
+                license_number=license_number,
+                event_id=event_id,
+            ).first()
+            if existing_license:
+                return jsonify({
+                    'success': False,
+                    'message': '이미 등록된 면허번호입니다.'
+                }), 400
+
         # 다음 코드 번호 생성
         last_participant = Participant.query.filter_by(event_id=event_id).order_by(Participant.code.desc()).first()
         next_code = (last_participant.code + 1) if last_participant and last_participant.code else 1
-        
+
         # 진료과목 처리
         final_specialty = specialty_other if specialty == '기타' and specialty_other else specialty
-        
+        name_eng = f"{first_name} {family_name}".strip()
+
+        if is_domestic or registration_source == 'member':
+            save_country = 'Korea'
+            save_country_code = 'KOR'
+        else:
+            save_country = country
+            save_country_code = country_code
+
         # 새 참가자 생성
         new_participant = Participant(
             event_id=event_id,
@@ -4024,33 +4455,47 @@ def register_participant(event_id):
             registration=registration_type,
             division=final_specialty,
             role=registration_type,
+            country=save_country,
+            country_code=save_country_code,
             name_kor=name_kor,
+            name_eng=name_eng,
             first_name=first_name,
             family_name=family_name,
+            affiliation_kor=workplace_name,
             affiliation_eng=affiliation_eng,
+            department_kor=final_specialty,
             email=email,
             phone=phone,
-            license_number=license_number,
+            license_number=license_number or None,
             position=workplace_type,
+            workplace_type=registration_type,
             agree=agree_terms,
             remark_user=remark_user,
-            accept_or_decline='Accept'  # 자동으로 수락 상태로 설정
+            accept_or_decline='Accept'
         )
-        
-        # 데이터베이스에 저장
+
         db.session.add(new_participant)
         db.session.commit()
-        
+
         print(f"새 참가자 등록 완료: {name_kor} ({email}) - 코드: {next_code}")
-        
+
+        redirect_url = url_for(
+            'event_registration_done',
+            event_id=event_id,
+            code=next_code,
+            name=name_kor,
+            email=email,
+        )
+
         return jsonify({
             'success': True,
             'message': '등록이 완료되었습니다.',
             'registration_id': next_code,
             'name_kor': name_kor,
-            'email': email
+            'email': email,
+            'redirect_url': redirect_url,
         })
-        
+
     except Exception as e:
         db.session.rollback()
         print(f"참가자 등록 오류: {e}")

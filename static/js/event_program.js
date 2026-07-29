@@ -214,7 +214,7 @@ let displaySettings = {
 
 let currentViewMode = 'calendar';
 const excelViewState = {
-    subMode: 'program',
+    subMode: 'people',
     headers: [],
     rows: [],
     filteredRows: [],

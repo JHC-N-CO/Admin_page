@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>이메일 작성</title>
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     <link rel="stylesheet" href="../static/css/compose_email.css">
 </head>
 <body>
@@ -12,7 +13,7 @@
             <input type="hidden" name="body" id="body">
             <input type="text" name="cc" class="cc-input" placeholder="참조 (CC) - 쉼표로 구분된 이메일 주소">
             <input type="text" name="subject" placeholder="제목을 입력하세요" required>
-            <div id="editor" class="editor" contenteditable="true" placeholder="이메일 내용을 작성하세요..."></div>
+            <div id="editor"></div>
             <label class="checkbox-label">
                 <input type="checkbox" name="include_buttons" value="yes"> 승인/거절 버튼 포함
             </label>
@@ -23,6 +24,7 @@
             </div>
         </form>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="../static/js/compose_email.js"></script>
 </body>
 </html>
