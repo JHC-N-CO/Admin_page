@@ -149,52 +149,69 @@ function renderPersonLookupResults(results) {
     setPersonLookupStatus(`${results.length}건의 검색 결과 — 항목을 클릭하면 폼에 채워집니다.`, '');
 }
 
-async function searchPersonLookup() {
+let personLookupTimer = null;
+let personLookupRequestId = 0;
+
+function clearPersonLookupResults() {
+    const container = document.getElementById('personLookupResults');
+    if (container) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        container._results = [];
+    }
+}
+
+async function searchPersonLookup(options = {}) {
+    const { showShortHint = false } = options;
     const input = document.getElementById('personLookupQuery');
     const query = (input?.value || '').trim();
+
     if (query.length < 2) {
-        setPersonLookupStatus('2글자 이상 입력해 주세요.', 'error');
+        clearPersonLookupResults();
+        if (showShortHint && query.length > 0) {
+            setPersonLookupStatus('2글자 이상 입력해 주세요.', 'error');
+        } else {
+            setPersonLookupStatus('', '');
+        }
         return;
     }
 
-    const btn = document.getElementById('personLookupBtn');
-    if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 검색 중';
-    }
+    const requestId = ++personLookupRequestId;
     setPersonLookupStatus('검색 중...', '');
 
     try {
         const res = await fetch(`/api/person_lookup?q=${encodeURIComponent(query)}`);
         const data = await res.json();
+        if (requestId !== personLookupRequestId) return;
         if (!data.success) {
             throw new Error(data.message || '검색 실패');
         }
         renderPersonLookupResults(data.results || []);
     } catch (err) {
+        if (requestId !== personLookupRequestId) return;
         console.error(err);
         setPersonLookupStatus('검색 중 오류가 발생했습니다.', 'error');
-    } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-search"></i> 검색';
-        }
     }
 }
 
+function schedulePersonLookup() {
+    clearTimeout(personLookupTimer);
+    personLookupTimer = setTimeout(() => {
+        searchPersonLookup({ showShortHint: true });
+    }, 250);
+}
+
 document.addEventListener('DOMContentLoaded', function () {
-    const lookupBtn = document.getElementById('personLookupBtn');
     const lookupInput = document.getElementById('personLookupQuery');
     const clearBtn = document.getElementById('clearPersonLookup');
 
-    if (lookupBtn) {
-        lookupBtn.addEventListener('click', searchPersonLookup);
-    }
     if (lookupInput) {
+        lookupInput.addEventListener('input', schedulePersonLookup);
         lookupInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                searchPersonLookup();
+                clearTimeout(personLookupTimer);
+                searchPersonLookup({ showShortHint: true });
             }
         });
     }

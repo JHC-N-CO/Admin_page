@@ -202,6 +202,71 @@ body {
     width: 80px;
 }
 
+.main-content .table-container td[data-column="role"] {
+    white-space: nowrap;
+}
+
+.main-content .table-container td[data-column="role"] .role-abstract-wrap {
+    position: relative;
+    display: inline-block;
+}
+
+.main-content .table-container td[data-column="role"] .role-abstract,
+.main-content .table-container td[data-column="role"] .role-abstract-trigger {
+    color: #e67e22;
+    font-weight: 700;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+}
+
+.main-content .table-container td[data-column="role"] .role-abstract-trigger:hover {
+    text-decoration: underline;
+}
+
+.main-content .table-container td[data-column="role"],
+.main-content .table-container th[data-column="role"] {
+    overflow: visible;
+}
+
+.main-content .table-container td[data-column="role"] .role-dl-pop {
+    display: none;
+    position: fixed;
+    z-index: 1200;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid #d0d4e0;
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.main-content .table-container td[data-column="role"] .role-abstract-wrap.is-open .role-dl-pop {
+    display: inline-flex;
+}
+
+.main-content .table-container td[data-column="role"] .role-dl {
+    display: inline-block;
+    padding: 2px 8px;
+    border: 1px solid #d0d4e0;
+    border-radius: 4px;
+    background: #f7f8fb;
+    color: #3d4799;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.main-content .table-container td[data-column="role"] .role-dl:hover {
+    background: #3d4799;
+    border-color: #3d4799;
+    color: #fff;
+}
+
 .main-content .table-container th[data-column="registration"],
 .main-content .table-container td[data-column="registration"] {
     min-width: 100px;

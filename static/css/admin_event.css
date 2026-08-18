@@ -255,15 +255,32 @@ footer {
     max-width: 320px;
 }
 .flatpickr-months .flatpickr-month {
+    height: 40px;
+    overflow: visible;
     font-size: 1.05em;
     font-weight: 700;
     color: #222;
     margin-bottom: 2px;
-    padding: 8px 0 0 0;
+    padding: 0;
+}
+.flatpickr-current-month {
+    height: 40px;
+    padding-top: 8px;
+    line-height: 1.4;
+    overflow: visible;
+}
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+    height: auto;
+    line-height: 1.4;
+    padding: 0 4px;
+    font-weight: 700;
 }
 .flatpickr-current-month input.cur-year {
     font-size: 1em;
-    height: 1.6em;
+    height: auto;
+    line-height: 1.4;
+    padding: 0;
+    font-weight: 700;
 }
 .flatpickr-weekdays {
     font-size: 0.95em;

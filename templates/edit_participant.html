@@ -28,12 +28,17 @@
                     <div class="form-group">
                         <label for="role">역할 <span class="required">*</span></label>
                         <select id="role" name="role" required>
+                            {% set role_options = ['좌장', '연자', '국내 연자', '해외 연자', '참석자', '초록', '기타'] %}
                             <option value="" disabled {% if not participant.role %}selected{% endif %}>선택하세요</option>
+                            {% if participant.role and participant.role not in role_options %}
+                            <option value="{{ participant.role }}" selected>{{ participant.role }}</option>
+                            {% endif %}
                             <option value="좌장" {% if participant.role == '좌장' %}selected{% endif %}>좌장</option>
                             <option value="연자" {% if participant.role == '연자' %}selected{% endif %}>연자</option>
                             <option value="국내 연자" {% if participant.role == '국내 연자' %}selected{% endif %}>국내 연자</option>
                             <option value="해외 연자" {% if participant.role == '해외 연자' %}selected{% endif %}>해외 연자</option>
                             <option value="참석자" {% if participant.role == '참석자' %}selected{% endif %}>참석자</option>
+                            <option value="초록" {% if participant.role == '초록' %}selected{% endif %}>초록</option>
                             <option value="기타" {% if participant.role == '기타' %}selected{% endif %}>기타</option>
                         </select>
                     </div>

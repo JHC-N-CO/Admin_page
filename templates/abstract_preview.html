@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abstract Submission Preview - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract.css') }}">
+</head>
+<body>
+    {% include 'includes/member_topbar.html' %}
+    <div class="abstract-page abstract-page-wide">
+        <header class="abstract-header">
+            <p class="abstract-brand">대한뇌전증학회</p>
+            <h1 class="abstract-title">Abstract Submission</h1>
+            <p class="abstract-event-name">{{ event.name }}</p>
+        </header>
+
+        <div class="preview-box">
+            <div class="preview-meta">
+                <span class="preview-topics">
+                    {{ draft.topic_first }}
+                    {% if draft.topic_second %} / {{ draft.topic_second }}{% endif %}
+                </span>
+            </div>
+
+            <h2 class="preview-abs-title">{{ draft.title }}</h2>
+
+            <p class="preview-authors">
+                {% for author in draft.authors %}
+                    <span class="preview-author{% if author.presenting %} is-presenting{% endif %}">{{ author.first_name }} {{ author.family_name }}</span><sup>{{ author.institutions|join(',') }}</sup>{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+
+            <p class="preview-affils">
+                {% for inst in draft.institutions %}
+                    <sup>{{ inst.no }}</sup>{{ inst.department }}, {{ inst.organization }}, {{ inst.country }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
+            </p>
+
+            <div class="preview-section">
+                <h3>Purpose</h3>
+                <div class="preview-body">{{ draft.purpose|safe }}</div>
+            </div>
+            <div class="preview-section">
+                <h3>Method</h3>
+                <div class="preview-body">{{ draft.method|safe }}</div>
+            </div>
+            <div class="preview-section">
+                <h3>Results</h3>
+                <div class="preview-body">{{ draft.results|safe }}</div>
+            </div>
+            <div class="preview-section">
+                <h3>Conclusion</h3>
+                <div class="preview-body">{{ draft.conclusion|safe }}</div>
+            </div>
+        </div>
+
+        <div class="abstract-nav abstract-nav-actions">
+            {% if view_only %}
+            <a class="btn btn-secondary" href="{{ url_for('abstract_hub', event_id=event.id) }}">이전 페이지</a>
+            {% else %}
+            <a class="btn btn-modify" href="{{ url_for('abstract_new', event_id=event.id, edit=1) }}">Modify</a>
+            <form method="post" action="{{ url_for('abstract_confirm', event_id=event.id) }}">
+                <button type="submit" class="btn btn-primary">Confirm</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

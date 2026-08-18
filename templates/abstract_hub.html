@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>초록 제출 - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract.css') }}">
+</head>
+<body>
+    {% include 'includes/member_topbar.html' %}
+    <div class="abstract-page">
+        <header class="abstract-header">
+            <p class="abstract-brand">대한뇌전증학회</p>
+            <h1 class="abstract-title">초록 제출</h1>
+            <p class="abstract-event-name">{{ event.name }}</p>
+            <p class="abstract-submitter">
+                {{ participant.name_kor or participant.name_eng or '-' }}
+                · {{ participant.email or '-' }}
+            </p>
+        </header>
+
+        {% if request.args.get('submitted') %}
+        <div class="abstract-card abstract-success">초록이 제출되었습니다.</div>
+        {% endif %}
+
+        <div class="abstract-card abstract-submit-box">
+            <a class="btn btn-primary" href="{{ url_for('abstract_new', event_id=event.id) }}">초록 제출</a>
+        </div>
+
+        <div class="abstract-card">
+            <p class="abstract-lead">
+                The submission of an abstract implies your consent of its publication in the Abstract Book
+                and that the author will participate. All presenting authors of accepted abstracts are
+                expected to attend the congress and register via online registration.
+            </p>
+            <ol class="abstract-rules">
+                <li>There is no limit to the number of abstracts you may submit.</li>
+                <li>When you submit your abstracts online, it will be automatically edited according to the designated format.</li>
+                <li>Authors may further edit and modify submitted abstracts until the submission deadline. It is the responsibility of the authors to ensure that their text does not contain typos or grammatical errors.</li>
+                <li>An acknowledgement of the receipt of abstract will be automatically sent to the presenting author by e-mail upon the online submission.</li>
+                <li>An acceptance of abstract will be notified by e-mail to the presenting author.</li>
+                <li>The presenting author must register in the congress through the website in pre-registration period.</li>
+            </ol>
+        </div>
+
+        <div class="abstract-nav">
+            <a class="btn btn-secondary" href="{{ url_for('abstract_exit', event_id=event.id) }}">이전 페이지</a>
+        </div>
+
+        <section class="abstract-list-section">
+            <h2 class="abstract-list-title">Submitted List</h2>
+            <div class="abstract-table-wrap">
+                <table class="abstract-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Category</th>
+                            <th>Lecture Title</th>
+                            <th>Submission</th>
+                            <th>E-poster</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if submissions %}
+                            {% for item in submissions %}
+                            <tr>
+                                <td>{{ item.date }}</td>
+                                <td>{{ item.category }}</td>
+                                <td>{{ item.title }}</td>
+                                <td>
+                                    <a href="{{ url_for('abstract_submission_view', event_id=event.id, submission_id=item.id) }}">{{ item.status }}</a>
+                                </td>
+                                <td>{{ item.eposter or '-' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="abstract-empty">제출된 초록이 없습니다.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</body>
+</html>

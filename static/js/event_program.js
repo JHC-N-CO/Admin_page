@@ -7138,8 +7138,38 @@ async function ensureEventParticipant(person, options = {}) {
         return person;
     }
 
-    if (person.source === 'participant' || (!person.source && Number(person.id) > 0)) {
-        return { ...person, participantId: person.id };
+    if (person.source === 'participant' || (!person.source && Number(person.id) > 0 && !person.isPoolReference)) {
+        const role = options.role || person.program_role || person.role || '';
+        if (!role) {
+            return { ...person, participantId: person.id };
+        }
+
+        const eventId = document.body.getAttribute('data-event-id');
+        const response = await fetch(`/api/event_program/${eventId}/resolve_person`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                source: 'participant',
+                participant_id: person.id || person.participantId,
+                from_program_register: true,
+                role,
+                country: person.country || '',
+                country_code: person.country_code || '',
+            }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || '참가자 역할 반영에 실패했습니다.');
+        }
+        const resolved = {
+            ...data.participant,
+            participantId: data.participant.id,
+        };
+        const existingIndex = participants.findIndex((p) => p.id === resolved.id);
+        if (existingIndex >= 0) {
+            participants[existingIndex] = resolved;
+        }
+        return resolved;
     }
 
     const eventId = document.body.getAttribute('data-event-id');
@@ -7169,6 +7199,8 @@ async function ensureEventParticipant(person, options = {}) {
         payload.department_eng = person.department_eng || '';
         payload.position = person.position || '';
         payload.license_number = person.license_number || '';
+        payload.birth_date = person.birth_date || '';
+        payload.workplace_type = person.workplace_type || '';
     } else {
         return person;
     }

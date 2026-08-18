@@ -64,6 +64,7 @@ class Participant(db.Model):
     
     # Relationship
     files = db.relationship('ParticipantFile', backref='participant', lazy=True, cascade='all, delete-orphan')
+    abstracts = db.relationship('AbstractSubmission', backref='participant', lazy=True, cascade='all, delete-orphan')
     
     def __repr__(self):
         return f'<Participant {self.name_kor or self.first_name}>'
@@ -81,6 +82,23 @@ class ParticipantFile(db.Model):
     
     def __repr__(self):
         return f'<ParticipantFile {self.filename}>'
+
+
+class AbstractSubmission(db.Model):
+    __tablename__ = 'abstract_submissions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id', ondelete='CASCADE'), nullable=False, index=True)
+    participant_id = db.Column(db.Integer, db.ForeignKey('participants.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = db.Column(db.String(500))
+    topic_first = db.Column(db.String(200))
+    topic_second = db.Column(db.String(200))
+    payload_json = db.Column(db.Text)
+    status = db.Column(db.String(20), default='submitted', nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<AbstractSubmission {self.title}>'
 
 # 회원 모델
 class Member(db.Model):

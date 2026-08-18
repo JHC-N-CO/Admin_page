@@ -58,8 +58,6 @@
                     <div class="action-buttons">
                         <button type="button" class="secondary" onclick="openPopup('/add_participant/{{ event[0] }}')">참가자 추가</button>
                         <button type="button" class="secondary" onclick="openPopup('/upload_participants/{{ event[0] }}')">참가자 업로드</button>
-                        <button type="button" class="secondary" onclick="document.getElementById('preRegFile').click()" title="엑셀(한글이름, given name, family name, email, 사전등록여부)을 업로드하면 매칭된 참가자의 등록구분을 P→무료, Y→사전등록, N→빈칸으로 업데이트합니다.">사전등록 동기화</button>
-                        <input type="file" id="preRegFile" accept=".xlsx,.xls,.csv" style="display:none;" onchange="syncPreRegistration(this, {{ event[0] }})">
                         <button type="button" class="secondary" onclick="openMemberSelector({{ event[0] }})">회원에서 추가</button>
                         <button type="button" class="primary" onclick="openPopupAttn('/track_checkin/{{ event[0] }}')">출결 관리</button>
                         <button type="button" class="primary" onclick="window.location.href='/event_program/{{ event[0] }}'">행사 프로그램 관리</button>
@@ -75,7 +73,7 @@
                             <div class="column-selector-dropdown">
                                 <div class="column-selector-header">표시할 컬럼 선택</div>
                                 <div class="column-option">
-                                    <input type="checkbox" id="col-event-id" data-column="event_id" checked>
+                                    <input type="checkbox" id="col-event-id" data-column="event_id">
                                     <label for="col-event-id">이벤트 ID</label>
                                 </div>
                                 <div class="column-option">
@@ -194,7 +192,7 @@
                             <thead>
                                 <tr>
                                     <th><input type="checkbox" id="select-all"></th>
-                                    <th class="sortable" data-column="event_id" data-sort="event_id">이벤트 ID</th>
+                                    <th class="sortable hidden-column" data-column="event_id" data-sort="event_id">이벤트 ID</th>
                                     <th class="sortable" data-column="code" data-sort="code">코드</th>
                                     <th class="sortable" data-column="role" data-sort="role">역할</th>
                                     <th class="sortable" data-column="country" data-sort="country">국가</th>
@@ -225,9 +223,9 @@
                                 {% for participant in participants %}
                                 <tr data-event-id="{{ participant[1] }}" data-code="{{ participant[2] }}">
                                     <td><input type="checkbox" name="selected_participants" value="{{ participant[0] }}" class="row-checkbox"></td>
-                                    <td data-column="event_id">{{ event[4] }}</td>
+                                    <td class="hidden-column" data-column="event_id">{{ event[4] }}</td>
                                     <td data-column="code">{{ participant[2] }}</td>
-                                    <td data-column="role">{{ participant[3] }}</td>
+                                    <td data-column="role">{{ participant[3]|colored_roles(event[0], abstract_by_participant.get(participant[0])) }}</td>
                                     <td data-column="country">{{ participant[4] }}</td>
                                     <td data-column="country_code">{{ participant[5] }}</td>
                                     <td data-column="name_kor">{{ participant[6] }}</td>

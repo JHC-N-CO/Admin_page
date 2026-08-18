@@ -62,6 +62,7 @@
                   <th>종료일</th>
                   <th>참가자 수</th>
                   <th>참가자 등록</th>
+                  <th>초록 제출</th>
                 </tr>
               </thead>
               <tbody>
@@ -74,6 +75,7 @@
                   <td>{{ event[3] }}</td>
                   <td>{{ event[5] }}</td>
                   <td><a class="action-link register-link" href="/register/{{ event[0] }}" target="_blank">참가자 등록</a></td>
+                  <td><a class="action-link register-link" href="/abstract/{{ event[0] }}" target="_blank">초록 제출</a></td>
                 </tr>
                 {% endfor %}
               </tbody>

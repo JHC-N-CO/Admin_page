@@ -1,4 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory, after_this_request, make_response, session
+from markupsafe import Markup, escape
+from html import unescape
 import os
 import pandas as pd
 from werkzeug.utils import secure_filename
@@ -6,7 +8,8 @@ from flask_mail import Mail, Message
 import unicodedata
 import logging
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import json
 from io import BytesIO
 import qrcode
 from urllib.parse import urlencode
@@ -25,7 +28,7 @@ import zipfile
 
 # SQLAlchemy 및 모델 import
 from flask_sqlalchemy import SQLAlchemy
-from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings
+from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings, AbstractSubmission
 from config import config
 from gmail_sender import send_outbound_email
 from chairs_speakers_history import (
@@ -52,6 +55,34 @@ logging.info(f"Email Config - Gmail API configured: {bool(app.config.get('GMAIL_
 
 # SQLAlchemy 초기화
 db.init_app(app)
+
+
+@app.template_filter('colored_roles')
+def colored_roles(role_text, event_id=None, submission_id=None):
+    """참가자 역할에서 '초록'을 주황색으로 표시. 클릭 시 Word/PDF 버튼 표시."""
+    if not role_text:
+        return ''
+    parts = [p.strip() for p in str(role_text).replace('·', '/').split('/') if p.strip()]
+    html_parts = []
+    for part in parts:
+        if part == '초록':
+            if event_id and submission_id:
+                docx_url = url_for('abstract_download', event_id=int(event_id), submission_id=int(submission_id), fmt='docx')
+                pdf_url = url_for('abstract_download', event_id=int(event_id), submission_id=int(submission_id), fmt='pdf')
+                chunk = (
+                    f'<span class="role-abstract-wrap">'
+                    f'<button type="button" class="role-abstract-trigger">{escape(part)}</button>'
+                    f'<span class="role-dl-pop">'
+                    f'<a class="role-dl" href="{docx_url}">Word</a>'
+                    f'<a class="role-dl" href="{pdf_url}">PDF</a>'
+                    f'</span></span>'
+                )
+            else:
+                chunk = f'<span class="role-abstract">{escape(part)}</span>'
+            html_parts.append(chunk)
+        else:
+            html_parts.append(escape(part))
+    return Markup('/'.join(html_parts))
 
 # 로깅 설정
 logging.basicConfig(level=logging.DEBUG)
@@ -408,6 +439,19 @@ def migrate_existing_events():
                 print("participants table new columns already exist")
             else:
                 print(f"Error adding participants table new columns: {e}")
+
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(db.text(
+                    "ALTER TABLE abstract_submissions ADD COLUMN status VARCHAR(20) DEFAULT 'submitted';"
+                ))
+                connection.commit()
+            print("Added status column to abstract_submissions table")
+        except Exception as e:
+            if "already exists" in str(e) or "duplicate column" in str(e).lower():
+                print("abstract_submissions.status already exists")
+            else:
+                print(f"Error adding abstract_submissions.status: {e}")
         
         # 기존 이벤트에 event_id가 없는 경우 자동 생성
         events = Event.query.filter(Event.event_id.is_(None)).all()
@@ -892,6 +936,7 @@ def member_logout():
     """회원 로그아웃"""
     session.pop('member_id', None)
     session.pop('member_username', None)
+    _clear_abstract_session()
     return redirect(url_for('member_login'))
 
 
@@ -1792,8 +1837,24 @@ def participant_management(event_id):
             p.accept_or_decline, p.cv, p.photo, p.ppt, p.script, p.agree,
             p.remark_user, p.remark_admin, p.check_in_time, p.check_out_time, p.decline_reason
         ))
-    
-    return render_template('admin_participants.html', event=event_tuple, participants=participants_tuples)
+
+    abstract_by_participant = {}
+    for row in AbstractSubmission.query.filter(
+        AbstractSubmission.event_id == event_id,
+        db.or_(
+            AbstractSubmission.status == 'submitted',
+            AbstractSubmission.status.is_(None),
+        ),
+    ).order_by(AbstractSubmission.created_at.desc()).all():
+        if row.participant_id not in abstract_by_participant:
+            abstract_by_participant[row.participant_id] = row.id
+
+    return render_template(
+        'admin_participants.html',
+        event=event_tuple,
+        participants=participants_tuples,
+        abstract_by_participant=abstract_by_participant,
+    )
 
 @app.route('/add_participant/<int:event_id>', methods=['GET', 'POST'])
 def add_participant(event_id):
@@ -2518,218 +2579,6 @@ def delete_file(file_id):
     except Exception as e:
         logging.error(f"File deletion failed: {e}")
         return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/sync_pre_registration/<int:event_id>', methods=['POST'])
-def sync_pre_registration(event_id):
-    """엑셀의 '사전등록여부'(P/N/Y)로 참가자 등록구분 일괄 업데이트.
-    매칭 기준: 이메일 AND (한글이름 또는 영문이름) 모두 일치 → 매칭된 사람만 업데이트.
-    매핑: P→'무료', Y→'사전등록', N→''(빈칸).
-    응답에 unmatched/invalid 항목 상세 포함.
-    """
-    Event.query.get_or_404(event_id)
-
-    if 'file' not in request.files:
-        return jsonify({'success': False, 'error': '파일이 첨부되지 않았습니다.'}), 400
-
-    file = request.files['file']
-    if not file or file.filename == '':
-        return jsonify({'success': False, 'error': '파일이 선택되지 않았습니다.'}), 400
-
-    if not allowed_file(file.filename, {'xlsx', 'xls', 'csv'}):
-        return jsonify({'success': False, 'error': 'xlsx/xls/csv 파일만 업로드할 수 있습니다.'}), 400
-
-    try:
-        from io import BytesIO
-        content = file.read()
-        if file.filename.lower().endswith('.csv'):
-            df = pd.read_csv(BytesIO(content), dtype=str, keep_default_na=False)
-        else:
-            df = pd.read_excel(BytesIO(content), dtype=str, keep_default_na=False)
-    except Exception as e:
-        logging.error(f"sync_pre_registration: failed to read file: {e}")
-        return jsonify({'success': False, 'error': f'파일을 읽을 수 없습니다: {e}'}), 400
-
-    # 컬럼명 정규화 (공백/대소문자 무시)
-    def norm(s):
-        return str(s).strip().lower().replace(' ', '')
-    col_map = {norm(c): c for c in df.columns}
-
-    required_aliases = {
-        'name_kor': ['한글이름', '한글', 'name(kor)', 'name_kor', '성명(kor)', '성명'],
-        'given_name': ['givenname', 'firstname', '이름(eng)', 'first_name'],
-        'family_name': ['familyname', 'lastname', '성(eng)', 'family_name'],
-        'email': ['email', '이메일', 'e-mail', 'mail'],
-        'pre_reg': ['사전등록여부', '사전등록', 'pre_registration', 'preregistration'],
-    }
-
-    def find_col(aliases):
-        for a in aliases:
-            if norm(a) in col_map:
-                return col_map[norm(a)]
-        return None
-
-    found = {k: find_col(v) for k, v in required_aliases.items()}
-    missing = [k for k in ('email', 'pre_reg') if not found[k]]
-    if missing:
-        return jsonify({
-            'success': False,
-            'error': f"필수 컬럼이 없습니다: {', '.join(missing)}. 엑셀에 'email'과 '사전등록여부' 컬럼이 필요합니다."
-        }), 400
-
-    status_map = {'P': '무료', 'Y': '사전등록', 'N': ''}
-
-    participants = Participant.query.filter_by(event_id=event_id).all()
-
-    def lower_strip(v):
-        return (str(v).strip().lower()) if v else ''
-
-    by_email = {}
-    for p in participants:
-        if p.email:
-            by_email.setdefault(lower_strip(p.email), []).append(p)
-
-    updated = 0
-    skipped_unmatched = 0
-    skipped_invalid = 0
-    skipped_unchanged = 0
-    details = []
-    unmatched_list = []
-    invalid_list = []
-
-    for idx, row in df.iterrows():
-        excel_row = int(idx) + 2  # 헤더 1행 + 0-based → 실제 엑셀 행 번호
-        email = lower_strip(row.get(found['email'])) if found['email'] else ''
-        kor = (str(row.get(found['name_kor'])).strip() if found['name_kor'] else '')
-        given = (str(row.get(found['given_name'])).strip() if found['given_name'] else '')
-        family = (str(row.get(found['family_name'])).strip() if found['family_name'] else '')
-        raw_status = (str(row.get(found['pre_reg'])).strip().upper() if found['pre_reg'] else '')
-
-        if not email or raw_status not in status_map:
-            skipped_invalid += 1
-            invalid_list.append({
-                'row': excel_row,
-                'name_kor': kor,
-                'given_name': given,
-                'family_name': family,
-                'email': email,
-                'pre_reg': raw_status,
-                'reason': ('이메일 없음' if not email else f"사전등록여부 값 비정상('{raw_status}')")
-            })
-            continue
-
-        candidates = by_email.get(email, [])
-        match = None
-        name_mismatch = False
-        for p in candidates:
-            p_kor = (p.name_kor or '').strip()
-            p_given = (p.first_name or '').strip()
-            p_family = (p.family_name or '').strip()
-            kor_ok = bool(kor) and bool(p_kor) and (kor == p_kor)
-            eng_ok = (
-                (bool(given) and bool(p_given) and given.lower() == p_given.lower()) and
-                (bool(family) and bool(p_family) and family.lower() == p_family.lower())
-            )
-            if kor_ok or eng_ok:
-                match = p
-                break
-            name_mismatch = True
-
-        if not match:
-            skipped_unmatched += 1
-            target_value = status_map[raw_status]
-            if candidates:
-                reason = '이메일은 일치하지만 이름이 일치하지 않음'
-                cand_list = [{
-                    'id': p.id,
-                    'name_kor': (p.name_kor or '').strip(),
-                    'name_eng': f"{(p.first_name or '').strip()} {(p.family_name or '').strip()}".strip(),
-                    'current_registration': p.registration or '',
-                } for p in candidates]
-            else:
-                reason = '이메일이 참가자 목록에 없음'
-                cand_list = []
-            unmatched_list.append({
-                'row': excel_row,
-                'name_kor': kor,
-                'given_name': given,
-                'family_name': family,
-                'email': email,
-                'pre_reg': raw_status,
-                'target_value': target_value,
-                'reason': reason,
-                'candidates': cand_list,
-            })
-            continue
-
-        new_value = status_map[raw_status]
-        if (match.registration or '') == new_value:
-            skipped_unchanged += 1
-            continue
-
-        prev_value = match.registration if match.registration else ''
-        match.registration = new_value
-        updated += 1
-        details.append({
-            'name_kor': match.name_kor,
-            'email': match.email,
-            'from': prev_value,
-            'to': new_value,
-            'excel_status': raw_status,
-        })
-
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"sync_pre_registration: commit failed: {e}")
-        return jsonify({'success': False, 'error': f'DB 저장 실패: {e}'}), 500
-
-    return jsonify({
-        'success': True,
-        'updated': updated,
-        'skipped_unmatched': skipped_unmatched,
-        'skipped_invalid': skipped_invalid,
-        'skipped_unchanged': skipped_unchanged,
-        'total_rows': int(len(df)),
-        'details': details[:500],
-        'unmatched': unmatched_list[:500],
-        'invalid': invalid_list[:500],
-    })
-
-
-@app.route('/update_participant_registration/<int:participant_id>', methods=['POST'])
-def update_participant_registration(participant_id):
-    """단일 참가자의 등록구분(registration)을 업데이트.
-    사전등록 동기화 결과 모달에서 수동으로 적용할 때 사용.
-    """
-    allowed = {'사전등록', '현장등록', 'VIP등록', '일반등록', '무료', ''}
-    if request.is_json:
-        payload = request.get_json(silent=True) or {}
-        new_value = payload.get('value', '')
-    else:
-        new_value = request.form.get('value', '')
-    new_value = str(new_value or '').strip()
-    if new_value not in allowed:
-        return jsonify({'success': False, 'error': f"허용되지 않는 값: '{new_value}'"}), 400
-
-    p = Participant.query.get_or_404(participant_id)
-    prev = p.registration or ''
-    p.registration = new_value
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-    return jsonify({
-        'success': True,
-        'participant_id': p.id,
-        'name_kor': p.name_kor,
-        'email': p.email,
-        'previous': prev,
-        'current': new_value,
-    })
-
 
 @app.route('/delete_participants/<int:event_id>', methods=['POST'])
 def delete_participants(event_id):
@@ -4195,6 +4044,760 @@ def event_registration_confirm(event_id):
     )
 
 
+def _same_event_id(stored, event_id):
+    try:
+        return int(stored) == int(event_id)
+    except (TypeError, ValueError):
+        return False
+
+
+def _clear_abstract_session():
+    for key in (
+        'abstract_event_id',
+        'abstract_path',
+        'abstract_participant_id',
+        'abstract_name',
+        'abstract_email',
+        'abstract_draft',
+        'abstract_draft_id',
+    ):
+        session.pop(key, None)
+
+
+def _set_abstract_session(event_id, path_type, participant):
+    session['abstract_event_id'] = event_id
+    session['abstract_path'] = path_type
+    session['abstract_participant_id'] = participant.id
+    session['abstract_name'] = participant.name_kor or participant.name_eng or ''
+    session['abstract_email'] = participant.email or ''
+
+
+def _get_abstract_context(event_id):
+    """초록 제출 세션이 이 행사와 맞으면 (participant, path) 반환."""
+    if not _same_event_id(session.get('abstract_event_id'), event_id):
+        return None, None
+    participant_id = session.get('abstract_participant_id')
+    if not participant_id:
+        return None, None
+    participant = Participant.query.filter_by(id=participant_id, event_id=event_id).first()
+    if not participant:
+        _clear_abstract_session()
+        return None, None
+    return participant, session.get('abstract_path') or 'member'
+
+
+def _find_event_participant_by_name_email(event_id, name, email):
+    name = (name or '').strip()
+    email = (email or '').strip()
+    if not name or not email:
+        return None
+    email_lower = email.lower()
+    return Participant.query.filter(
+        Participant.event_id == event_id,
+        db.func.lower(Participant.email) == email_lower,
+        db.or_(
+            Participant.name_kor == name,
+            Participant.name_eng == name,
+            Participant.first_name == name,
+        ),
+    ).first()
+
+
+@app.route('/abstract/<int:event_id>')
+def abstract_gateway(event_id):
+    """초록 제출 진입: 회원 / 비회원(국내·해외)"""
+    event = Event.query.get_or_404(event_id)
+    return render_template('abstract_gateway.html', event=event)
+
+
+@app.route('/abstract/<int:event_id>/member')
+def abstract_member_entry(event_id):
+    """회원 로그인 후 초록 제출 안내로 이동"""
+    event = Event.query.get_or_404(event_id)
+    member = _get_logged_in_member()
+    next_url = url_for('abstract_member_entry', event_id=event_id)
+    if not member:
+        return redirect(url_for('member_login', next=next_url))
+
+    participant = None
+    if member.email:
+        participant = Participant.query.filter(
+            Participant.event_id == event_id,
+            db.func.lower(Participant.email) == member.email.strip().lower(),
+        ).first()
+    if not participant:
+        return render_template(
+            'abstract_identify.html',
+            event=event,
+            path_type='member',
+            error='이 행사에 참가 등록된 회원만 초록을 제출할 수 있습니다.',
+            locked_member=member,
+        )
+
+    _set_abstract_session(event_id, 'member', participant)
+    return redirect(url_for('abstract_hub', event_id=event_id))
+
+
+@app.route('/abstract/<int:event_id>/nonmember/<path_type>', methods=['GET', 'POST'])
+def abstract_nonmember_entry(event_id, path_type):
+    """비회원 성명+이메일 확인 후 초록 제출 안내로 이동"""
+    if path_type not in ('domestic', 'overseas'):
+        return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    event = Event.query.get_or_404(event_id)
+    name = (request.form.get('name') or '').strip()
+    email = (request.form.get('email') or '').strip()
+    error = None
+
+    if request.method == 'POST':
+        if not name or not email:
+            error = '성명과 이메일을 모두 입력해 주세요.'
+        else:
+            participant = _find_event_participant_by_name_email(event_id, name, email)
+            if not participant:
+                error = '이 행사에 등록된 참가자 정보를 찾을 수 없습니다.'
+            else:
+                _set_abstract_session(event_id, path_type, participant)
+                return redirect(url_for('abstract_hub', event_id=event_id))
+
+    return render_template(
+        'abstract_identify.html',
+        event=event,
+        path_type=path_type,
+        name=name,
+        email=email,
+        error=error,
+    )
+
+
+def _format_kst_date(dt):
+    if not dt:
+        return '-'
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone(timedelta(hours=9))).strftime('%Y-%m-%d')
+
+
+def _participant_abstract_submissions(event_id, participant_id):
+    rows = AbstractSubmission.query.filter(
+        AbstractSubmission.event_id == event_id,
+        AbstractSubmission.participant_id == participant_id,
+        db.or_(
+            AbstractSubmission.status == 'submitted',
+            AbstractSubmission.status.is_(None),
+        ),
+    ).order_by(AbstractSubmission.created_at.desc()).all()
+    return [{
+        'id': row.id,
+        'date': _format_kst_date(row.created_at),
+        'category': row.topic_first or '-',
+        'title': row.title or '-',
+        'status': 'Submitted',
+        'eposter': '-',
+    } for row in rows]
+
+
+@app.route('/abstract/<int:event_id>/hub')
+def abstract_hub(event_id):
+    """초록 제출 안내 및 제출 목록"""
+    event = Event.query.get_or_404(event_id)
+    participant, path_type = _get_abstract_context(event_id)
+    if not participant:
+        return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    return render_template(
+        'abstract_hub.html',
+        event=event,
+        participant=participant,
+        path_type=path_type,
+        submissions=_participant_abstract_submissions(event_id, participant.id),
+    )
+
+
+ABSTRACT_TOPICS = (
+    'Clinical epilepsy',
+    'Pediatric epilepsy',
+    'Epilepsy surgery',
+    'Genetics',
+    'Neuroimaging',
+    'Antiepileptic drug',
+    'Basic research',
+    'EEG',
+    'Quality of life',
+    'Psychiatric comorbidity',
+    'Others',
+)
+
+
+@app.route('/abstract/<int:event_id>/new')
+def abstract_new(event_id):
+    """초록 제출 폼 (저장은 다음 단계에서 연결)"""
+    event = Event.query.get_or_404(event_id)
+    participant, path_type = _get_abstract_context(event_id)
+    if not participant:
+        return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    draft = None
+    if request.args.get('edit') == '1':
+        draft = _load_abstract_draft_payload(event_id, participant.id)
+
+    return render_template(
+        'abstract_submit.html',
+        event=event,
+        participant=participant,
+        path_type=path_type,
+        topics=ABSTRACT_TOPICS,
+        draft=draft,
+    )
+
+
+def _parse_abstract_form(event_id):
+    def as_int(value, default=0):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    org_count = as_int(request.form.get('org_count'))
+    departments = request.form.getlist('department')
+    organizations = request.form.getlist('organization')
+    countries = request.form.getlist('country')
+    institutions = []
+    for i in range(org_count):
+        institutions.append({
+            'no': i + 1,
+            'department': (departments[i] if i < len(departments) else '').strip(),
+            'organization': (organizations[i] if i < len(organizations) else '').strip(),
+            'country': (countries[i] if i < len(countries) else '').strip(),
+        })
+
+    author_count = as_int(request.form.get('author_count'))
+    presenting = request.form.get('presenting')
+    corresponding = request.form.get('corresponding')
+    authors = []
+    for i in range(author_count):
+        authors.append({
+            'first_name': (request.form.get(f'first_name_{i}') or '').strip(),
+            'family_name': (request.form.get(f'family_name_{i}') or '').strip(),
+            'degrees': request.form.getlist(f'degree_{i}'),
+            'email': (request.form.get(f'email_{i}') or '').strip(),
+            'institutions': request.form.getlist(f'inst_{i}'),
+            'presenting': presenting == str(i),
+            'corresponding': corresponding == str(i),
+        })
+
+    return {
+        'event_id': event_id,
+        'org_count': org_count,
+        'author_count': author_count,
+        'institutions': institutions,
+        'authors': authors,
+        'topic_first': (request.form.get('topic_first') or '').strip(),
+        'topic_second': (request.form.get('topic_second') or '').strip(),
+        'title': (request.form.get('title') or '').strip(),
+        'purpose': request.form.get('purpose') or '',
+        'method': request.form.get('method') or '',
+        'results': request.form.get('results') or '',
+        'conclusion': request.form.get('conclusion') or '',
+        'copyright': request.form.get('copyright') or '',
+    }
+
+
+def _upsert_abstract_draft(event_id, participant_id, draft):
+    row = AbstractSubmission.query.filter_by(
+        event_id=event_id,
+        participant_id=participant_id,
+        status='draft',
+    ).order_by(AbstractSubmission.id.desc()).first()
+    if not row:
+        row = AbstractSubmission(
+            event_id=event_id,
+            participant_id=participant_id,
+            status='draft',
+        )
+        db.session.add(row)
+    row.title = draft.get('title') or ''
+    row.topic_first = draft.get('topic_first') or ''
+    row.topic_second = draft.get('topic_second') or ''
+    row.payload_json = json.dumps(draft, ensure_ascii=False)
+    db.session.commit()
+    session['abstract_draft_id'] = row.id
+    session.pop('abstract_draft', None)
+    return row
+
+
+def _get_abstract_draft_row(event_id, participant_id):
+    draft_id = session.get('abstract_draft_id')
+    query = AbstractSubmission.query.filter_by(
+        event_id=event_id,
+        participant_id=participant_id,
+        status='draft',
+    )
+    row = None
+    if draft_id:
+        row = query.filter_by(id=draft_id).first()
+    if row is None:
+        row = query.order_by(AbstractSubmission.id.desc()).first()
+    return row
+
+
+def _load_abstract_draft_payload(event_id, participant_id):
+    row = _get_abstract_draft_row(event_id, participant_id)
+    if not row or not row.payload_json:
+        stored = session.get('abstract_draft') or {}
+        if _same_event_id(stored.get('event_id'), event_id):
+            return stored
+        return None
+    try:
+        return json.loads(row.payload_json)
+    except (TypeError, ValueError):
+        return None
+
+
+@app.route('/abstract/<int:event_id>/preview', methods=['GET', 'POST'])
+def abstract_preview(event_id):
+    """초록 제출 미리보기"""
+    event = Event.query.get_or_404(event_id)
+    participant, path_type = _get_abstract_context(event_id)
+    if not participant:
+        return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    if request.method == 'POST':
+        draft = _parse_abstract_form(event_id)
+        _upsert_abstract_draft(event_id, participant.id, draft)
+    else:
+        draft = _load_abstract_draft_payload(event_id, participant.id)
+        if not draft:
+            return redirect(url_for('abstract_new', event_id=event_id))
+
+    return render_template(
+        'abstract_preview.html',
+        event=event,
+        participant=participant,
+        path_type=path_type,
+        draft=draft,
+    )
+
+
+@app.route('/abstract/<int:event_id>/confirm', methods=['POST'])
+def abstract_confirm(event_id):
+    """초록 최종 제출 — 참가자 역할에 '초록' 추가. Word/PDF 저장은 다음 단계."""
+    event = Event.query.get_or_404(event_id)
+    participant, _path_type = _get_abstract_context(event_id)
+    if not participant:
+        return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    row = _get_abstract_draft_row(event_id, participant.id)
+    draft = _load_abstract_draft_payload(event_id, participant.id) or {}
+    if row is None:
+        if not _same_event_id(draft.get('event_id'), event_id):
+            return redirect(url_for('abstract_new', event_id=event_id))
+        row = _upsert_abstract_draft(event_id, participant.id, draft)
+
+    row.title = draft.get('title') or row.title or ''
+    row.topic_first = draft.get('topic_first') or row.topic_first or ''
+    row.topic_second = draft.get('topic_second') or row.topic_second or ''
+    if draft:
+        row.payload_json = json.dumps(draft, ensure_ascii=False)
+    row.status = 'submitted'
+    _enrich_participant_from_program_data(participant, {'role': '초록'})
+    db.session.commit()
+    session.pop('abstract_draft', None)
+    session.pop('abstract_draft_id', None)
+    return redirect(url_for('abstract_hub', event_id=event.id, submitted=1))
+
+
+@app.route('/abstract/<int:event_id>/submission/<int:submission_id>')
+def abstract_submission_view(event_id, submission_id):
+    """제출된 초록 보기"""
+    event = Event.query.get_or_404(event_id)
+    participant, path_type = _get_abstract_context(event_id)
+    if not participant:
+        return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    submission = AbstractSubmission.query.filter_by(
+        id=submission_id,
+        event_id=event_id,
+        participant_id=participant.id,
+    ).first_or_404()
+    try:
+        draft = json.loads(submission.payload_json or '{}')
+    except (TypeError, ValueError):
+        draft = {
+            'title': submission.title or '',
+            'topic_first': submission.topic_first or '',
+            'topic_second': submission.topic_second or '',
+            'authors': [],
+            'institutions': [],
+        }
+
+    return render_template(
+        'abstract_preview.html',
+        event=event,
+        participant=participant,
+        path_type=path_type,
+        draft=draft,
+        view_only=True,
+    )
+
+
+@app.route('/abstract/<int:event_id>/exit')
+def abstract_exit(event_id):
+    """초록 제출 세션 종료 후 진입 화면으로"""
+    _clear_abstract_session()
+    return redirect(url_for('abstract_gateway', event_id=event_id))
+
+
+def _html_to_plain(value):
+    text = value or ''
+    text = re.sub(r'(?i)<br\s*/?>', '\n', text)
+    text = re.sub(r'(?i)</p>\s*<p[^>]*>', '\n', text)
+    text = re.sub(r'(?i)</div>', '\n', text)
+    text = re.sub(r'<[^>]+>', '', text)
+    text = unescape(text)
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
+def _abstract_run(paragraph, text, size=11, bold=False, color=None, underline=False, superscript=False):
+    from docx.shared import Pt, RGBColor
+    from docx.oxml.ns import qn
+
+    run = paragraph.add_run(text)
+    run.bold = bold
+    run.underline = underline
+    run.font.size = Pt(size)
+    run.font.superscript = superscript
+    if color:
+        run.font.color.rgb = RGBColor(*color)
+    run.font.name = 'Calibri'
+    r_pr = run._element.get_or_add_rPr()
+    r_fonts = r_pr.get_or_add_rFonts()
+    r_fonts.set(qn('w:eastAsia'), 'Malgun Gothic')
+    return run
+
+
+def _build_abstract_docx_bytes(draft):
+    from docx import Document
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from io import BytesIO
+
+    draft = draft or {}
+    doc = Document()
+    navy = (61, 71, 153)
+    presenting_blue = (61, 71, 153)
+
+    topics = ' / '.join(part for part in [draft.get('topic_first'), draft.get('topic_second')] if part)
+    if topics:
+        para = doc.add_paragraph()
+        _abstract_run(para, topics, size=11)
+
+    title = doc.add_paragraph()
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _abstract_run(title, draft.get('title') or '', size=16, bold=True)
+
+    authors_para = doc.add_paragraph()
+    authors_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    authors = draft.get('authors') or []
+    for index, author in enumerate(authors):
+        if index:
+            _abstract_run(authors_para, ', ', size=11)
+        name = f"{author.get('first_name') or ''} {author.get('family_name') or ''}".strip()
+        color = presenting_blue if author.get('presenting') else None
+        _abstract_run(authors_para, name, size=11, bold=True, color=color, underline=True)
+        inst_nos = ''.join(str(n) for n in (author.get('institutions') or []))
+        if inst_nos:
+            _abstract_run(authors_para, inst_nos, size=9, superscript=True)
+
+    affil_para = doc.add_paragraph()
+    affil_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    institutions = draft.get('institutions') or []
+    for index, inst in enumerate(institutions):
+        if index:
+            _abstract_run(affil_para, ', ', size=10)
+        _abstract_run(affil_para, str(inst.get('no') or index + 1), size=9, superscript=True)
+        line = ', '.join(part for part in [
+            inst.get('department') or '',
+            inst.get('organization') or '',
+            inst.get('country') or '',
+        ] if part)
+        _abstract_run(affil_para, line, size=10, bold=True)
+
+    for heading, key in (
+        ('Purpose', 'purpose'),
+        ('Method', 'method'),
+        ('Results', 'results'),
+        ('Conclusion', 'conclusion'),
+    ):
+        head = doc.add_paragraph()
+        _abstract_run(head, heading, size=12, bold=True, color=navy)
+        body_text = _html_to_plain(draft.get(key) or '')
+        if body_text:
+            for line in body_text.split('\n'):
+                body = doc.add_paragraph()
+                _abstract_run(body, line, size=11)
+
+    buffer = BytesIO()
+    doc.save(buffer)
+    return buffer.getvalue()
+
+
+def _html_to_reportlab_fragments(value):
+    """
+    Quill HTML은 <i> 태그가 깨진 형태로 저장되는 경우가 있어
+    ReportLab(Paragraph) 파서가 예외를 던질 수 있습니다.
+
+    PDF 생성에서는 서식을 제거하고 '줄바꿈만' 유지한 plain-text 라인으로
+    변환해서 파싱 오류를 방지합니다.
+    """
+    text = value or ''
+    text = re.sub(r'(?i)<br\s*/?>', '\n', text)
+    text = re.sub(r'(?i)</p>\s*<p[^>]*>', '\n\n', text)
+    text = re.sub(r'(?i)</p>', '\n', text)
+    text = re.sub(r'(?i)</div>', '\n', text)
+    # 남아있는 HTML 태그는 전부 제거
+    text = re.sub(r'<[^>]+>', '', text)
+    text = unescape(text)
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    parts = [p.strip() for p in text.split('\n') if p.strip()]
+    return parts
+
+
+def _build_abstract_pdf_bytes(draft):
+    from io import BytesIO
+    from reportlab.lib import colors
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.lib.units import mm
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+    import platform
+
+    draft = draft or {}
+    buffer = BytesIO()
+    pdf = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        leftMargin=20 * mm,
+        rightMargin=20 * mm,
+        topMargin=18 * mm,
+        bottomMargin=18 * mm,
+    )
+
+    # Word 기본 폰트는 보통 Calibri인데, ReportLab은 시스템 폰트가 동일하게 없으면
+    # 글자 폭/줄바꿈이 달라질 수 있습니다.
+    # 우선 본문에 한글이 있으면 한글 폰트(가능한 경우)로, 아니면 Helvetica로 통일합니다.
+    draft_text = json.dumps(draft or {}, ensure_ascii=False)
+    contains_korean = bool(re.search(r'[가-힣]', draft_text))
+
+    font_name = 'Helvetica'
+    font_paths = [
+        '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
+        '/Library/Fonts/AppleGothic.ttf',
+        '/System/Library/Fonts/AppleGothic.ttf',
+        '/System/Library/Fonts/Supplemental/AppleSDGothicNeo-Regular.ttf',
+    ] if platform.system() == 'Darwin' else [
+        '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        'C:/Windows/Fonts/malgun.ttf',
+    ]
+    if contains_korean:
+        for path in font_paths:
+            try:
+                if os.path.exists(path):
+                    pdfmetrics.registerFont(TTFont('AbstractKorean', path))
+                    font_name = 'AbstractKorean'
+                    break
+            except Exception:
+                continue
+
+    styles = getSampleStyleSheet()
+    navy = colors.HexColor('#3d4799')
+    presenting_blue = colors.HexColor('#3d4799')
+    body_style = ParagraphStyle(
+        'AbstractBody',
+        parent=styles['Normal'],
+        fontName=font_name,
+        fontSize=11,
+        leading=15,
+        alignment=TA_LEFT,
+        spaceAfter=4,
+    )
+    topic_style = ParagraphStyle(
+        'AbstractTopic',
+        parent=body_style,
+        fontSize=11,
+        leading=14,
+        spaceAfter=10,
+    )
+    title_style = ParagraphStyle(
+        'AbstractTitle',
+        parent=body_style,
+        alignment=TA_CENTER,
+        fontSize=16,
+        leading=20,
+        spaceAfter=8,
+    )
+    author_style = ParagraphStyle(
+        'AbstractAuthors',
+        parent=body_style,
+        alignment=TA_CENTER,
+        fontSize=11,
+        leading=15,
+        spaceAfter=6,
+    )
+    affil_style = ParagraphStyle(
+        'AbstractAffil',
+        parent=body_style,
+        alignment=TA_CENTER,
+        fontSize=10,
+        leading=13,
+        spaceAfter=14,
+    )
+    heading_style = ParagraphStyle(
+        'AbstractHeading',
+        parent=body_style,
+        fontSize=12,
+        leading=15,
+        textColor=navy,
+        spaceBefore=8,
+        spaceAfter=4,
+    )
+
+    story = []
+    topics = ' / '.join(part for part in [draft.get('topic_first'), draft.get('topic_second')] if part)
+    if topics:
+        story.append(Paragraph(topics, topic_style))
+
+    title = escape(draft.get('title') or '')
+    if title:
+        story.append(Paragraph(f'<b>{title}</b>', title_style))
+
+    author_chunks = []
+    for author in draft.get('authors') or []:
+        name = escape(f"{author.get('first_name') or ''} {author.get('family_name') or ''}".strip())
+        if not name:
+            continue
+        if author.get('presenting'):
+            name = f'<font color="#3d4799">{name}</font>'
+        name = f'<u><b>{name}</b></u>'
+        inst_nos = ''.join(str(n) for n in (author.get('institutions') or []))
+        if inst_nos:
+            name += f'<super>{escape(inst_nos)}</super>'
+        author_chunks.append(name)
+    if author_chunks:
+        story.append(Paragraph(', '.join(author_chunks), author_style))
+
+    affil_chunks = []
+    for index, inst in enumerate(draft.get('institutions') or []):
+        label = escape(str(inst.get('no') or index + 1))
+        line = ', '.join(
+            escape(part) for part in [
+                inst.get('department') or '',
+                inst.get('organization') or '',
+                inst.get('country') or '',
+            ] if part
+        )
+        if line:
+            affil_chunks.append(f'<super>{label}</super><b>{line}</b>')
+    if affil_chunks:
+        story.append(Paragraph(', '.join(affil_chunks), affil_style))
+
+    for heading, key in (
+        ('Purpose', 'purpose'),
+        ('Method', 'method'),
+        ('Results', 'results'),
+        ('Conclusion', 'conclusion'),
+    ):
+        story.append(Paragraph(f'<b>{heading}</b>', heading_style))
+        fragments = _html_to_reportlab_fragments(draft.get(key) or '')
+        # fragment 각각을 Paragraph로 만들면 줄바꿈/여백이 Word와 달라질 수 있어
+        # 한 섹션을 한 Paragraph로 합쳐서 <br/>로 구분합니다.
+        body_html = '<br/>'.join(escape(p) for p in fragments if p)
+        if body_html:
+            story.append(Paragraph(body_html, body_style))
+        story.append(Spacer(1, 4))
+
+    pdf.build(story)
+    return buffer.getvalue()
+
+
+def _submitted_abstracts_for_participant(event_id, participant_id):
+    return AbstractSubmission.query.filter(
+        AbstractSubmission.event_id == event_id,
+        AbstractSubmission.participant_id == participant_id,
+        db.or_(
+            AbstractSubmission.status == 'submitted',
+            AbstractSubmission.status.is_(None),
+        ),
+    ).order_by(AbstractSubmission.created_at.desc()).all()
+
+
+@app.route('/api/event/<int:event_id>/participant/<int:participant_id>/abstracts')
+def api_participant_abstracts(event_id, participant_id):
+    """관리자: 참가자가 제출한 초록 목록"""
+    participant = Participant.query.filter_by(id=participant_id, event_id=event_id).first_or_404()
+    rows = _submitted_abstracts_for_participant(event_id, participant_id)
+    return jsonify({
+        'name': participant.name_kor or participant.name_eng or participant.email or '',
+        'abstracts': [{
+            'id': row.id,
+            'date': _format_kst_date(row.created_at),
+            'title': row.title or '(제목 없음)',
+            'topic': row.topic_first or '',
+            'docx_url': url_for('abstract_download', event_id=event_id, submission_id=row.id, fmt='docx'),
+            'pdf_url': url_for('abstract_download', event_id=event_id, submission_id=row.id, fmt='pdf'),
+        } for row in rows],
+    })
+
+
+@app.route('/abstract/<int:event_id>/download/<int:submission_id>/<fmt>')
+def abstract_download(event_id, submission_id, fmt):
+    """제출된 초록 Word/PDF 다운로드"""
+    if fmt not in ('docx', 'pdf'):
+        return jsonify({'error': '지원하지 않는 형식입니다.'}), 400
+
+    submission = AbstractSubmission.query.filter_by(id=submission_id, event_id=event_id).first_or_404()
+    if submission.status and submission.status != 'submitted':
+        return jsonify({'error': '제출된 초록이 아닙니다.'}), 400
+
+    try:
+        draft = json.loads(submission.payload_json or '{}')
+    except (TypeError, ValueError):
+        draft = {
+            'title': submission.title or '',
+            'topic_first': submission.topic_first or '',
+            'topic_second': submission.topic_second or '',
+            'authors': [],
+            'institutions': [],
+        }
+
+    docx_bytes = _build_abstract_docx_bytes(draft)
+    safe_title = re.sub(r'[\\/:*?"<>|]+', '_', (submission.title or 'abstract').strip()) or 'abstract'
+    safe_title = safe_title[:80]
+
+    if fmt == 'docx':
+        return send_file(
+            BytesIO(docx_bytes),
+            as_attachment=True,
+            download_name=f'{safe_title}.docx',
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        )
+
+    pdf_bytes = _build_abstract_pdf_bytes(draft)
+    if not pdf_bytes:
+        return jsonify({'error': 'PDF 변환에 실패했습니다.'}), 500
+    return send_file(
+        BytesIO(pdf_bytes),
+        as_attachment=True,
+        download_name=f'{safe_title}.pdf',
+        mimetype='application/pdf',
+    )
+
+
 def _map_member_to_registration_prefill(member) -> dict:
     """Member → 참가 등록 폼 prefill"""
     specialty_options = {'신경과', '소아청소년과', '신경외과', '정신과'}
@@ -5416,6 +6019,79 @@ def get_event_program(event_id):
         logging.error(f"Error getting event program: {str(e)}")
         return jsonify({'error': '프로그램 데이터 조회 중 오류가 발생했습니다.'}), 500
 
+def _iter_program_session_people(session: dict):
+    """세션 JSON에서 (인물 dict, 역할) 목록을 반환."""
+    people = []
+    chairs = session.get('chairs') or []
+    if chairs:
+        for chair in chairs:
+            people.append((chair, '좌장'))
+    elif session.get('chairId') or session.get('chair'):
+        people.append((
+            {
+                'id': session.get('chairId'),
+                'participantId': session.get('chairId'),
+                'name': session.get('chair') or '',
+            },
+            '좌장',
+        ))
+    for speaker in session.get('speakers') or []:
+        people.append((speaker, '연자'))
+    return people
+
+
+def _sync_program_roles_to_participants(event_id: int, sessions: list) -> int:
+    """프로그램의 좌장/연자 역할을 이미 등록된 참가자 role에 반영."""
+    event_participants = Participant.query.filter_by(event_id=event_id).all()
+    by_id = {p.id: p for p in event_participants}
+    by_email = {
+        (p.email or '').strip().lower(): p
+        for p in event_participants
+        if (p.email or '').strip()
+    }
+
+    roles_by_pid = {}
+    for session in sessions or []:
+        if not isinstance(session, dict):
+            continue
+        for entity, role in _iter_program_session_people(session):
+            if not isinstance(entity, dict):
+                continue
+            if entity.get('isTemporary') or entity.get('isSpecialKeyword'):
+                continue
+
+            participant = None
+            raw_id = entity.get('participantId') if entity.get('participantId') is not None else entity.get('id')
+            try:
+                pid = int(raw_id)
+            except (TypeError, ValueError):
+                pid = 0
+            if pid > 0:
+                participant = by_id.get(pid)
+
+            if participant is None:
+                email = (entity.get('email') or '').strip().lower()
+                if email:
+                    participant = by_email.get(email)
+
+            if participant is None:
+                continue
+            roles_by_pid.setdefault(participant.id, [])
+            if role and role not in roles_by_pid[participant.id]:
+                roles_by_pid[participant.id].append(role)
+
+    updated = 0
+    for pid, roles in roles_by_pid.items():
+        participant = by_id.get(pid)
+        if not participant or not roles:
+            continue
+        before = participant.role or ''
+        _enrich_participant_from_program_data(participant, {'role': '/'.join(roles)})
+        if (participant.role or '') != before:
+            updated += 1
+    return updated
+
+
 @app.route('/api/event_program/<int:event_id>', methods=['POST'])
 def save_event_program(event_id):
     """행사 프로그램 데이터 저장"""
@@ -5431,6 +6107,13 @@ def save_event_program(event_id):
         with open(program_file, 'w', encoding='utf-8') as f:
             import json
             json.dump({'sessions': sessions}, f, ensure_ascii=False, indent=2)
+
+        try:
+            _sync_program_roles_to_participants(event_id, sessions)
+            db.session.commit()
+        except Exception as sync_error:
+            db.session.rollback()
+            logging.error(f"Error syncing program roles for event {event_id}: {sync_error}")
         
         return jsonify({'success': True})
     except Exception as e:
@@ -6011,6 +6694,8 @@ def _participant_pool_item(p: Participant) -> dict:
       'role': p.role,
       'position': p.position,
       'license_number': p.license_number,
+      'birth_date': p.birth_date.strftime('%Y-%m-%d') if p.birth_date else '',
+      'workplace_type': p.workplace_type or '',
       'registration': p.registration or '',
       'accept_or_decline': p.accept_or_decline or '',
       'cv': p.cv or '',
@@ -6052,6 +6737,10 @@ def _member_pool_item(member: Member) -> dict:
       'department_eng': member.department_eng,
       'position': member.position,
       'license_number': member.license_number,
+      'birth_date': member.birth_date.strftime('%Y-%m-%d') if member.birth_date else '',
+      'workplace_type': member.workplace_type or '',
+      'country': '',
+      'country_code': '',
   }
 
 
@@ -6080,6 +6769,8 @@ def _history_pool_item(person: dict) -> dict:
       'department_eng': (person.get('과(ENG)') or '').strip(),
       'position': (person.get('직위') or '').strip(),
       'license_number': (person.get('면허번호') or '').strip(),
+      'birth_date': (person.get('생년월일') or '').strip(),
+      'workplace_type': (person.get('회원구분') or '').strip(),
       'country': (person.get('국가') or '').strip(),
       'country_code': (person.get('국가약어') or '').strip(),
   }
@@ -6090,8 +6781,29 @@ def _next_participant_code(event_id: int) -> str:
   return str(int(max_code) + 1 if max_code else 1)
 
 
-def _enrich_participant_from_program_data(participant: Participant, data: dict) -> None:
-    """프로그램에서 참가자로 연결할 때 역할·국가·등록구분 반영."""
+def _parse_optional_birth_date(value):
+    """문자열/날짜 값을 Participant.birth_date용 date로 변환."""
+    if value is None or value == '':
+        return None
+    if hasattr(value, 'year') and not isinstance(value, str):
+        try:
+            return value if hasattr(value, 'month') and not hasattr(value, 'hour') else value.date()
+        except Exception:
+            pass
+    text = str(value).strip()
+    if not text:
+        return None
+    parsed = parse_birth_date(text)
+    if parsed:
+        return parsed
+    try:
+        return parse_date(text)
+    except Exception:
+        return None
+
+
+def _enrich_participant_from_program_data(participant: Participant, data: dict, member: Optional[Member] = None) -> None:
+    """프로그램에서 참가자로 연결할 때 역할·국가·등록구분·프로필 반영."""
     role = (data.get('role') or '').strip()
     if role:
         existing_roles = [
@@ -6114,6 +6826,30 @@ def _enrich_participant_from_program_data(participant: Participant, data: dict) 
 
     if data.get('from_program_register') or data.get('registration'):
         participant.registration = (data.get('registration') or '사전등록').strip()
+
+    # 비어 있는 프로필 필드는 회원/역대 데이터로 채움
+    if member:
+        if not participant.birth_date and member.birth_date:
+            participant.birth_date = member.birth_date
+        if not (participant.license_number or '').strip() and member.license_number:
+            participant.license_number = member.license_number
+        if not (participant.position or '').strip() and member.position:
+            participant.position = member.position
+        if not (participant.workplace_type or '').strip() and member.workplace_type:
+            participant.workplace_type = member.workplace_type
+    else:
+        birth = _parse_optional_birth_date(data.get('birth_date'))
+        if not participant.birth_date and birth:
+            participant.birth_date = birth
+        license_number = (data.get('license_number') or '').strip()
+        if not (participant.license_number or '').strip() and license_number:
+            participant.license_number = license_number
+        position = (data.get('position') or '').strip()
+        if not (participant.position or '').strip() and position:
+            participant.position = position
+        workplace_type = (data.get('workplace_type') or '').strip()
+        if not (participant.workplace_type or '').strip() and workplace_type:
+            participant.workplace_type = workplace_type
 
 
 def _create_participant_from_member(event_id: int, member: Member, data: Optional[dict] = None) -> Participant:
@@ -6179,6 +6915,8 @@ def _create_participant_from_history(event_id: int, data: dict) -> Participant:
       phone=(data.get('phone') or '').strip(),
       position=(data.get('position') or '').strip(),
       license_number=(data.get('license_number') or '').strip(),
+      birth_date=_parse_optional_birth_date(data.get('birth_date')),
+      workplace_type=(data.get('workplace_type') or '').strip() or None,
       role=(data.get('role') or '').strip(),
       country=(data.get('country') or '').strip(),
       country_code=(data.get('country_code') or '').strip(),
@@ -6249,6 +6987,8 @@ def resolve_person_for_event(event_id):
             ).first()
             if not participant:
                 return jsonify({'error': '참가자를 찾을 수 없습니다.'}), 404
+            _enrich_participant_from_program_data(participant, data)
+            db.session.commit()
             return jsonify({'success': True, 'participant': _participant_pool_item(participant)})
 
         if source == 'member':
@@ -6258,7 +6998,7 @@ def resolve_person_for_event(event_id):
             if member.email:
                 existing = Participant.query.filter_by(event_id=event_id, email=member.email).first()
                 if existing:
-                    _enrich_participant_from_program_data(existing, data)
+                    _enrich_participant_from_program_data(existing, data, member=member)
                     db.session.commit()
                     return jsonify({'success': True, 'participant': _participant_pool_item(existing)})
             participant = _create_participant_from_member(event_id, member, data)

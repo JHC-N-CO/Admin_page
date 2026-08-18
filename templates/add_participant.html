@@ -1,288 +1,233 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>참가자 추가</title>
-    <link rel="stylesheet" href="../static/css/add_participant.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/add_participant.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="page-header">
-            <h1><i class="fas fa-user-plus"></i> 참가자 추가</h1>
-            <p class="subtitle">{{ event.name }} ({{ event.event_id }})</p>
-        </div>
-        
+    <div class="add-page">
+        <header class="add-header">
+            <p class="add-brand">대한뇌전증학회</p>
+            <h1 class="add-title">참가자 추가</h1>
+            <p class="add-event-name">{{ event.name }}</p>
+            <p class="add-event-meta">{{ event.event_id }}</p>
+        </header>
+
         {% if error %}
-        <div class="error-message">
-            <i class="fas fa-exclamation-circle"></i>
-            {{ error }}
-        </div>
+        <div class="page-error">{{ error }}</div>
         {% endif %}
 
-        <div class="person-lookup-section">
-            <h3><i class="fas fa-search"></i> 인물 검색</h3>
-            <p class="form-hint">회원 관리 · 역대 좌장/연자 명단에서 이름 또는 이메일로 검색해 폼에 불러올 수 있습니다.</p>
-            <div class="person-lookup-bar">
-                <input type="text" id="personLookupQuery" placeholder="이름 또는 이메일 (2글자 이상)" autocomplete="off">
-                <button type="button" id="personLookupBtn" class="btn-lookup">
-                    <i class="fas fa-search"></i> 검색
-                </button>
-            </div>
-            <div id="personLookupStatus" class="person-lookup-status" style="display: none;"></div>
-            <div id="personLookupResults" class="person-lookup-results" style="display: none;"></div>
-            <div id="selectedPersonSource" class="person-source-badge" style="display: none;">
-                <i class="fas fa-database"></i>
-                데이터 출처: <strong id="selectedPersonSourceLabel"></strong>
-                <button type="button" id="clearPersonLookup" class="link-btn">선택 해제</button>
-            </div>
+        <div class="add-card">
+            <section class="add-section">
+                <h2 class="section-title">인물 검색</h2>
+                <p class="section-hint">회원 · 역대 좌장/연자에서 이름 또는 이메일을 입력하면 결과가 바로 나옵니다. 클릭하면 폼에 불러옵니다.</p>
+                <div class="person-lookup-bar">
+                    <span class="person-lookup-icon" aria-hidden="true">⌕</span>
+                    <input type="text" id="personLookupQuery" placeholder="이름 또는 이메일 입력 (예: 고숙)" autocomplete="off">
+                </div>
+                <div id="personLookupStatus" class="person-lookup-status" style="display: none;"></div>
+                <div id="personLookupResults" class="person-lookup-results" style="display: none;"></div>
+                <div id="selectedPersonSource" class="person-source-badge" style="display: none;">
+                    데이터 출처: <strong id="selectedPersonSourceLabel"></strong>
+                    <button type="button" id="clearPersonLookup" class="link-btn">선택 해제</button>
+                </div>
+            </section>
+
+            <form action="/add_participant/{{ event.id }}" method="post" enctype="multipart/form-data" onsubmit="submitForm(event)">
+                <section class="add-section">
+                    <h2 class="section-title">기본 정보</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="role">역할 *</label>
+                            <select id="role" name="role" required>
+                                <option value="" disabled selected>선택</option>
+                                <option value="좌장">좌장</option>
+                                <option value="연자">연자</option>
+                                <option value="국내 연자">국내 연자</option>
+                                <option value="해외 연자">해외 연자</option>
+                                <option value="참석자">참석자</option>
+                                <option value="기타">기타</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="registration">등록구분</label>
+                            <select id="registration" name="registration">
+                                <option value="">선택</option>
+                                <option value="사전등록">사전등록</option>
+                                <option value="현장등록">현장등록</option>
+                                <option value="VIP등록">VIP등록</option>
+                                <option value="일반등록">일반등록</option>
+                                <option value="무료">무료</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="country">국가</label>
+                            <input type="text" id="country" name="country" placeholder="예: 대한민국">
+                        </div>
+                        <div class="form-group">
+                            <label for="country_code">국가약어</label>
+                            <input type="text" id="country_code" name="country_code" placeholder="예: KR" maxlength="10">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="add-section">
+                    <h2 class="section-title">이름</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name_kor">성명(KOR)</label>
+                            <input type="text" id="name_kor" name="name_kor" placeholder="예: 홍길동">
+                        </div>
+                        <div class="form-group">
+                            <label for="first_name">이름(First Name)</label>
+                            <input type="text" id="first_name" name="first_name" placeholder="예: Gildong">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="family_name">성(Last Name)</label>
+                            <input type="text" id="family_name" name="family_name" placeholder="예: Hong">
+                        </div>
+                        <div class="form-group"></div>
+                    </div>
+                    <p class="field-note">성명(ENG)은 이름과 성으로 자동 생성됩니다.</p>
+                </section>
+
+                <section class="add-section">
+                    <h2 class="section-title">연락처</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">이메일</label>
+                            <input type="email" id="email" name="email" placeholder="예: hong@example.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">전화</label>
+                            <input type="text" id="phone" name="phone" placeholder="예: 010-1234-5678">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="add-section">
+                    <h2 class="section-title">소속</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="affiliation_eng">소속(ENG)</label>
+                            <input type="text" id="affiliation_eng" name="affiliation_eng" placeholder="예: Seoul National University Hospital">
+                        </div>
+                        <div class="form-group">
+                            <label for="department_eng">과(ENG)</label>
+                            <input type="text" id="department_eng" name="department_eng" placeholder="예: Neurology">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="affiliation_kor">소속(KOR)</label>
+                            <input type="text" id="affiliation_kor" name="affiliation_kor" placeholder="예: 서울대학교병원">
+                        </div>
+                        <div class="form-group">
+                            <label for="department_kor">과(KOR)</label>
+                            <input type="text" id="department_kor" name="department_kor" placeholder="예: 신경과">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="add-section">
+                    <h2 class="section-title">추가 정보</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="position">직위</label>
+                            <input type="text" id="position" name="position" placeholder="예: 교수">
+                        </div>
+                        <div class="form-group">
+                            <label for="license_number">면허번호</label>
+                            <input type="text" id="license_number" name="license_number" placeholder="예: 12345">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="birth_date">생년월일</label>
+                            <input type="date" id="birth_date" name="birth_date">
+                        </div>
+                        <div class="form-group">
+                            <label for="workplace_type">회원구분</label>
+                            <select id="workplace_type" name="workplace_type">
+                                <option value="">선택</option>
+                                <option value="정회원">정회원</option>
+                                <option value="준회원">준회원</option>
+                                <option value="종신회원">종신회원</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="add-section">
+                    <h2 class="section-title">승인 · 동의</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>승인/거절</label>
+                            <div class="radio-group">
+                                <label class="radio-item"><input type="radio" id="accept" name="accept_or_decline" value="Accept"> Accept</label>
+                                <label class="radio-item"><input type="radio" id="decline" name="accept_or_decline" value="Decline"> Decline</label>
+                                <label class="radio-item"><input type="radio" id="pending" name="accept_or_decline" value="대기" checked> 대기</label>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>동의여부</label>
+                            <div class="radio-group">
+                                <label class="radio-item"><input type="radio" id="agree_yes" name="agree" value="Y"> 동의</label>
+                                <label class="radio-item"><input type="radio" id="agree_no" name="agree" value="N"> 미동의</label>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="add-section">
+                    <h2 class="section-title">파일 첨부</h2>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cv">CV</label>
+                            <input type="file" id="cv" name="cv" accept=".pdf,.docx">
+                        </div>
+                        <div class="form-group">
+                            <label for="photo">사진</label>
+                            <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="ppt">PPT</label>
+                            <input type="file" id="ppt" name="ppt" accept=".ppt,.pptx">
+                        </div>
+                        <div class="form-group">
+                            <label for="script">Script</label>
+                            <input type="file" id="script" name="script" accept=".pdf,.docx,.txt">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="add-section">
+                    <h2 class="section-title">비고</h2>
+                    <div class="form-group full-width">
+                        <label for="remark_user">비고(사용자)</label>
+                        <textarea id="remark_user" name="remark_user" rows="3" placeholder="사용자 비고"></textarea>
+                    </div>
+                    <div class="form-group full-width" style="margin-top: 14px;">
+                        <label for="remark_admin">비고(관리자)</label>
+                        <textarea id="remark_admin" name="remark_admin" rows="3" placeholder="관리자 비고"></textarea>
+                    </div>
+                </section>
+
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="window.opener ? window.close() : window.location.href='/event/{{ event.id }}'; return false;">취소</button>
+                    <button type="submit" class="btn btn-primary">참가자 추가</button>
+                </div>
+            </form>
         </div>
-        
-        <form action="/add_participant/{{ event.id }}" method="post" enctype="multipart/form-data" onsubmit="submitForm(event)">
-            
-            <!-- 기본 정보 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-info-circle"></i> 기본 정보</h3>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="role">역할 <span class="required">*</span></label>
-                        <select id="role" name="role" required>
-                            <option value="" disabled selected>선택하세요</option>
-                            <option value="좌장">좌장</option>
-                            <option value="연자">연자</option>
-                            <option value="국내 연자">국내 연자</option>
-                            <option value="해외 연자">해외 연자</option>
-                            <option value="참석자">참석자</option>
-                            <option value="기타">기타</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="registration">등록구분</label>
-                        <select id="registration" name="registration">
-                            <option value="">선택하세요</option>
-                            <option value="사전등록">사전등록</option>
-                            <option value="현장등록">현장등록</option>
-                            <option value="VIP등록">VIP등록</option>
-                            <option value="일반등록">일반등록</option>
-                            <option value="무료">무료</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="country">국가</label>
-                        <input type="text" id="country" name="country" placeholder="예: 대한민국, 미국">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="country_code">국가약어</label>
-                        <input type="text" id="country_code" name="country_code" placeholder="예: KR, US, JP" maxlength="10">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 이름 정보 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-user"></i> 이름 정보</h3>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="name_kor">성명(KOR)</label>
-                        <input type="text" id="name_kor" name="name_kor" placeholder="예: 홍길동">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="first_name">이름(First Name)</label>
-                        <input type="text" id="first_name" name="first_name" placeholder="예: Gildong">
-                        <small class="form-hint">성명(ENG)은 이름과 성으로 자동 생성됩니다</small>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="family_name">성(Last Name)</label>
-                        <input type="text" id="family_name" name="family_name" placeholder="예: Hong">
-                    </div>
-                    
-                    <div class="form-group">
-                        <!-- 빈 공간 (레이아웃 유지) -->
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 연락처 정보 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-address-book"></i> 연락처 정보</h3>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="email">이메일</label>
-                        <input type="email" id="email" name="email" placeholder="예: hong@example.com">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="phone">전화</label>
-                        <input type="text" id="phone" name="phone" placeholder="예: 010-1234-5678">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 소속 정보 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-building"></i> 소속 정보</h3>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="affiliation_eng">소속(ENG)</label>
-                        <input type="text" id="affiliation_eng" name="affiliation_eng" placeholder="예: Seoul National University Hospital">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="department_eng">과(ENG)</label>
-                        <input type="text" id="department_eng" name="department_eng" placeholder="예: Neurology">
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="affiliation_kor">소속(KOR)</label>
-                        <input type="text" id="affiliation_kor" name="affiliation_kor" placeholder="예: 서울대학교병원">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="department_kor">과(KOR)</label>
-                        <input type="text" id="department_kor" name="department_kor" placeholder="예: 신경과">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 추가 정보 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-briefcase"></i> 추가 정보</h3>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="position">직위</label>
-                        <input type="text" id="position" name="position" placeholder="예: 교수, 전문의, 전공의">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="license_number">면허번호</label>
-                        <input type="text" id="license_number" name="license_number" placeholder="예: 12345">
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="birth_date">생년월일</label>
-                        <input type="date" id="birth_date" name="birth_date">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="workplace_type">회원구분</label>
-                        <select id="workplace_type" name="workplace_type">
-                            <option value="">선택하세요</option>
-                            <option value="정회원">정회원</option>
-                            <option value="준회원">준회원</option>
-                            <option value="종신회원">종신회원</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 승인 및 동의 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-check-circle"></i> 승인 및 동의</h3>
-                
-                <div class="form-group">
-                    <label>승인/거절</label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" id="accept" name="accept_or_decline" value="Accept">
-                            <span>Accept</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" id="decline" name="accept_or_decline" value="Decline">
-                            <span>Decline</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" id="pending" name="accept_or_decline" value="대기" checked>
-                            <span>대기</span>
-                        </label>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label>동의여부</label>
-                    <div class="radio-group">
-                        <label class="radio-item">
-                            <input type="radio" id="agree_yes" name="agree" value="Y">
-                            <span>동의</span>
-                        </label>
-                        <label class="radio-item">
-                            <input type="radio" id="agree_no" name="agree" value="N">
-                            <span>미동의</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 파일 첨부 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-paperclip"></i> 파일 첨부</h3>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="cv">CV</label>
-                        <input type="file" id="cv" name="cv" accept=".pdf,.docx">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="photo">사진</label>
-                        <input type="file" id="photo" name="photo" accept=".png,.jpg,.jpeg">
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="ppt">PPT</label>
-                        <input type="file" id="ppt" name="ppt" accept=".ppt,.pptx">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="script">Script</label>
-                        <input type="file" id="script" name="script" accept=".pdf,.docx,.txt">
-                    </div>
-                </div>
-            </div>
-            
-            <!-- 비고 섹션 -->
-            <div class="form-section">
-                <h3><i class="fas fa-comment"></i> 비고</h3>
-                
-                <div class="form-group">
-                    <label for="remark_user">비고(사용자)</label>
-                    <textarea id="remark_user" name="remark_user" rows="3" placeholder="사용자 비고사항을 입력하세요"></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label for="remark_admin">비고(관리자)</label>
-                    <textarea id="remark_admin" name="remark_admin" rows="3" placeholder="관리자 비고사항을 입력하세요"></textarea>
-                </div>
-            </div>
-            
-            <!-- 버튼 -->
-            <div class="form-actions">
-                <button type="button" class="btn-secondary" onclick="window.opener ? window.close() : window.location.href='/event/{{ event.id }}'; return false;">취소</button>
-                <button type="submit" class="btn-primary">
-                    <i class="fas fa-save"></i>
-                    참가자 추가
-                </button>
-            </div>
-        </form>
     </div>
-    <script src="../static/js/add_participant.js"></script>
+    <script src="{{ url_for('static', filename='js/add_participant.js') }}"></script>
 </body>
 </html>

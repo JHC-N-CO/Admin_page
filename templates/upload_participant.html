@@ -1,88 +1,81 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>참가자 업로드</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/upload_participant.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-    <div class="upload-container">
-        <div class="upload-header">
-            <h1><i class="fas fa-upload"></i> 참가자 일괄 업로드</h1>
-            <p class="subtitle">{{ event.name }} ({{ event.event_id }})</p>
-        </div>
+    <div class="upload-page">
+        <header class="upload-header">
+            <p class="upload-brand">대한뇌전증학회</p>
+            <h1 class="upload-title">참가자 업로드</h1>
+            <p class="upload-event-name">{{ event.name }}</p>
+            <p class="upload-event-meta">{{ event.event_id }}</p>
+        </header>
 
-        <div class="instructions">
-            <h3>Excel 파일 형식 안내</h3>
-            <div class="instruction-content">
-                <div class="instruction-item">
-                    <i class="fas fa-info-circle"></i>
-                    <span><strong>표준 31개 컬럼:</strong> 이벤트 ID, 코드, 역할, 국가, 국가약어, 성명(KOR), 성명(ENG), 이름(First Name), 성(Last Name), 이메일, 전화, 소속(ENG), 과(ENG), 소속(KOR), 과(KOR), 직위, 면허번호, 생년월일, 회원구분, 등록구분, 승인/거절, CV, 사진, PPT, Script, 동의여부, 비고(사용자), 비고(관리자), 체크인, 체크아웃, 거절 사유</span>
+        <div class="upload-card">
+            <section class="upload-section">
+                <h2 class="section-title">표준 컬럼</h2>
+                <p class="section-hint">아래 컬럼 순서의 Excel/CSV 파일을 업로드하세요. 성명(KOR) 또는 이름(First Name) 중 하나는 필요합니다.</p>
+                <div class="columns-table-wrap">
+                    <table class="columns-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>컬럼명</th>
+                                <th>설명</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1</td><td>국가</td><td>예: 대한민국, Korea</td></tr>
+                            <tr><td>2</td><td>국가약어</td><td>예: KR, KOR</td></tr>
+                            <tr><td>3</td><td>성명(KOR)</td><td>한글 이름</td></tr>
+                            <tr><td>4</td><td>성명(ENG)</td><td>영문 전체 이름</td></tr>
+                            <tr><td>5</td><td>이름(First Name)</td><td>영문 이름</td></tr>
+                            <tr><td>6</td><td>성(Last Name)</td><td>영문 성</td></tr>
+                            <tr><td>7</td><td>이메일</td><td>이메일 주소</td></tr>
+                            <tr><td>8</td><td>전화</td><td>전화번호</td></tr>
+                            <tr><td>9</td><td>소속(ENG)</td><td>영문 소속</td></tr>
+                            <tr><td>10</td><td>과(ENG)</td><td>영문 과/부서</td></tr>
+                            <tr><td>11</td><td>소속(KOR)</td><td>한글 소속</td></tr>
+                            <tr><td>12</td><td>과(KOR)</td><td>한글 과/부서</td></tr>
+                            <tr><td>13</td><td>직위</td><td>예: 교수, 전문의</td></tr>
+                            <tr><td>14</td><td>면허번호</td><td>의사면허번호</td></tr>
+                            <tr><td>15</td><td>생년월일</td><td>YYYY-MM-DD</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="instruction-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span><strong>필수 컬럼:</strong> 성명(KOR) 또는 이름(First Name) 중 최소 1개</span>
+                <button type="button" class="btn btn-secondary" onclick="downloadSample()">샘플 파일 다운로드</button>
+            </section>
+
+            <section class="upload-section">
+                <h2 class="section-title">파일 업로드</h2>
+                <div class="file-drop" id="fileInputArea" onclick="document.getElementById('fileInput').click()">
+                    <p class="file-drop-text">클릭하거나 파일을 끌어다 놓으세요</p>
+                    <p class="file-drop-hint">Excel (.xlsx, .xls) 또는 CSV</p>
                 </div>
-                <div class="instruction-item">
-                    <i class="fas fa-lightbulb"></i>
-                    <span><strong>유연한 매핑:</strong> 한글/영문 컬럼명 모두 지원 (예: "이름(First Name)" 또는 "First Name")</span>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;" onchange="handleFileSelect(event)">
+
+                <div class="file-selected" id="fileInfo" style="display: none;">
+                    <span id="fileName"></span>
+                    <button type="button" class="file-remove" onclick="removeFile()" aria-label="파일 제거">×</button>
                 </div>
-                <div class="instruction-item">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span><strong>생년월일 형식:</strong> YYYY-MM-DD, YYYY/MM/DD, Excel 날짜 등 다양한 형식 지원</span>
+
+                <div class="upload-actions">
+                    <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadFile()" disabled>업로드</button>
                 </div>
-                <div class="instruction-item">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span><strong>주의:</strong> 코드는 자동 생성되므로 비워두거나 생략 가능</span>
-                </div>
+            </section>
+
+            <div class="result-box success" id="resultSection" style="display: none;">
+                <p><strong>업로드가 완료되었습니다.</strong></p>
+                <div id="resultStats"></div>
+                <p class="result-note">참가자 관리 페이지를 새로고침한 뒤 창을 닫습니다.</p>
             </div>
-        </div>
 
-        <div class="sample-download">
-            <h3>샘플 파일 다운로드</h3>
-            <p>표준 컬럼 구조가 포함된 샘플 Excel 파일을 다운로드하세요</p>
-            <button type="button" class="download-btn" onclick="downloadSample()">
-                <i class="fas fa-download"></i>
-                샘플 Excel 파일 다운로드 (표준 31개 컬럼)
-            </button>
-        </div>
-
-        <div class="upload-section">
-            <h3>파일 업로드</h3>
-            <div class="file-input-area" id="fileInputArea" onclick="document.getElementById('fileInput').click()">
-                <i class="fas fa-cloud-upload-alt upload-icon"></i>
-                <p class="upload-text">클릭하여 파일 선택 또는 드래그 앤 드롭</p>
-                <p class="upload-hint">Excel (.xlsx, .xls) 또는 CSV 파일</p>
-            </div>
-            <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;" onchange="handleFileSelect(event)">
-            
-            <div class="file-info" id="fileInfo" style="display: none;">
-                <i class="fas fa-file-excel"></i>
-                <span id="fileName"></span>
-                <button type="button" class="remove-file" onclick="removeFile()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-
-            <button type="button" class="btn-primary" id="uploadBtn" onclick="uploadFile()" disabled>
-                <i class="fas fa-upload"></i>
-                업로드 시작
-            </button>
-        </div>
-
-        <div class="result-section" id="resultSection" style="display: none;">
-            <div class="result-message">
-                <i class="fas fa-check-circle"></i>
-                <p><strong>업로드가 완료되었습니다!</strong></p>
-                <p class="auto-redirect">참가자 관리 페이지가 즉시 새로고침됩니다. 잠시 후 창이 닫힙니다.</p>
-            </div>
-            <div class="result-stats" id="resultStats"></div>
-        </div>
-
-        <div class="error-section" id="errorSection" style="display: none;">
-            <div class="error-message">
-                <i class="fas fa-exclamation-circle"></i>
+            <div class="result-box error" id="errorSection" style="display: none;">
                 <p id="errorMessage"></p>
             </div>
         </div>

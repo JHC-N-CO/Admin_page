@@ -567,6 +567,6 @@ document.addEventListener('DOMContentLoaded', function() {
         XLSX.utils.book_append_sheet(wb, ws, '회원목록');
         
         // Excel 파일로 다운로드
-        XLSX.writeFile(wb, '회원_업로드_샘플_표준컬럼.xlsx');
+        XLSX.writeFile(wb, '회원_업로드_샘플.xlsx');
     };
 });

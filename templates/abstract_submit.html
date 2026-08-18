@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Abstract Submission - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract.css') }}">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+</head>
+<body>
+    {% include 'includes/member_topbar.html' %}
+    <div class="abstract-page abstract-page-wide">
+        <header class="abstract-header">
+            <p class="abstract-brand">대한뇌전증학회</p>
+            <h1 class="abstract-title">Abstract Submission</h1>
+            <p class="abstract-event-name">{{ event.name }}</p>
+        </header>
+
+        <form id="abstractForm" class="abstract-form" method="post"
+              action="{{ url_for('abstract_preview', event_id=event.id) }}" novalidate>
+            <section class="abstract-card">
+                <h2 class="abstract-section-title">Author(s) Information</h2>
+                <p class="abstract-required-note">Fields marked with an asterisk(*) are required.</p>
+
+                <div class="abstract-field-row">
+                    <label for="orgCount">
+                        <span class="req">*</span> Select the number of all author's Organization:
+                    </label>
+                    <select id="orgCount" name="org_count"></select>
+                </div>
+                <div class="abstract-table-wrap">
+                    <table class="abstract-table abstract-form-table">
+                        <thead>
+                            <tr>
+                                <th class="col-no">Institution No.</th>
+                                <th>Institution</th>
+                            </tr>
+                        </thead>
+                        <tbody id="orgTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="abstract-field-row abstract-field-row-spaced">
+                    <label for="authorCount">
+                        <span class="req">*</span> Select the number of authors including corresponding and presenting authors:
+                    </label>
+                    <select id="authorCount" name="author_count"></select>
+                </div>
+                <div class="abstract-table-wrap">
+                    <table class="abstract-table abstract-form-table author-table">
+                        <thead>
+                            <tr>
+                                <th class="col-flag">Presenting</th>
+                                <th class="col-flag">Corresponding</th>
+                                <th>First Name</th>
+                                <th>Family Name</th>
+                                <th>Degree(s)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="authorTableBody"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="abstract-card">
+                <h2 class="abstract-section-title">Abstract Information</h2>
+                <table class="abstract-info-table">
+                    <tr>
+                        <th>Topic <span class="req">*</span></th>
+                        <td>
+                            <div class="topic-grid">
+                                <div>
+                                    <span class="topic-label">First Preference</span>
+                                    <select id="topicFirst" name="topic_first">
+                                        <option value="">== Select Topic ==</option>
+                                        {% for item in topics %}
+                                        <option value="{{ item }}">{{ item }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div>
+                                    <span class="topic-label">Second Preference</span>
+                                    <select id="topicSecond" name="topic_second">
+                                        <option value="">== Select Topic ==</option>
+                                        {% for item in topics %}
+                                        <option value="{{ item }}">{{ item }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Abstract Title <span class="req">*</span></th>
+                        <td>
+                            <textarea id="abstractTitle" name="title" rows="3"></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Purpose <span class="req">*</span></th>
+                        <td>
+                            <div class="abstract-editor" id="editorPurpose"></div>
+                            <input type="hidden" name="purpose" id="purposeHtml">
+                            <p class="word-count"><span id="wordCount">0</span> / 300 words</p>
+                            <p class="field-hint">(Less than 300 words excluding the abstract title. Spaces do not count as characters.)</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Method <span class="req">*</span></th>
+                        <td>
+                            <div class="abstract-editor" id="editorMethod"></div>
+                            <input type="hidden" name="method" id="methodHtml">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Results <span class="req">*</span></th>
+                        <td>
+                            <div class="abstract-editor" id="editorResults"></div>
+                            <input type="hidden" name="results" id="resultsHtml">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Conclusion <span class="req">*</span></th>
+                        <td>
+                            <div class="abstract-editor" id="editorConclusion"></div>
+                            <input type="hidden" name="conclusion" id="conclusionHtml">
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Copyright of Agreement <span class="req">*</span></th>
+                        <td>
+                            <p class="copyright-text">
+                                The copyright of your abstract and presentation file are reserved by the Korean Epilepsy Society.
+                            </p>
+                            <label class="radio-label">
+                                <input type="radio" name="copyright" value="yes"> Yes, I agree
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="copyright" value="no"> No, I don't agree
+                            </label>
+                        </td>
+                    </tr>
+                </table>
+            </section>
+
+            <div class="abstract-nav abstract-nav-actions">
+                <a class="btn btn-cancel" href="{{ url_for('abstract_hub', event_id=event.id) }}">Cancel</a>
+                <button type="submit" class="btn btn-primary">Next And Preview</button>
+            </div>
+        </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
+    <script>
+        window.ABSTRACT_DRAFT = {{ draft|tojson if draft else 'null' }};
+    </script>
+    <script src="{{ url_for('static', filename='js/abstract_submit.js') }}"></script>
+</body>
+</html>

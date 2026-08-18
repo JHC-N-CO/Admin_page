@@ -1,143 +1,113 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>회원 업로드</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/upload_members.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- SheetJS library for Excel file generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>회원 업로드</h1>
-            <p>Excel 파일을 업로드하여 회원을 일괄 등록할 수 있습니다.</p>
-        </div>
-        
-        <div class="upload-section">
-            <div class="upload-area" id="uploadArea">
-                <div class="upload-icon">
-                    <i class="fas fa-cloud-upload-alt"></i>
-                </div>
-                <h3>Excel 파일을 드래그하거나 클릭하여 업로드</h3>
-                <p>지원 형식: .xlsx, .xls, .csv</p>
-                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
-                <button type="button" class="upload-btn" id="selectFileBtn">
-                    파일 선택
-                </button>
-            </div>
-            
-            <div class="file-info" id="fileInfo" style="display: none;">
-                <div class="file-details">
-                    <i class="fas fa-file-excel"></i>
-                    <div class="file-text">
-                        <h4 id="fileName"></h4>
-                        <p id="fileSize"></p>
-                    </div>
-                    <button type="button" class="remove-btn" onclick="removeFile()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="instructions">
-            <h3>Excel 파일 형식 안내</h3>
-            <div class="instruction-content">
-                <div class="instruction-item">
-                    <i class="fas fa-info-circle"></i>
-                    <span><strong>표준 16개 컬럼:</strong> 아이디, 성별, 성명(KOR), 성명(ENG), 이름(First Name), 성(Last Name), 이메일, 전화, 소속(ENG), 과(ENG), 소속(KOR), 과(KOR), 직위, 면허번호, 생년월일, 회원구분</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-info-circle"></i>
-                    <span><strong>번호 열:</strong> 맨 앞의 No./번호/연번 열은 표시용이며 업로드 시 자동으로 무시됩니다. 회원 목록 화면에는 1부터 자동 번호가 부여됩니다.</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span><strong>필수 정보:</strong> 최소 하나의 식별 정보 필요 (아이디, 성명(KOR), 이메일 중 하나 이상)</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span><strong>컬럼 순서:</strong> 순서는 상관없으며, 첫 번째 행은 헤더로 사용됩니다</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span><strong>유연한 매핑:</strong> 컬럼명의 대소문자와 공백 차이는 무시됩니다 (예: "first name", "First Name", "firstname" 모두 인식)</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-check-circle"></i>
-                    <span><strong>부분 업로드 가능:</strong> 16개 컬럼 중 일부만 포함해도 됩니다. 없는 컬럼은 빈 값으로 처리됩니다</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    <span><strong>중복 체크:</strong> 중복된 아이디, 이메일, 면허번호는 자동으로 제외됩니다</span>
-                </div>
-                <div class="instruction-item">
-                    <i class="fas fa-lightbulb"></i>
-                    <span><strong>추천:</strong> 아래 샘플 파일을 다운로드하여 정확한 형식을 확인하세요</span>
-                </div>
-            </div>
-        </div>
-        
-        <div class="sample-download">
-            <h3>샘플 파일 다운로드</h3>
-            <p>표준 16개 컬럼 형식으로 회원 정보를 입력하기 위해 샘플 파일을 다운로드하세요.</p>
-            <button type="button" class="download-btn" onclick="downloadSample()">
-                <i class="fas fa-download"></i>
-                샘플 Excel 파일 다운로드 (표준컬럼)
-            </button>
-        </div>
-        
-        <div class="actions">
-            <button type="button" class="btn btn-secondary" id="cancelBtn" onclick="window.close()">취소</button>
-            <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadMembers()" disabled>
-                <i class="fas fa-upload"></i>
-                업로드 시작
-            </button>
-        </div>
+    <div class="upload-page">
+        <header class="upload-header">
+            <p class="upload-brand">대한뇌전증학회</p>
+            <h1 class="upload-title">회원 업로드</h1>
+            <p class="upload-event-meta">Excel/CSV로 회원을 일괄 등록합니다</p>
+        </header>
 
-        <div class="progress-section" id="progressSection" style="display: none;" aria-live="polite">
-            <div class="progress-header">
-                <i class="fas fa-spinner fa-spin progress-spinner"></i>
+        <div class="upload-card">
+            <section class="upload-section-block">
+                <h2 class="section-title">표준 컬럼</h2>
+                <p class="section-hint">아래 컬럼 순서의 파일을 업로드하세요. 아이디 · 성명(KOR) · 이메일 중 하나 이상 필요합니다. 맨 앞 번호 열은 있으면 무시됩니다.</p>
+                <div class="columns-table-wrap">
+                    <table class="columns-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>컬럼명</th>
+                                <th>설명</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1</td><td>아이디</td><td>로그인 ID</td></tr>
+                            <tr><td>2</td><td>성별</td><td>M / F</td></tr>
+                            <tr><td>3</td><td>성명(KOR)</td><td>한글 이름</td></tr>
+                            <tr><td>4</td><td>성명(ENG)</td><td>영문 전체 이름</td></tr>
+                            <tr><td>5</td><td>이름(First Name)</td><td>영문 이름</td></tr>
+                            <tr><td>6</td><td>성(Last Name)</td><td>영문 성</td></tr>
+                            <tr><td>7</td><td>이메일</td><td>이메일 주소</td></tr>
+                            <tr><td>8</td><td>전화</td><td>전화번호</td></tr>
+                            <tr><td>9</td><td>소속(ENG)</td><td>영문 소속</td></tr>
+                            <tr><td>10</td><td>과(ENG)</td><td>영문 과/부서</td></tr>
+                            <tr><td>11</td><td>소속(KOR)</td><td>한글 소속</td></tr>
+                            <tr><td>12</td><td>과(KOR)</td><td>한글 과/부서</td></tr>
+                            <tr><td>13</td><td>직위</td><td>예: 교수, 전문의</td></tr>
+                            <tr><td>14</td><td>면허번호</td><td>의사면허번호</td></tr>
+                            <tr><td>15</td><td>생년월일</td><td>YYYY-MM-DD</td></tr>
+                            <tr><td>16</td><td>회원구분</td><td>정회원 / 준회원 / 종신회원</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="downloadSample()">샘플 파일 다운로드</button>
+            </section>
+
+            <section class="upload-section-block">
+                <h2 class="section-title">파일 업로드</h2>
+                <div class="file-drop" id="uploadArea">
+                    <p class="file-drop-text">클릭하거나 파일을 끌어다 놓으세요</p>
+                    <p class="file-drop-hint">Excel (.xlsx, .xls) 또는 CSV</p>
+                    <button type="button" class="btn btn-secondary upload-btn" id="selectFileBtn">파일 선택</button>
+                </div>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display: none;">
+
+                <div class="file-selected" id="fileInfo" style="display: none;">
+                    <div class="file-selected-text">
+                        <span id="fileName"></span>
+                        <span class="file-size" id="fileSize"></span>
+                    </div>
+                    <button type="button" class="file-remove" onclick="removeFile()" aria-label="파일 제거">×</button>
+                </div>
+
+                <div class="upload-actions">
+                    <button type="button" class="btn btn-secondary" id="cancelBtn" onclick="window.close()">취소</button>
+                    <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadMembers()" disabled>업로드</button>
+                </div>
+            </section>
+
+            <div class="progress-section" id="progressSection" style="display: none;" aria-live="polite">
                 <h3 id="progressTitle">업로드 진행 중</h3>
+                <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p class="progress-text" id="progressText">파일을 서버로 전송하는 중...</p>
+                <p class="progress-elapsed" id="progressElapsed">경과 시간: 0초</p>
+                <p class="progress-hint">대량 파일은 시간이 걸릴 수 있습니다. 창을 닫지 마세요.</p>
             </div>
-            <div class="progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <p class="progress-text" id="progressText">파일을 서버로 전송하는 중...</p>
-            <p class="progress-elapsed" id="progressElapsed">경과 시간: 0초</p>
-            <p class="progress-hint">대량 파일은 1~3분 걸릴 수 있습니다. 창을 닫지 마세요.</p>
-        </div>
-        
-        <div class="result-section" id="resultSection" style="display: none;">
-            <div class="result-icon">
-                <i class="fas fa-check-circle"></i>
-            </div>
-            <h3>업로드 완료</h3>
-            <div class="result-message">
-                <p>업로드가 완료되었습니다!</p>
-                <p class="auto-redirect">회원 관리 페이지가 즉시 새로고침됩니다. 3초 후 창이 닫힙니다.</p>
-            </div>
-            <div class="result-details">
-                <p><strong>성공:</strong> <span id="successCount">0</span>명</p>
-                <p><strong>실패:</strong> <span id="failureCount">0</span>명</p>
-            </div>
-            <div class="result-errors" id="resultErrors" style="display: none;">
-                <h4>실패 내역</h4>
-                <div class="result-error-summary" id="resultErrorSummary"></div>
-                <ul class="result-error-list" id="resultErrorList"></ul>
-                <p class="result-error-more" id="resultErrorMore" style="display: none;"></p>
-            </div>
-            <div class="result-actions">
-                <button type="button" class="btn btn-primary" onclick="goToMembersPage()">회원 관리로 이동</button>
-                <button type="button" class="btn btn-secondary" onclick="window.close()">닫기</button>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <div class="result-icon"><span>✓</span></div>
+                <h3>업로드 완료</h3>
+                <p class="result-message">회원 관리 페이지를 새로고침한 뒤 창을 닫습니다.</p>
+                <div class="result-details">
+                    <p>성공: <strong id="successCount">0</strong>명</p>
+                    <p>실패: <strong id="failureCount">0</strong>명</p>
+                </div>
+                <div class="result-errors" id="resultErrors" style="display: none;">
+                    <h4>실패 내역</h4>
+                    <div class="result-error-summary" id="resultErrorSummary"></div>
+                    <ul class="result-error-list" id="resultErrorList"></ul>
+                    <p class="result-error-more" id="resultErrorMore" style="display: none;"></p>
+                </div>
+                <div class="upload-actions">
+                    <button type="button" class="btn btn-primary" onclick="goToMembersPage()">회원 관리로 이동</button>
+                    <button type="button" class="btn btn-secondary" onclick="window.close()">닫기</button>
+                </div>
             </div>
         </div>
     </div>
 
     <div class="upload-overlay" id="uploadOverlay" aria-hidden="true">
         <div class="upload-overlay-card" role="status" aria-live="polite">
-            <i class="fas fa-spinner fa-spin progress-spinner"></i>
             <h3>회원 업로드 진행 중</h3>
             <div class="progress-bar">
                 <div class="progress-fill indeterminate" id="overlayProgressFill"></div>
@@ -147,7 +117,7 @@
             <p class="progress-hint">처리가 끝날 때까지 창을 닫지 마세요.</p>
         </div>
     </div>
-    
+
     <script src="{{ url_for('static', filename='js/upload_members.js') }}"></script>
 </body>
 </html>

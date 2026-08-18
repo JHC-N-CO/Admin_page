@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>초록 제출 - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/event_registration_gateway.css') }}">
+</head>
+<body>
+    {% include 'includes/member_topbar.html' %}
+    <div class="gateway-page">
+        <header class="gateway-header">
+            <p class="gateway-brand">대한뇌전증학회</p>
+            <h1 class="gateway-title">초록 제출</h1>
+            <p class="gateway-event-name">{{ event.name }}</p>
+            <p class="gateway-event-meta">
+                {% if event.start_date %}{{ event.start_date.strftime('%Y-%m-%d') }}{% endif %}
+                {% if event.end_date %} – {{ event.end_date.strftime('%Y-%m-%d') }}{% endif %}
+                {% if event.location %}<span class="gateway-meta-sep">·</span> {{ event.location }}{% endif %}
+            </p>
+        </header>
+
+        <div class="gateway-grid">
+            <section class="gateway-card">
+                <h2 class="gateway-card-title">학회 회원</h2>
+                <p class="gateway-card-desc">로그인 후 참가 등록된 회원 정보로 초록을 제출합니다.</p>
+                <div class="gateway-links">
+                    <a class="gateway-link gateway-link-primary"
+                       href="{{ url_for('abstract_member_entry', event_id=event.id) }}">제출하기</a>
+                </div>
+            </section>
+
+            <section class="gateway-card">
+                <h2 class="gateway-card-title">비회원</h2>
+                <p class="gateway-card-desc">국내·해외 비회원 참가자는 성명과 이메일로 확인 후 제출합니다.</p>
+                <div class="gateway-links">
+                    <a class="gateway-link gateway-link-outline"
+                       href="{{ url_for('abstract_nonmember_entry', event_id=event.id, path_type='domestic') }}">국내 (Domestic)</a>
+                    <a class="gateway-link gateway-link-outline"
+                       href="{{ url_for('abstract_nonmember_entry', event_id=event.id, path_type='overseas') }}">해외 (Overseas)</a>
+                </div>
+            </section>
+        </div>
+    </div>
+</body>
+</html>
