@@ -2805,3 +2805,249 @@ body {
     transform: scale(1.1);
     background-color: #d32f2f;
 }
+
+#abstractSubmittersModal .abstract-submitters-modal {
+    max-width: 760px;
+    margin: 6vh auto;
+    max-height: 86vh;
+}
+
+#abstractSubmittersModal .modal-body {
+    padding: 14px 16px 16px;
+}
+
+.abstract-submitters-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.abstract-submitters-toolbar select {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.abstract-submitters-toolbar .btn {
+    white-space: nowrap;
+}
+
+.abstract-submitters-table-wrap {
+    max-height: 58vh;
+    overflow: auto;
+    border: 1px solid #eee;
+    border-radius: 6px;
+}
+
+.abstract-submitters-table-wrap table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.abstract-submitters-table-wrap th,
+.abstract-submitters-table-wrap td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+.abstract-submitters-table-wrap th {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #2c3e50;
+    z-index: 1;
+}
+
+.abstract-submitters-table-wrap .col-check {
+    width: 36px;
+}
+
+.abstract-submitters-table-wrap .empty-state {
+    text-align: center;
+    color: #888;
+    padding: 24px 10px;
+}
+
+.abstract-submitters-table-wrap .assigned-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef0f8;
+    color: #3d4799;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.abstract-submitters-table-wrap .assigned-empty {
+    color: #bbb;
+}
+
+#sessionModal .session-edit-modal {
+    max-width: 680px;
+    margin: 4vh auto;
+    max-height: 88vh;
+}
+
+#sessionModal .modal-header,
+#sessionModal .modal-footer {
+    padding: 12px 16px;
+}
+
+#sessionModal .modal-body {
+    padding: 14px 16px 16px;
+}
+
+#sessionModal .form-group {
+    margin-bottom: 0;
+}
+
+#sessionModal .form-group label {
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #5f6368;
+}
+
+#sessionModal .form-group input,
+#sessionModal .form-group select,
+#sessionModal .speaker-form input[type="text"],
+#sessionModal .speaker-form input[type="time"] {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    font-size: 13px;
+    box-sizing: border-box;
+    height: 32px;
+}
+
+#sessionModal .session-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 12px;
+    margin-bottom: 12px;
+}
+
+#sessionModal .session-grid .span-2 {
+    grid-column: 1 / -1;
+}
+
+#sessionModal .time-range-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+#sessionModal .session-section {
+    margin-top: 12px;
+}
+
+#sessionModal .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+#sessionModal .section-head label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3d4799;
+}
+
+#sessionModal .section-hint {
+    margin-left: 6px;
+    font-size: 11px;
+    font-weight: 400;
+    color: #888;
+}
+
+#sessionModal .btn-text {
+    background: none;
+    border: none;
+    color: #3d4799;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+}
+
+#sessionModal .btn-text:hover {
+    text-decoration: underline;
+}
+
+#sessionModal .person-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+#sessionModal .speaker-form .speaker-drag-handle {
+    flex: 0 0 16px;
+    width: 16px;
+    color: #b0b0b0;
+    cursor: grab;
+    text-align: center;
+    line-height: 1;
+    user-select: none;
+}
+
+#sessionModal .speaker-form .speaker-drag-handle:active {
+    cursor: grabbing;
+}
+
+#sessionModal .speaker-form.dragging {
+    opacity: 0.45;
+}
+
+#sessionModal .person-row .participant-selector {
+    flex: 1.4;
+    min-width: 0;
+}
+
+#sessionModal .speaker-form input[name^="speaker_topic_"] {
+    flex: 1.2;
+    min-width: 110px;
+}
+
+#sessionModal .speaker-form input[type="time"] {
+    width: 102px;
+    flex: 0 0 102px;
+}
+
+#sessionModal .selected-participant {
+    min-height: 32px;
+    padding: 4px 8px;
+}
+
+#sessionModal .selected-participant .placeholder {
+    font-style: normal;
+    font-size: 13px;
+}
+
+#sessionModal .participant-name {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#sessionModal .participant-search-btn {
+    padding: 6px 8px;
+    min-width: 32px;
+}
+
+#sessionModal .remove-speaker-btn {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+}

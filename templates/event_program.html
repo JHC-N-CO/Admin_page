@@ -90,6 +90,9 @@
                     <button type="button" class="btn btn-success" onclick="openExcelUploadModal()">
                         <i class="fas fa-file-excel"></i> 프로그램 업로드
                     </button>
+                    <button type="button" class="btn btn-primary" onclick="openAbstractSubmittersModal()">
+                        <i class="fas fa-file-alt"></i> 초록 제출자
+                    </button>
                     <button type="button" id="registerProgramPeopleBtn" class="btn btn-warning" onclick="openRegisterProgramPeopleModal()" style="display: none;" title="프로그램에만 배치된 좌장·연자를 이 행사 참가자로 일괄 등록">
                         <i class="fas fa-user-plus"></i> 좌장·연자 참가자 등록
                     </button>
@@ -243,68 +246,57 @@
 
     <!-- 세션 추가/편집 모달 -->
     <div id="sessionModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content session-edit-modal">
             <div class="modal-header">
                 <h3 id="modalTitle">세션 추가</h3>
                 <span class="close" onclick="closeSessionModal()">&times;</span>
             </div>
             <div class="modal-body">
                 <form id="sessionForm">
-                    <div class="form-group">
-                        <label for="sessionType">세션 종류 (Session Type)</label>
-                        <select id="sessionType" name="sessionType" required>
-                            <option value="">세션 종류를 선택하세요</option>
-                        </select>
+                    <div class="session-grid">
+                        <div class="form-group">
+                            <label for="sessionType">종류</label>
+                            <select id="sessionType" name="sessionType" required>
+                                <option value="">선택</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="sessionVenue">장소</label>
+                            <select id="sessionVenue" name="sessionVenue" required>
+                                <option value="">선택</option>
+                            </select>
+                        </div>
+                        <div class="form-group span-2">
+                            <label for="sessionTitle">세션명</label>
+                            <input type="text" id="sessionTitle" name="sessionTitle" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="sessionLanguage">언어</label>
+                            <input type="text" id="sessionLanguage" name="sessionLanguage" placeholder="선택">
+                        </div>
+                        <div class="form-group time-pair">
+                            <label>시간</label>
+                            <div class="time-range-group">
+                                <input type="time" id="sessionStartTime" name="sessionStartTime" step="300" required>
+                                <input type="time" id="sessionEndTime" name="sessionEndTime" step="300" required>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="sessionLanguage">언어 (Language) <span style="color: #999; font-size: 12px;">- 선택사항</span></label>
-                        <input type="text" id="sessionLanguage" name="sessionLanguage" placeholder="예: English Session">
-                        <small class="form-text text-muted">입력하면 세션 블록 상단에 붉은색으로 표시됩니다.</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="sessionTitle">세션명 (Session Topic)</label>
-                        <input type="text" id="sessionTitle" name="sessionTitle" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="sessionVenue">강의 장소</label>
-                        <select id="sessionVenue" name="sessionVenue" required>
-                            <option value="">장소를 선택하세요</option>
-                        </select>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>좌장 (Chair) <span style="color: #999; font-size: 12px;">- 선택사항</span></label>
-                        <div id="chairsContainer">
-                            <!-- 좌장들이 여기에 동적으로 추가됩니다 -->
+                    <div class="session-section">
+                        <div class="section-head">
+                            <label>좌장</label>
+                            <button type="button" class="btn-text" onclick="addChair()">+ 추가</button>
                         </div>
-                        <button type="button" class="btn btn-secondary" onclick="addChair()">
-                            <i class="fas fa-plus"></i> 좌장 추가
-                        </button>
+                        <div id="chairsContainer"></div>
                     </div>
-                    
-                    <div class="time-range-group">
-                        <div class="form-group">
-                            <label for="sessionStartTime">시작 시간</label>
-                            <input type="time" id="sessionStartTime" name="sessionStartTime" step="300" required>
+
+                    <div class="session-section">
+                        <div class="section-head">
+                            <label>발표자 <span class="section-hint">드래그하여 순서 변경</span></label>
+                            <button type="button" class="btn-text" onclick="addSpeaker()">+ 추가</button>
                         </div>
-                        
-                        <div class="form-group">
-                            <label for="sessionEndTime">종료 시간</label>
-                            <input type="time" id="sessionEndTime" name="sessionEndTime" step="300" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>발표자 (Speakers)</label>
-                        <div id="speakersContainer">
-                            <!-- 발표자들이 여기에 동적으로 추가됩니다 -->
-                        </div>
-                        <button type="button" class="btn btn-secondary" onclick="addSpeaker()">
-                            <i class="fas fa-plus"></i> 발표자 추가
-                        </button>
+                        <div id="speakersContainer"></div>
                     </div>
                 </form>
             </div>
@@ -536,6 +528,9 @@
                         <p style="margin: 8px 0 0 0; font-size: 12px; color: #0275d8;">
                             ※ 날짜가 없으면 현재 선택된 날짜 탭에 세션이 추가됩니다.
                         </p>
+                        <p style="margin: 8px 0 0 0; font-size: 12px; color: #3d4799;">
+                            ※ 좌장·연자는 역대 좌장/연자 → 회원 → 이 행사 참가자 순으로 기존 데이터를 찾아 사용합니다. 이름만 있어도 매칭되면 소속·이메일을 가져오고, 없으면 새로 입력합니다.
+                        </p>
                     </div>
                     
                     <div class="form-group">
@@ -583,8 +578,8 @@
             <div class="modal-body">
                 <div class="alert alert-info" style="margin-bottom: 16px;">
                     <i class="fas fa-info-circle"></i>
-                    프로그램에만 배치된 좌장·연자를 이 행사 <strong>참가자</strong>로 일괄 등록합니다.
-                    역대 좌장/연자·회원 명단 정보가 참가자 목록에 반영됩니다.
+                    프로그램에만 배치된 좌장·연자를 이 행사 <strong>참가자 목록</strong>에 추가합니다.
+                    등록구분은 <strong>미등록</strong>입니다. 이미 사전등록된 사람은 역할만 반영됩니다.
                 </div>
                 <p id="registerProgramPeopleSummary" style="font-weight: 600; margin-bottom: 12px;"></p>
                 <div id="registerProgramPeopleList" style="max-height: 320px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 6px;"></div>
@@ -1257,6 +1252,40 @@
         </div>
     </div>
 
+    <div id="abstractSubmittersModal" class="modal">
+        <div class="modal-content abstract-submitters-modal">
+            <div class="modal-header">
+                <h3>초록 제출자</h3>
+                <span class="close" onclick="closeAbstractSubmittersModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="abstract-submitters-toolbar">
+                    <select id="abstractSessionSelect">
+                        <option value="">세션 선택</option>
+                    </select>
+                    <button type="button" id="abstractAssignBtn" class="btn btn-primary">연자 배정</button>
+                </div>
+                <div class="abstract-submitters-table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="col-check"><input type="checkbox" id="abstractSelectAll"></th>
+                                <th>이름</th>
+                                <th>이메일</th>
+                                <th>소속</th>
+                                <th>과</th>
+                                <th>배정</th>
+                            </tr>
+                        </thead>
+                        <tbody id="abstractPeopleBody">
+                            <tr><td colspan="6" class="empty-state">불러오는 중...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="peopleSessionsPopupModal" class="title-modal" hidden>
         <div class="title-modal-backdrop"></div>
         <div class="title-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="peopleSessionsPopupTitle">
@@ -1272,5 +1301,6 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/event_program.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/abstract_submitters.js') }}"></script>
 </body>
 </html>

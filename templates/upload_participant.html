@@ -19,7 +19,7 @@
         <div class="upload-card">
             <section class="upload-section">
                 <h2 class="section-title">표준 컬럼</h2>
-                <p class="section-hint">아래 컬럼 순서의 Excel/CSV 파일을 업로드하세요. 성명(KOR) 또는 이름(First Name) 중 하나는 필요합니다.</p>
+                <p class="section-hint">이름과 이메일만 있어도 됩니다. 업로드 전에 회원·역대 좌장/연자 명단과 맞춰 보여 드립니다. 있는 사람은 기존 데이터로 채우고, 없는 사람은 파일 내용으로 새로 넣습니다.</p>
                 <div class="columns-table-wrap">
                     <table class="columns-table">
                         <thead>
@@ -64,8 +64,50 @@
                     <button type="button" class="file-remove" onclick="removeFile()" aria-label="파일 제거">×</button>
                 </div>
 
+                <div class="reg-choice">
+                    <p class="reg-choice-title">이 파일의 등록구분</p>
+                    <p class="reg-choice-hint">프로그램 좌장·연자 추가는 여기서 고르지 않습니다. 이미 사전등록된 사람은 미등록으로 바뀌지 않습니다.</p>
+                    <label class="reg-choice-option">
+                        <input type="radio" name="default_registration" value="미등록" checked>
+                        <span>미등록</span>
+                        <small>명단만 올립니다. 나중에 결제하면 사전등록으로 바뀝니다.</small>
+                    </label>
+                    <label class="reg-choice-option">
+                        <input type="radio" name="default_registration" value="사전등록">
+                        <span>사전등록</span>
+                        <small>단체 사전등록처럼 이미 등록된 명단을 올립니다.</small>
+                    </label>
+                </div>
+
                 <div class="upload-actions">
-                    <button type="button" class="btn btn-primary" id="uploadBtn" onclick="uploadFile()" disabled>업로드</button>
+                    <button type="button" class="btn btn-primary" id="uploadBtn" onclick="previewUpload()" disabled>명단 확인</button>
+                </div>
+            </section>
+
+            <section class="preview-section" id="previewSection" style="display: none;">
+                <h2 class="section-title">명단 확인</h2>
+                <p class="section-hint" id="previewHint">기존 명단과 같으면 기존 데이터를 쓰고, 전화·소속 등이 달라진 칸은 파일 내용으로 반영합니다.</p>
+                <div class="preview-filters" id="previewFilters"></div>
+                <div class="preview-table-wrap">
+                    <table class="preview-table" id="previewTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>이름</th>
+                                <th>이메일</th>
+                                <th>파일 소속</th>
+                                <th>매칭</th>
+                                <th>등록구분</th>
+                                <th>명단 정보</th>
+                                <th>설명</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="upload-actions preview-actions">
+                    <button type="button" class="btn btn-secondary" onclick="resetPreview()">파일 다시 선택</button>
+                    <button type="button" class="btn btn-primary" id="confirmUploadBtn" onclick="confirmUpload()">이대로 등록</button>
                 </div>
             </section>
 

@@ -147,6 +147,9 @@ const sessionTypeAbbreviations = {
     'Workshop': 'WS',
     'Panel Discussion': 'PD',
     'Oral Presentation': 'OP',
+    'Datablitz': 'DB',
+    'Data Blitz': 'DB',
+    'Poster Presentation': 'PP',
     'Poster Session': 'Poster',
     'Luncheon Symposium': 'LS',
     'Breakfast Symposium': 'BS',
@@ -3411,6 +3414,13 @@ function saveQuickSession() {
 // Add speaker to the form
 // ===== 좌장 관리 함수들 =====
 
+function sessionPersonChip(person) {
+    const name = (person && (person.name || person.name_kor)) || '';
+    const extra = (person && (person.email || person.affiliation_kor || person.affiliation_eng || person.affiliation)) || '';
+    const safeExtra = String(extra).replace(/"/g, '&quot;');
+    return `<span class="participant-name" title="${safeExtra}">${name}</span>`;
+}
+
 function addChair() {
     addChairToForm();
 }
@@ -3422,27 +3432,19 @@ function addChairToForm(chairData = null) {
     console.log(`📝 Adding chair ${chairId} to form:`, chairData);
     
     const chairHtml = `
-        <div class="chair-form" data-chair-id="${chairId}" style="margin-bottom: 15px; padding: 15px; border: 1px solid #ddd; border-radius: 4px; background-color: #f9f9f9;">
-            <div class="speaker-form-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h5 class="speaker-form-title" style="margin: 0; font-size: 14px; font-weight: 600; color: #333;">좌장 ${chairId + 1}</h5>
-                <button type="button" class="remove-speaker-btn" onclick="removeChair(${chairId})" style="background: none; border: none; color: #dc3545; cursor: pointer; font-size: 18px; padding: 0; width: 24px; height: 24px;">
-                    <i class="fas fa-times"></i>
+        <div class="chair-form person-row" data-chair-id="${chairId}">
+            <div class="participant-selector">
+                <input type="hidden" name="chair_participant_${chairId}" value="${chairData ? (chairData.participantId || chairData.id || '') : ''}" required>
+                <div class="selected-participant" id="selectedChair${chairId}">
+                    <span class="placeholder">좌장 선택</span>
+                </div>
+                <button type="button" class="btn btn-secondary participant-search-btn" onclick="openParticipantSearch('chair_${chairId}')">
+                    <i class="fas fa-search"></i>
                 </button>
             </div>
-            <div class="speaker-form-row">
-                <div class="form-group" style="flex: 1;">
-                    <label>좌장</label>
-                    <div class="participant-selector">
-                        <input type="hidden" name="chair_participant_${chairId}" value="${chairData ? (chairData.participantId || chairData.id || '') : ''}" required>
-                        <div class="selected-participant" id="selectedChair${chairId}">
-                            <span class="placeholder">좌장을 선택하세요</span>
-                        </div>
-                        <button type="button" class="btn btn-secondary participant-search-btn" onclick="openParticipantSearch('chair_${chairId}')">
-                            <i class="fas fa-search"></i> 검색
-                        </button>
-                    </div>
-                </div>
-            </div>
+            <button type="button" class="remove-speaker-btn" onclick="removeChair(${chairId})" aria-label="좌장 삭제">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     `;
     
@@ -3457,10 +3459,7 @@ function addChairToForm(chairData = null) {
         if (chairParticipant) {
             const selectedChair = document.getElementById(`selectedChair${chairId}`);
             selectedChair.innerHTML = `
-                <div class="participant-info">
-                    <div class="participant-name">${chairParticipant.name}</div>
-                    <div class="participant-details">${chairParticipant.email}</div>
-                </div>
+                <span class="participant-name" title="${chairParticipant.email || ''}">${chairParticipant.name}</span>
             `;
             console.log(`✅ Chair ${chairId} displayed:`, chairParticipant.name);
         }
@@ -3487,45 +3486,31 @@ function addSpeakerToForm(speakerData = null) {
     console.log(`📝 Adding speaker ${speakerId} to form:`, speakerData);
     
     const speakerHtml = `
-        <div class="speaker-form" data-speaker-id="${speakerId}">
-            <div class="speaker-form-header">
-                <h5 class="speaker-form-title">발표자 ${speakerId + 1}</h5>
-                <button type="button" class="remove-speaker-btn" onclick="removeSpeaker(${speakerId})">
-                    <i class="fas fa-times"></i>
+        <div class="speaker-form person-row" data-speaker-id="${speakerId}">
+            <span class="speaker-drag-handle" title="드래그하여 순서 변경" aria-label="드래그하여 순서 변경">
+                <i class="fas fa-grip-vertical"></i>
+            </span>
+            <div class="participant-selector">
+                <input type="hidden" name="speaker_participant_${speakerId}" value="${speakerData ? (speakerData.participantId || '') : ''}" required>
+                <div class="selected-participant" id="selectedSpeaker${speakerId}">
+                    <span class="placeholder">발표자 선택</span>
+                </div>
+                <button type="button" class="btn btn-secondary participant-search-btn" onclick="openParticipantSearch('speaker_${speakerId}')">
+                    <i class="fas fa-search"></i>
                 </button>
             </div>
-            <div class="speaker-form-row">
-                <div class="form-group">
-                    <label>발표자</label>
-                    <div class="participant-selector">
-                        <input type="hidden" name="speaker_participant_${speakerId}" value="${speakerData ? (speakerData.participantId || '') : ''}" required>
-                        <div class="selected-participant" id="selectedSpeaker${speakerId}">
-                            <span class="placeholder">발표자를 선택하세요</span>
-                        </div>
-                        <button type="button" class="btn btn-secondary participant-search-btn" onclick="openParticipantSearch('speaker_${speakerId}')">
-                            <i class="fas fa-search"></i> 검색
-                        </button>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>주제</label>
-                    <input type="text" name="speaker_topic_${speakerId}" value="${speakerData ? (speakerData.topic || '') : ''}" required>
-                </div>
-            </div>
-            <div class="speaker-form-row">
-                <div class="form-group">
-                    <label>시작 시간</label>
-                    <input type="time" name="speaker_start_${speakerId}" value="${speakerData ? (speakerData.startTime || '') : ''}" step="300" required>
-                </div>
-                <div class="form-group">
-                    <label>종료 시간</label>
-                    <input type="time" name="speaker_end_${speakerId}" value="${speakerData ? (speakerData.endTime || '') : ''}" step="300" required>
-                </div>
-            </div>
+            <input type="text" name="speaker_topic_${speakerId}" value="${speakerData ? (speakerData.topic || '') : ''}" placeholder="주제" required>
+            <input type="time" name="speaker_start_${speakerId}" value="${speakerData ? (speakerData.startTime || '') : ''}" step="300" required>
+            <input type="time" name="speaker_end_${speakerId}" value="${speakerData ? (speakerData.endTime || '') : ''}" step="300" required>
+            <button type="button" class="remove-speaker-btn" onclick="removeSpeaker(${speakerId})" aria-label="발표자 삭제">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
     `;
     
     container.insertAdjacentHTML('beforeend', speakerHtml);
+    bindSpeakerRowDrag(container.querySelector(`[data-speaker-id="${speakerId}"]`));
+    initSpeakerDragContainer(container);
     
     // 발표자 정보가 있으면 표시
     if (speakerData && speakerData.participantId) {
@@ -3535,12 +3520,7 @@ function addSpeakerToForm(speakerData = null) {
         
         if (speakerParticipant) {
             const selectedSpeaker = document.getElementById(`selectedSpeaker${speakerId}`);
-            selectedSpeaker.innerHTML = `
-                <div class="participant-info">
-                    <div class="participant-name">${speakerParticipant.name}</div>
-                    <div class="participant-details">${speakerParticipant.email}</div>
-                </div>
-            `;
+            selectedSpeaker.innerHTML = sessionPersonChip(speakerParticipant);
             console.log(`✅ Speaker ${speakerId} displayed:`, speakerParticipant.name);
         } else {
             console.log(`❌ Speaker participant not found for ID: ${speakerData.participantId}`);
@@ -3551,12 +3531,7 @@ function addSpeakerToForm(speakerData = null) {
                     console.log('Found speaker by name:', speakerByName);
                     document.querySelector(`input[name="speaker_participant_${speakerId}"]`).value = speakerByName.id;
                     const selectedSpeaker = document.getElementById(`selectedSpeaker${speakerId}`);
-                    selectedSpeaker.innerHTML = `
-                        <div class="participant-info">
-                            <div class="participant-name">${speakerByName.name}</div>
-                            <div class="participant-details">${speakerByName.email}</div>
-                        </div>
-                    `;
+                    selectedSpeaker.innerHTML = sessionPersonChip(speakerByName);
                     console.log(`✅ Speaker ${speakerId} displayed by name:`, speakerByName.name);
                 } else {
                     console.log(`❌ No speaker found by name: ${speakerData.name}`);
@@ -3572,6 +3547,114 @@ function removeSpeaker(speakerId) {
     if (speakerElement) {
         speakerElement.remove();
     }
+}
+
+function speakerRowTimeInputs(row) {
+    return {
+        start: row.querySelector('input[name^="speaker_start_"]'),
+        end: row.querySelector('input[name^="speaker_end_"]')
+    };
+}
+
+function redistributeSpeakerTimesInForm() {
+    const rows = [...document.querySelectorAll('#speakersContainer .speaker-form')];
+    if (!rows.length) return;
+
+    const windows = rows.map((row) => {
+        const { start, end } = speakerRowTimeInputs(row);
+        return { start: start?.value || '', end: end?.value || '' };
+    }).sort((a, b) => {
+        const aStart = a.start ? timeToMinutes(a.start) : Number.MAX_SAFE_INTEGER;
+        const bStart = b.start ? timeToMinutes(b.start) : Number.MAX_SAFE_INTEGER;
+        return aStart - bStart;
+    });
+
+    const allHaveTimes = windows.every((slot) => slot.start && slot.end);
+    if (allHaveTimes) {
+        rows.forEach((row, index) => {
+            const { start, end } = speakerRowTimeInputs(row);
+            if (start) start.value = windows[index].start;
+            if (end) end.value = windows[index].end;
+        });
+        return;
+    }
+
+    const sessionStart = document.getElementById('sessionStartTime')?.value;
+    const sessionEnd = document.getElementById('sessionEndTime')?.value;
+    if (!sessionStart || !sessionEnd) return;
+
+    const startM = timeToMinutes(sessionStart);
+    const endM = timeToMinutes(sessionEnd);
+    if (endM <= startM) return;
+
+    const span = endM - startM;
+    const count = rows.length;
+    rows.forEach((row, index) => {
+        const { start, end } = speakerRowTimeInputs(row);
+        if (start) start.value = minutesToTime(startM + Math.floor((span * index) / count));
+        if (end) end.value = minutesToTime(startM + Math.floor((span * (index + 1)) / count));
+    });
+}
+
+function getDragAfterSpeaker(container, y) {
+    const rows = [...container.querySelectorAll('.speaker-form:not(.dragging)')];
+    return rows.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset, element: child };
+        }
+        return closest;
+    }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+}
+
+function initSpeakerDragContainer(container) {
+    if (!container || container.dataset.dndBound === '1') return;
+    container.dataset.dndBound = '1';
+
+    container.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        const dragging = container.querySelector('.speaker-form.dragging');
+        if (!dragging) return;
+        const after = getDragAfterSpeaker(container, event.clientY);
+        if (after == null) {
+            container.appendChild(dragging);
+        } else {
+            container.insertBefore(dragging, after);
+        }
+    });
+
+    container.addEventListener('drop', (event) => {
+        event.preventDefault();
+        redistributeSpeakerTimesInForm();
+    });
+}
+
+function bindSpeakerRowDrag(row) {
+    if (!row || row.dataset.dndBound === '1') return;
+    row.dataset.dndBound = '1';
+
+    const handle = row.querySelector('.speaker-drag-handle');
+    if (handle) {
+        handle.addEventListener('mousedown', () => {
+            row.draggable = true;
+        });
+        handle.addEventListener('mouseup', () => {
+            row.draggable = false;
+        });
+    }
+
+    row.addEventListener('dragstart', (event) => {
+        row.classList.add('dragging');
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', row.dataset.speakerId || '');
+    });
+
+    row.addEventListener('dragend', () => {
+        row.classList.remove('dragging');
+        row.draggable = false;
+        redistributeSpeakerTimesInForm();
+    });
 }
 
 // Save session
@@ -5144,9 +5227,9 @@ function getPeopleViewSummary(rows) {
 function formatPeopleViewCountLabel(summary) {
     if (!summary || summary.total === 0) return '총 0명';
     const parts = [`총 ${summary.total.toLocaleString()}명`];
-    if (summary.pending > 0) parts.push(`등록가능 ${summary.pending.toLocaleString()}`);
-    if (summary.unmatched > 0) parts.push(`수동확인 ${summary.unmatched.toLocaleString()}`);
-    if (summary.registered > 0) parts.push(`등록완료 ${summary.registered.toLocaleString()}`);
+    if (summary.registered > 0) parts.push(`추가 완료 ${summary.registered.toLocaleString()}명`);
+    if (summary.pending > 0) parts.push(`미추가 ${summary.pending.toLocaleString()}명`);
+    if (summary.unmatched > 0) parts.push(`수동확인 ${summary.unmatched.toLocaleString()}명`);
     return parts.join(' · ');
 }
 
@@ -5606,7 +5689,7 @@ function renderPeopleViewTable() {
             }
 
             const registrationLabel = row.rowStatus === 'registered'
-                ? (p.registration || '등록됨')
+                ? (p.registration || '미등록')
                 : row.rowStatus === 'pending'
                     ? '미등록'
                     : '수동확인 필요';
@@ -7132,7 +7215,14 @@ function resolvePersonForProgram(person) {
     };
 }
 
-/** 수동 좌장/연자 선택: 회원·역대 명단 → 이 행사 참가자로 등록 */
+/** 프로그램에 올린 좌장·연자를 참가자 목록에 넣되, 등록구분은 미등록으로. 이미 등록된 사람은 역할만 반영. */
+async function attachProgramPersonToParticipantList(person, role) {
+    if (!person || person.isTemporary || person.isSpecialKeyword) {
+        return person;
+    }
+    return ensureEventParticipant(person, { role: role || person.program_role || person.role || '' });
+}
+
 async function ensureEventParticipant(person, options = {}) {
     if (!person) {
         return person;
@@ -7176,7 +7266,7 @@ async function ensureEventParticipant(person, options = {}) {
     const payload = {
         source: person.source,
         from_program_register: true,
-        registration: '사전등록',
+        registration: '미등록',
         role: options.role || person.program_role || person.role || '',
         country: person.country || '',
         country_code: person.country_code || '',
@@ -7826,12 +7916,7 @@ async function confirmParticipantSelection() {
         if (hiddenInput && displayDiv) {
             hiddenInput.value = resolved.id;
             
-            displayDiv.innerHTML = `
-            <div class="participant-info">
-                <div class="participant-name">${resolved.name}</div>
-                <div class="participant-details">${affiliation}</div>
-            </div>
-        `;
+            displayDiv.innerHTML = sessionPersonChip(resolved);
             console.log(`✅ Chair ${chairId} selected:`, resolved.name);
         }
     } else if (currentSearchType === 'quickChair') {
@@ -7852,12 +7937,10 @@ async function confirmParticipantSelection() {
         if (hiddenInput && displayDiv) {
             hiddenInput.value = resolved.id;
             
-            displayDiv.innerHTML = `
-                <div class="participant-info">
-                    <div class="participant-name">${resolved.name}</div>
-                    <div class="participant-details">${affiliation}</div>
-                </div>
-            `;
+            displayDiv.innerHTML = sessionPersonChip({
+                name: resolved.name,
+                email: affiliation,
+            });
         }
     }
     
@@ -9390,7 +9473,7 @@ async function processExcelUpload() {
             총 ${result.created} 개의 세션이 생성되었습니다.<br>
             ${result.warnings.length > 0 ? `<br><strong>⚠️ 경고:</strong><br>${result.warnings.join('<br>')}` : ''}
             <p style="margin: 12px 0 0; font-size: 13px; color: #555;">
-                좌장·연자를 참가자로 등록하려면 상단의 <strong>「좌장·연자 참가자 등록」</strong> 버튼을 사용하세요.
+                좌장·연자는 참가자 목록에 <strong>미등록</strong>으로 추가됩니다. 업로드 전에 이미 등록된 사람은 역할만 반영되고 등록구분은 그대로입니다.
             </p>
         `;
         
@@ -9940,13 +10023,13 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex,
         };
     }
 
+    const programRole = speaker.isSpeaker === false ? '좌장' : '연자';
+
     // 1) 역대 좌장/연자 — 자동 매칭 (동명이인만 선택)
     const historyMatches = findPeopleInList(personPoolHistory, name);
     console.log(`🏛️ History matches for "${name}": ${historyMatches.length}`);
     if (historyMatches.length === 1) {
-        const resolved = resolvePersonForProgram(historyMatches[0]);
-        console.log(`✅ Auto-matched from history:`, resolved);
-        return resolved;
+        return attachProgramPersonToParticipantList(historyMatches[0], programRole);
     }
     if (historyMatches.length > 1) {
         const resolved = await promptAndResolveHomonym(name, sessionTitle, speakerIndex, roleLabel, historyMatches, sessionContext);
@@ -9961,7 +10044,7 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex,
                 isTemporary: true
             };
         }
-        return resolved;
+        return attachProgramPersonToParticipantList(resolved, programRole);
     }
 
     // 2) 회원 — 확인 후 사용
@@ -9974,21 +10057,21 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex,
             throw new Error(`"${name}" 처리를 건너뛰었습니다.`);
         }
         if (confirmed && typeof confirmed === 'object') {
-            return resolvePersonForProgram(confirmed);
+            return attachProgramPersonToParticipantList(confirmed, programRole);
         }
     } else if (memberMatches.length > 1) {
         const resolved = await promptAndResolveHomonym(name, sessionTitle, speakerIndex, roleLabel, memberMatches, sessionContext);
         if (!resolved) {
             throw new Error(`"${name}" 회원 선택을 건너뛰었습니다.`);
         }
-        return resolved;
+        return attachProgramPersonToParticipantList(resolved, programRole);
     }
 
     // 3) 이 행사 참가자 — 자동 (역대/회원에 없을 때)
     const participantMatches = findPeopleInList(getEventParticipantsForSearch(), name);
     console.log(`🎫 Event participant matches for "${name}": ${participantMatches.length}`);
     if (participantMatches.length === 1) {
-        return resolvePersonForProgram(participantMatches[0]);
+        return attachProgramPersonToParticipantList(participantMatches[0], programRole);
     }
     if (participantMatches.length > 1) {
         const resolved = await promptAndResolveHomonym(name, sessionTitle, speakerIndex, roleLabel, participantMatches, sessionContext);
@@ -10003,14 +10086,14 @@ async function processSpeakerWithDuplicates(speaker, sessionTitle, speakerIndex,
                 isTemporary: true
             };
         }
-        return resolved;
+        return attachProgramPersonToParticipantList(resolved, programRole);
     }
 
     // 4) 없음 — 직접 입력/검색
     console.warn(`⚠️ Person not found in history/member/participants: ${name} - Asking user`);
     const resolved = await resolveMissingPersonForProgram(name, roleLabel, sessionTitle);
     console.log(`✅ Participant resolved:`, resolved);
-    return resolved;
+    return attachProgramPersonToParticipantList(resolved, programRole);
 }
 
 async function createSessionsFromExcel(parsedSessions) {

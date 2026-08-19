@@ -271,6 +271,63 @@ body {
 .main-content .table-container td[data-column="registration"] {
     min-width: 100px;
     width: 100px;
+    overflow: visible;
+}
+
+.main-content .registration-link {
+    color: var(--primary-color);
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.main-content .registration-link:hover {
+    text-decoration: underline;
+}
+
+.registration-pop {
+    position: fixed;
+    z-index: 1300;
+    display: flex;
+    flex-direction: column;
+    min-width: 108px;
+    padding: 4px;
+    border: 1px solid #d0d4e0;
+    border-radius: 6px;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.registration-pop[hidden] {
+    display: none;
+}
+
+.registration-pop button {
+    display: block;
+    width: 100%;
+    border: none;
+    background: none;
+    padding: 6px 10px;
+    text-align: left;
+    font-size: 12px;
+    color: #333;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.registration-pop button:hover {
+    background: #f3f4fb;
+    color: #3d4799;
+}
+
+.registration-pop button.is-current {
+    background: #3d4799;
+    color: #fff;
+    font-weight: 700;
 }
 
 .main-content .table-container th[data-column="email"],

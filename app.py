@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory, after_this_request, make_response, session
+from flask import Flask, render_template, request, redirect, url_for, jsonify, send_file, send_from_directory, after_this_request, make_response, session, g, has_request_context
 from markupsafe import Markup, escape
 from html import unescape
 import os
@@ -1718,6 +1718,254 @@ def _clean(value):
     return str(value).strip()
 
 
+_PERSON_PROFILE_FIELDS = (
+    'name_kor', 'name_eng', 'first_name', 'family_name',
+    'email', 'phone', 'country', 'country_code',
+    'affiliation_kor', 'affiliation_eng', 'department_kor', 'department_eng',
+    'position', 'license_number', 'birth_date', 'workplace_type',
+)
+
+_PERSON_PROFILE_FIELD_LABELS = {
+    'name_kor': '성명(KOR)',
+    'name_eng': '성명(ENG)',
+    'first_name': '이름(First Name)',
+    'family_name': '성(Last Name)',
+    'email': '이메일',
+    'phone': '전화',
+    'country': '국가',
+    'country_code': '국가약어',
+    'affiliation_kor': '소속(KOR)',
+    'affiliation_eng': '소속(ENG)',
+    'department_kor': '과(KOR)',
+    'department_eng': '과(ENG)',
+    'position': '직위',
+    'license_number': '면허번호',
+    'birth_date': '생년월일',
+    'workplace_type': '회원구분',
+}
+
+
+def _has_filled_value(value) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, str) and not value.strip():
+        return False
+    return True
+
+
+def _first_filled(*values):
+    for value in values:
+        if _has_filled_value(value):
+            return value
+    return ''
+
+
+def _as_birth_date(value):
+    if not _has_filled_value(value):
+        return None
+    if hasattr(value, 'year') and not isinstance(value, str):
+        return value
+    try:
+        return parse_date(str(value).strip())
+    except Exception:
+        return None
+
+
+def _first_birth_date(*values):
+    for value in values:
+        parsed = _as_birth_date(value)
+        if parsed:
+            return parsed
+    return None
+
+
+def _build_canonical_person_index():
+    """회원 관리 → 역대 좌장/연자 순으로 이메일·면허번호 인덱스를 만든다."""
+    members_by_email = {}
+    members_by_license = {}
+    members_by_name = {}
+    for member in Member.query.all():
+        item = _member_to_person_lookup(member)
+        email = (item.get('email') or '').strip().lower()
+        license_no = str(item.get('license_number') or '').strip()
+        name_kor = (item.get('name_kor') or '').strip().lower()
+        if email and email not in members_by_email:
+            members_by_email[email] = item
+        if license_no and license_no not in members_by_license:
+            members_by_license[license_no] = item
+        if name_kor:
+            members_by_name.setdefault(name_kor, []).append(item)
+
+    history_by_email = {}
+    history_by_license = {}
+    history_by_name = {}
+    for person in load_aggregated_history():
+        item = _history_person_to_lookup(person)
+        email = (item.get('email') or '').strip().lower()
+        license_no = str(item.get('license_number') or '').strip()
+        name_kor = (item.get('name_kor') or '').strip().lower()
+        if email and email not in history_by_email:
+            history_by_email[email] = item
+        if license_no and license_no not in history_by_license:
+            history_by_license[license_no] = item
+        if name_kor:
+            history_by_name.setdefault(name_kor, []).append(item)
+
+    return {
+        'members_by_email': members_by_email,
+        'members_by_license': members_by_license,
+        'members_by_name': members_by_name,
+        'history_by_email': history_by_email,
+        'history_by_license': history_by_license,
+        'history_by_name': history_by_name,
+    }
+
+
+def get_canonical_person_index():
+    if has_request_context():
+        cached = getattr(g, 'canonical_person_index', None)
+        if cached is None:
+            g.canonical_person_index = _build_canonical_person_index()
+            cached = g.canonical_person_index
+        return cached
+    return _build_canonical_person_index()
+
+
+def find_canonical_person_profile(name_kor='', name_eng='', email='', license_number='', index=None):
+    """이름·이메일·면허번호로 회원 우선, 없으면 역대 명단에서 프로필을 찾는다."""
+    index = index or get_canonical_person_index()
+    email_n = (email or '').strip().lower()
+    license_n = str(license_number or '').strip()
+    name_n = (name_kor or '').strip().lower()
+
+    if email_n:
+        if email_n in index['members_by_email']:
+            return index['members_by_email'][email_n]
+        if email_n in index['history_by_email']:
+            return index['history_by_email'][email_n]
+
+    if license_n:
+        if license_n in index['members_by_license']:
+            return index['members_by_license'][license_n]
+        if license_n in index['history_by_license']:
+            return index['history_by_license'][license_n]
+
+    # 이메일이 없을 때만 동명이인 없는 한글 이름으로 보조 매칭
+    if name_n and not email_n:
+        member_hits = index['members_by_name'].get(name_n) or []
+        if len(member_hits) == 1:
+            return member_hits[0]
+        history_hits = index['history_by_name'].get(name_n) or []
+        if not member_hits and len(history_hits) == 1:
+            return history_hits[0]
+
+    return None
+
+
+def merge_person_profile(incoming: Optional[dict] = None, existing: Optional[Participant] = None, canonical: Optional[dict] = None) -> dict:
+    """업로드 값 > 이미 있는 참가자 값 > 회원/역대 명단 순으로 프로필을 합친다."""
+    incoming = incoming or {}
+    merged = {}
+    for field in _PERSON_PROFILE_FIELDS:
+        incoming_val = incoming.get(field)
+        existing_val = getattr(existing, field, None) if existing is not None else None
+        canonical_val = (canonical or {}).get(field)
+        if field == 'birth_date':
+            merged[field] = _first_birth_date(incoming_val, existing_val, canonical_val)
+        else:
+            merged[field] = _first_filled(incoming_val, existing_val, canonical_val)
+    return merged
+
+
+def _display_profile_value(field, value):
+    if field == 'birth_date':
+        parsed = _as_birth_date(value)
+        return parsed.isoformat() if parsed else str(value or '').strip()
+    return str(value or '').strip()
+
+
+def _normalize_profile_compare_value(field, value):
+    if field == 'birth_date':
+        parsed = _as_birth_date(value)
+        return parsed.isoformat() if parsed else ''
+    text = str(value or '').strip()
+    if not text:
+        return ''
+    if field == 'phone':
+        return re.sub(r'[\s\-().]', '', text)
+    if field == 'email':
+        return text.lower()
+    return re.sub(r'\s+', ' ', text)
+
+
+def incoming_profile_from_upload_row(row_dict: dict) -> dict:
+    profile = {}
+    for field in _PERSON_PROFILE_FIELDS:
+        profile[field] = str(row_dict.get(field) or '').strip()
+    return profile
+
+
+def diff_profile_updates(incoming: Optional[dict], baseline: Optional[dict]) -> list:
+    """양쪽 모두 값이 있는데 내용이 다른 항목만 변경으로 본다. 빈 칸은 기존 데이터로 채울 대상이지 변경이 아니다."""
+    incoming = incoming or {}
+    baseline = baseline or {}
+    changes = []
+    for field in _PERSON_PROFILE_FIELDS:
+        new_raw = incoming.get(field)
+        old_raw = baseline.get(field)
+        if not _has_filled_value(new_raw) or not _has_filled_value(old_raw):
+            continue
+        if _normalize_profile_compare_value(field, new_raw) == _normalize_profile_compare_value(field, old_raw):
+            continue
+        changes.append({
+            'field': field,
+            'label': _PERSON_PROFILE_FIELD_LABELS.get(field, field),
+            'before': _display_profile_value(field, old_raw),
+            'after': _display_profile_value(field, new_raw),
+        })
+    return changes
+
+
+def apply_person_profile(participant: Participant, profile: dict) -> None:
+    for field, value in (profile or {}).items():
+        if field == 'birth_date':
+            participant.birth_date = value
+        else:
+            setattr(participant, field, value)
+
+
+def profile_enriched_from_canonical(incoming: dict, canonical: Optional[dict], existing: Optional[Participant] = None) -> bool:
+    if not canonical:
+        return False
+    for field in _PERSON_PROFILE_FIELDS:
+        if _has_filled_value(incoming.get(field)):
+            continue
+        existing_val = getattr(existing, field, None) if existing is not None else None
+        if _has_filled_value(existing_val):
+            continue
+        if _has_filled_value(canonical.get(field)):
+            return True
+    return False
+
+
+def fill_participant_missing_from_master(participant: Participant) -> bool:
+    """비어 있는 프로필만 회원·역대 명단에서 채운다. 이미 있는 값은 유지."""
+    if participant is None:
+        return False
+    incoming = {field: getattr(participant, field, None) for field in _PERSON_PROFILE_FIELDS}
+    canonical = find_canonical_person_profile(
+        name_kor=incoming.get('name_kor') or '',
+        name_eng=incoming.get('name_eng') or '',
+        email=incoming.get('email') or '',
+        license_number=incoming.get('license_number') or '',
+    )
+    if not canonical:
+        return False
+    merged = merge_person_profile(incoming=incoming, canonical=canonical)
+    apply_person_profile(participant, merged)
+    return profile_enriched_from_canonical(incoming, canonical)
+
+
 @app.route('/api/person_lookup', methods=['GET'])
 def person_lookup():
     """회원 관리 · 역대 좌장/연자 명단 통합 검색 (참가자 수동 입력용)."""
@@ -1833,7 +2081,7 @@ def participant_management(event_id):
             p.id, p.event_id, p.code, p.role, p.country, p.country_code,
             p.name_kor, p.name_eng, p.first_name, p.family_name, p.email, p.phone,
             p.affiliation_eng, p.department_eng, p.affiliation_kor, p.department_kor,
-            p.position, p.license_number, p.birth_date, p.workplace_type, p.registration,
+            p.position, p.license_number, p.birth_date, p.workplace_type, p.registration or '미등록',
             p.accept_or_decline, p.cv, p.photo, p.ppt, p.script, p.agree,
             p.remark_user, p.remark_admin, p.check_in_time, p.check_out_time, p.decline_reason
         ))
@@ -1900,7 +2148,7 @@ def add_participant(event_id):
                 license_number=request.form.get('license_number'),
                 birth_date=birth_date_value,
                 workplace_type=request.form.get('workplace_type'),
-                registration=request.form.get('registration'),
+                registration=request.form.get('registration') or '미등록',
                 accept_or_decline=request.form.get('accept_or_decline') or '대기',
                 agree=request.form.get('agree'),
                 remark_user=request.form.get('remark_user'),
@@ -1917,6 +2165,7 @@ def add_participant(event_id):
                         file.save(filepath)
                         setattr(participant, field, filepath)
             
+            fill_participant_missing_from_master(participant)
             db.session.add(participant)
             db.session.commit()
             
@@ -1935,6 +2184,220 @@ def add_participant(event_id):
             return render_template('add_participant.html', event=event, error=f"참가자 추가 중 오류가 발생했습니다: {str(e)}")
     
     return render_template('add_participant.html', event=event)
+
+
+PARTICIPANT_UPLOAD_COLUMN_MAPPING = {
+    '이벤트 id': 'event_id', '코드': 'code', '역할': 'role', '국가': 'country', '국가약어': 'country_code',
+    '성명(kor)': 'name_kor', '성명(eng)': 'name_eng', '이름(first name)': 'first_name', '성(last name)': 'family_name',
+    '이메일': 'email', '전화': 'phone', '소속(eng)': 'affiliation_eng', '과(eng)': 'department_eng',
+    '소속(kor)': 'affiliation_kor', '과(kor)': 'department_kor', '직위': 'position', '면허번호': 'license_number',
+    '생년월일': 'birth_date', '회원구분': 'workplace_type', '등록구분': 'registration', '승인/거절': 'accept_or_decline',
+    'cv': 'cv', '사진': 'photo', 'ppt': 'ppt', 'script': 'script', '동의여부': 'agree',
+    '비고(사용자)': 'remark_user', '비고(관리자)': 'remark_admin', '체크인': 'check_in_time', '체크아웃': 'check_out_time',
+    '거절 사유': 'decline_reason', '초청년도': 'invitation_year',
+    'role': 'role', 'country': 'country', 'country code': 'country_code',
+    'name (kor)': 'name_kor', 'name (eng)': 'name_eng', 'first name': 'first_name', 'family name': 'family_name',
+    'email': 'email', 'phone': 'phone', 'affiliation (eng)': 'affiliation_eng', 'department (eng)': 'department_eng',
+    'affiliation (kor)': 'affiliation_kor', 'department (kor)': 'department_kor', 'position': 'position', 'license #': 'license_number',
+    'birth date': 'birth_date', 'workplace type': 'workplace_type', 'registration': 'registration', 'accept/decline': 'accept_or_decline',
+    'photo': 'photo', 'agree': 'agree', 'remark (user)': 'remark_user', 'remark (admin)': 'remark_admin',
+    'check-in': 'check_in_time', 'check-out': 'check_out_time', 'decline reason': 'decline_reason',
+    'invitation year': 'invitation_year',
+}
+
+
+def _read_participant_upload_dataframe(file_storage):
+    from io import BytesIO
+
+    file_content = file_storage.read()
+    filename = (file_storage.filename or '').lower()
+    file_stream = BytesIO(file_content)
+    if filename.endswith('.csv'):
+        df = pd.read_csv(file_stream, encoding='utf-8', dtype=str, na_values=['nan', 'NaN', ''], keep_default_na=False)
+    else:
+        df = pd.read_excel(file_stream, dtype=str, na_values=['nan', 'NaN', ''], keep_default_na=False)
+    df = df.fillna('')
+    df.columns = [str(col).lower().strip() for col in df.columns]
+    df.rename(columns=PARTICIPANT_UPLOAD_COLUMN_MAPPING, inplace=True)
+    return df
+
+
+def _compact_person_match(item):
+    if not item:
+        return None
+    return {
+        'source': item.get('source') or '',
+        'source_label': item.get('source_label') or '',
+        'name': item.get('display_name') or item.get('name_kor') or item.get('name_eng') or '',
+        'email': item.get('email') or '',
+        'affiliation': item.get('affiliation_kor') or item.get('affiliation_eng') or '',
+        'phone': item.get('phone') or '',
+        'license_number': item.get('license_number') or '',
+    }
+
+
+def _name_match_candidates(name_kor, index, exclude_email=''):
+    name_n = (name_kor or '').strip().lower()
+    if not name_n:
+        return []
+    exclude_email = (exclude_email or '').strip().lower()
+    seen = set()
+    results = []
+    for item in (index['members_by_name'].get(name_n) or []) + (index['history_by_name'].get(name_n) or []):
+        email = (item.get('email') or '').strip().lower()
+        key = (item.get('source'), email or item.get('display_name') or item.get('name_kor'))
+        if key in seen:
+            continue
+        if exclude_email and email == exclude_email:
+            continue
+        seen.add(key)
+        results.append(item)
+    return results
+
+
+@app.route('/upload_participants/<int:event_id>/preview', methods=['POST'])
+def preview_participant_upload(event_id):
+    """업로드 전에 회원·역대 명단·이 행사 참가자와 맞춰 본다."""
+    try:
+        event = Event.query.get_or_404(event_id)
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': '파일이 없습니다.'}), 400
+        file = request.files['file']
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'error': '파일이 없습니다.'}), 400
+        if not allowed_file(file.filename, {'csv', 'xlsx', 'xls'}):
+            return jsonify({'success': False, 'error': 'Excel 또는 CSV 파일만 가능합니다.'}), 400
+
+        default_registration = _parse_upload_default_registration(request.form.get('default_registration'))
+        df = _read_participant_upload_dataframe(file)
+        canonical_index = get_canonical_person_index()
+
+        existing_by_email = {}
+        for participant in Participant.query.filter_by(event_id=event_id).all():
+            email = (participant.email or '').strip().lower()
+            if email:
+                existing_by_email[email] = participant
+        summary = {
+            'total': 0,
+            'member': 0,
+            'history': 0,
+            'participant': 0,
+            'review': 0,
+            'new': 0,
+            'changed': 0,
+        }
+
+        status_labels = {
+            'member': '회원',
+            'history': '역대 좌장/연자',
+            'participant': '이 행사 참가자',
+            'review': '확인 필요',
+            'new': '신규',
+        }
+
+        rows = []
+        for row_dict in df.to_dict('records'):
+            name_kor = str(row_dict.get('name_kor') or '').strip()
+            name_eng = str(row_dict.get('name_eng') or '').strip()
+            first_name = str(row_dict.get('first_name') or '').strip()
+            if not name_kor and not first_name and not name_eng:
+                continue
+
+            email = str(row_dict.get('email') or '').strip().lower()
+            license_number = str(row_dict.get('license_number') or '').strip()
+            affiliation = str(row_dict.get('affiliation_kor') or row_dict.get('affiliation_eng') or '').strip()
+            incoming_profile = incoming_profile_from_upload_row(row_dict)
+            incoming_profile['email'] = email
+
+            existing = existing_by_email.get(email) if email else None
+            canonical = find_canonical_person_profile(
+                name_kor=name_kor,
+                name_eng=name_eng,
+                email=email,
+                license_number=license_number,
+                index=canonical_index,
+            )
+            name_candidates = _name_match_candidates(name_kor, canonical_index, exclude_email=email)
+
+            changes = []
+            if existing or canonical:
+                baseline = merge_person_profile(
+                    incoming={},
+                    existing=existing,
+                    canonical=canonical,
+                )
+                changes = diff_profile_updates(incoming_profile, baseline)
+
+            if existing:
+                status = 'participant'
+                match = {
+                    'source': 'participant',
+                    'source_label': '이 행사 참가자',
+                    'name': existing.name_kor or existing.name_eng or '',
+                    'email': existing.email or '',
+                    'affiliation': existing.affiliation_kor or existing.affiliation_eng or '',
+                    'phone': existing.phone or '',
+                    'license_number': existing.license_number or '',
+                }
+            elif canonical:
+                status = canonical.get('source') or 'member'
+                match = _compact_person_match(canonical)
+            elif name_candidates:
+                status = 'review'
+                match = _compact_person_match(name_candidates[0])
+            else:
+                status = 'new'
+                match = None
+
+            if status == 'review':
+                extra = f' 외 {len(name_candidates) - 1}명' if len(name_candidates) > 1 else ''
+                note = f"이름은 같지만 이메일이 다릅니다{extra}. 오타인지 확인하세요. 그대로 올리면 새 사람으로 들어갑니다."
+            elif status == 'new':
+                note = '회원·역대 명단에 없습니다. 파일 내용으로 새로 넣습니다.'
+            elif changes:
+                labels = ', '.join(item['label'] for item in changes)
+                note = f"{labels}이(가) 기존과 다릅니다. 파일의 업데이트된 내용을 사용합니다."
+            else:
+                source_label = (match or {}).get('source_label') or '기존 명단'
+                note = f"{source_label}과 같습니다. 기존 데이터를 사용합니다."
+
+            row_registration = str(row_dict.get('registration') or '').strip()
+            applied_registration = _resolve_bulk_registration(
+                row_registration,
+                default_registration,
+                existing.registration if existing else None,
+            )
+
+            summary['total'] += 1
+            summary[status] = summary.get(status, 0) + 1
+            if changes:
+                summary['changed'] += 1
+            rows.append({
+                'row': summary['total'],
+                'name_kor': name_kor,
+                'name_eng': name_eng,
+                'email': email,
+                'affiliation': affiliation,
+                'status': status,
+                'status_label': status_labels.get(status, status),
+                'match': match,
+                'changes': changes,
+                'registration': applied_registration,
+                'candidate_count': len(name_candidates) if status == 'review' else 0,
+                'note': note,
+            })
+
+        return jsonify({
+            'success': True,
+            'event_name': event.name,
+            'default_registration': default_registration,
+            'summary': summary,
+            'rows': rows,
+        })
+    except Exception as e:
+        logging.error(f'preview_participant_upload error: {e}')
+        return jsonify({'success': False, 'error': f'미리보기 중 오류가 발생했습니다: {e}'}), 500
+
 
 @app.route('/upload_participants/<int:event_id>', methods=['GET', 'POST'])
 def upload_participants(event_id):
@@ -1960,6 +2423,7 @@ def upload_participants(event_id):
             logging.info(f"POST request received for event_id: {event_id}")
             logging.info(f"Request files keys: {list(request.files.keys())}")
             logging.info(f"Request form keys: {list(request.form.keys())}")
+            default_registration = _parse_upload_default_registration(request.form.get('default_registration'))
             
             if 'file' not in request.files:
                 logging.error("No file uploaded")
@@ -2314,9 +2778,11 @@ def upload_participants(event_id):
                             participants_by_name_phone[(name_kor, phone_normalized)] = p
                     
                     logging.info("인덱스 생성 완료, 참가자 처리 시작...")
+                    canonical_index = get_canonical_person_index()
                     
                     participants_added = 0
                     participants_updated = 0
+                    participants_enriched = 0
                     code_counter = next_code  # 코드 카운터
                     
                     # CSV 내에서 이미 처리한 참가자 추적 (중복 방지)
@@ -2352,7 +2818,9 @@ def upload_participants(event_id):
                                 birth_date_value = parse_date(sanitized_data.get('birth_date'))
                             
                             # code 필드 처리 (빈 문자열을 None으로, 없으면 자동 생성)
-                            code_value = sanitized_data.get('code')
+                            explicit_code = sanitized_data.get('code')
+                            had_explicit_code = _has_filled_value(explicit_code)
+                            code_value = explicit_code
                             if code_value == '' or code_value is None:
                                 code_value = code_counter
                                 code_counter += 1
@@ -2362,6 +2830,7 @@ def upload_participants(event_id):
                                 except (ValueError, TypeError):
                                     code_value = code_counter
                                     code_counter += 1
+                                    had_explicit_code = False
                             
                             # 성명(ENG) 자동 조합
                             name_eng_value = sanitized_data.get('name_eng', '')
@@ -2425,38 +2894,78 @@ def upload_participants(event_id):
                                 if existing_participant:
                                     logging.debug(f"기존 참가자 발견 (이름+전화번호): {name_kor_value} ({phone_value})")
                             
+                            incoming_profile = {
+                                'name_kor': name_kor_value,
+                                'name_eng': name_eng_value,
+                                'first_name': first_name,
+                                'family_name': family_name,
+                                'email': email_value,
+                                'phone': sanitized_data.get('phone', ''),
+                                'country': sanitized_data.get('country', ''),
+                                'country_code': sanitized_data.get('country_code', ''),
+                                'affiliation_kor': sanitized_data.get('affiliation_kor', ''),
+                                'affiliation_eng': sanitized_data.get('affiliation_eng', ''),
+                                'department_kor': sanitized_data.get('department_kor', ''),
+                                'department_eng': sanitized_data.get('department_eng', ''),
+                                'position': sanitized_data.get('position', ''),
+                                'license_number': sanitized_data.get('license_number', ''),
+                                'birth_date': birth_date_value or sanitized_data.get('birth_date', ''),
+                                'workplace_type': sanitized_data.get('workplace_type', ''),
+                            }
+                            canonical = find_canonical_person_profile(
+                                name_kor=name_kor_value,
+                                name_eng=name_eng_value,
+                                email=email_value,
+                                license_number=sanitized_data.get('license_number', ''),
+                                index=canonical_index,
+                            )
+                            profile = merge_person_profile(
+                                incoming=incoming_profile,
+                                existing=existing_participant,
+                                canonical=canonical,
+                            )
+                            if profile_enriched_from_canonical(incoming_profile, canonical, existing_participant):
+                                source_label = (canonical or {}).get('source_label') or '기존 명단'
+                                logging.info(
+                                    f"기존 명단에서 프로필 보완: {name_kor_value or name_eng_value} ({email_value}) ← {source_label}"
+                                )
+                                participants_enriched += 1
+
                             if existing_participant:
-                                # 기존 참가자 업데이트
+                                # 기존 참가자 업데이트: 빈 업로드 값으로 지우지 않고, 비어 있으면 회원/역대 명단으로 채움
                                 logging.info(f"기존 참가자 업데이트: ID {existing_participant.id}")
-                                existing_participant.code = code_value
-                                existing_participant.role = sanitized_data.get('role', '')
-                                existing_participant.country = sanitized_data.get('country', '')
-                                existing_participant.country_code = sanitized_data.get('country_code', '')
-                                existing_participant.name_kor = name_kor_value
-                                existing_participant.name_eng = name_eng_value
-                                existing_participant.first_name = first_name
-                                existing_participant.family_name = family_name
-                                existing_participant.phone = sanitized_data.get('phone', '')
-                                existing_participant.affiliation_eng = sanitized_data.get('affiliation_eng', '')
-                                existing_participant.department_eng = sanitized_data.get('department_eng', '')
-                                existing_participant.affiliation_kor = sanitized_data.get('affiliation_kor', '')
-                                existing_participant.department_kor = sanitized_data.get('department_kor', '')
-                                existing_participant.position = sanitized_data.get('position', '')
-                                existing_participant.license_number = sanitized_data.get('license_number', '')
-                                existing_participant.birth_date = birth_date_value
-                                existing_participant.workplace_type = sanitized_data.get('workplace_type', '')
-                                existing_participant.registration = sanitized_data.get('registration', '')
-                                existing_participant.accept_or_decline = sanitized_data.get('accept_or_decline', '')
-                                existing_participant.cv = sanitized_data.get('cv', '')
-                                existing_participant.photo = sanitized_data.get('photo', '')
-                                existing_participant.ppt = sanitized_data.get('ppt', '')
-                                existing_participant.script = sanitized_data.get('script', '')
-                                existing_participant.agree = sanitized_data.get('agree', '')
-                                existing_participant.remark_user = sanitized_data.get('remark_user', '')
-                                existing_participant.remark_admin = sanitized_data.get('remark_admin', '')
-                                existing_participant.check_in_time = sanitized_data.get('check_in_time') if sanitized_data.get('check_in_time') else None
-                                existing_participant.check_out_time = sanitized_data.get('check_out_time') if sanitized_data.get('check_out_time') else None
-                                existing_participant.decline_reason = sanitized_data.get('decline_reason', '')
+                                if had_explicit_code:
+                                    existing_participant.code = code_value
+                                apply_person_profile(existing_participant, profile)
+                                if _has_filled_value(sanitized_data.get('role')):
+                                    existing_participant.role = sanitized_data.get('role')
+                                existing_participant.registration = _resolve_bulk_registration(
+                                    sanitized_data.get('registration'),
+                                    default_registration,
+                                    existing_participant.registration,
+                                )
+                                if _has_filled_value(sanitized_data.get('accept_or_decline')):
+                                    existing_participant.accept_or_decline = sanitized_data.get('accept_or_decline')
+                                if _has_filled_value(sanitized_data.get('cv')):
+                                    existing_participant.cv = sanitized_data.get('cv')
+                                if _has_filled_value(sanitized_data.get('photo')):
+                                    existing_participant.photo = sanitized_data.get('photo')
+                                if _has_filled_value(sanitized_data.get('ppt')):
+                                    existing_participant.ppt = sanitized_data.get('ppt')
+                                if _has_filled_value(sanitized_data.get('script')):
+                                    existing_participant.script = sanitized_data.get('script')
+                                if _has_filled_value(sanitized_data.get('agree')):
+                                    existing_participant.agree = sanitized_data.get('agree')
+                                if _has_filled_value(sanitized_data.get('remark_user')):
+                                    existing_participant.remark_user = sanitized_data.get('remark_user')
+                                if _has_filled_value(sanitized_data.get('remark_admin')):
+                                    existing_participant.remark_admin = sanitized_data.get('remark_admin')
+                                if sanitized_data.get('check_in_time'):
+                                    existing_participant.check_in_time = sanitized_data.get('check_in_time')
+                                if sanitized_data.get('check_out_time'):
+                                    existing_participant.check_out_time = sanitized_data.get('check_out_time')
+                                if _has_filled_value(sanitized_data.get('decline_reason')):
+                                    existing_participant.decline_reason = sanitized_data.get('decline_reason')
                                 participants_updated += 1
                                 
                                 # CSV 내 처리 추적에 추가
@@ -2464,29 +2973,32 @@ def upload_participants(event_id):
                                     processed_csv_participants.add(csv_duplicate_key)
                                 # 기존 참가자는 add 불필요 (이미 DB에 있음)
                             else:
-                                # 새 참가자 생성
+                                # 새 참가자 생성: 업로드에 없는 항목은 회원/역대 명단에서 채움
                                 logging.info(f"새 참가자 추가: {name_kor_value or name_eng_value} ({email_value})")
                                 participant = Participant(
                                     event_id=event_id,
                                     code=code_value,
                                     role=sanitized_data.get('role', ''),
-                                    country=sanitized_data.get('country', ''),
-                                    country_code=sanitized_data.get('country_code', ''),
-                                    name_kor=name_kor_value,
-                                    name_eng=name_eng_value,
-                                    first_name=first_name,
-                                    family_name=family_name,
-                                    email=email_value,
-                                    phone=sanitized_data.get('phone', ''),
-                                    affiliation_eng=sanitized_data.get('affiliation_eng', ''),
-                                    department_eng=sanitized_data.get('department_eng', ''),
-                                    affiliation_kor=sanitized_data.get('affiliation_kor', ''),
-                                    department_kor=sanitized_data.get('department_kor', ''),
-                                    position=sanitized_data.get('position', ''),
-                                    license_number=sanitized_data.get('license_number', ''),
-                                    birth_date=birth_date_value,
-                                    workplace_type=sanitized_data.get('workplace_type', ''),
-                                    registration=sanitized_data.get('registration', ''),
+                                    country=profile.get('country', ''),
+                                    country_code=profile.get('country_code', ''),
+                                    name_kor=profile.get('name_kor') or name_kor_value,
+                                    name_eng=profile.get('name_eng') or name_eng_value,
+                                    first_name=profile.get('first_name') or first_name,
+                                    family_name=profile.get('family_name') or family_name,
+                                    email=profile.get('email') or email_value,
+                                    phone=profile.get('phone', ''),
+                                    affiliation_eng=profile.get('affiliation_eng', ''),
+                                    department_eng=profile.get('department_eng', ''),
+                                    affiliation_kor=profile.get('affiliation_kor', ''),
+                                    department_kor=profile.get('department_kor', ''),
+                                    position=profile.get('position', ''),
+                                    license_number=profile.get('license_number', ''),
+                                    birth_date=profile.get('birth_date'),
+                                    workplace_type=profile.get('workplace_type', ''),
+                                    registration=_resolve_bulk_registration(
+                                        sanitized_data.get('registration'),
+                                        default_registration,
+                                    ),
                                     accept_or_decline=sanitized_data.get('accept_or_decline', ''),
                                     cv=sanitized_data.get('cv', ''),
                                     photo=sanitized_data.get('photo', ''),
@@ -2514,17 +3026,19 @@ def upload_participants(event_id):
                             logging.error(f"Error processing row: {e}")
                             continue
                     
-                    logging.info(f"Attempting to commit changes to database: {participants_added} added, {participants_updated} updated")
+                    logging.info(f"Attempting to commit changes to database: {participants_added} added, {participants_updated} updated, {participants_enriched} enriched")
                     db.session.commit()
-                    logging.info(f"Successfully committed: {participants_added} added, {participants_updated} updated")
+                    logging.info(f"Successfully committed: {participants_added} added, {participants_updated} updated, {participants_enriched} enriched from master")
                     
                     # 결과 메시지 생성
                     result_message = f'업로드 완료 - 추가: {participants_added}명, 업데이트: {participants_updated}명'
+                    if participants_enriched:
+                        result_message += f', 기존 명단에서 프로필 보완: {participants_enriched}명'
                     if missing_columns:
                         result_message += f' (누락 컬럼: {", ".join(missing_columns)})'
                         logging.warning(f"Missing columns: {missing_columns}")
                     
-                    logging.info(f"Upload completed successfully. Added: {participants_added}, Updated: {participants_updated}")
+                    logging.info(f"Upload completed successfully. Added: {participants_added}, Updated: {participants_updated}, Enriched: {participants_enriched}")
                     
                     # JSON 응답 반환 (AJAX 요청인 경우)
                     return jsonify({
@@ -2532,6 +3046,7 @@ def upload_participants(event_id):
                         'message': result_message,
                         'added': participants_added,
                         'updated': participants_updated,
+                        'enriched': participants_enriched,
                         'missing_columns': missing_columns if missing_columns else []
                     }), 200
                 except Exception as e:
@@ -4480,10 +4995,31 @@ def _abstract_run(paragraph, text, size=11, bold=False, color=None, underline=Fa
 def _build_abstract_docx_bytes(draft):
     from docx import Document
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Mm, Inches, Pt
+    from docx.oxml.ns import qn
     from io import BytesIO
 
     draft = draft or {}
     doc = Document()
+    section = doc.sections[0]
+    section.page_width = Mm(210)
+    section.page_height = Mm(297)
+    section.left_margin = Inches(1)
+    section.right_margin = Inches(1)
+    section.top_margin = Inches(1)
+    section.bottom_margin = Inches(1)
+
+    normal = doc.styles['Normal']
+    normal.font.name = 'Calibri'
+    normal.font.size = Pt(11)
+    normal_rpr = normal.element.get_or_add_rPr()
+    normal_fonts = normal_rpr.get_or_add_rFonts()
+    normal_fonts.set(qn('w:ascii'), 'Calibri')
+    normal_fonts.set(qn('w:hAnsi'), 'Calibri')
+    normal_fonts.set(qn('w:eastAsia'), 'Malgun Gothic')
+    normal.paragraph_format.space_after = Pt(8)
+    normal.paragraph_format.line_spacing = 1.15
+
     navy = (61, 71, 153)
     presenting_blue = (61, 71, 153)
 
@@ -4564,81 +5100,172 @@ def _html_to_reportlab_fragments(value):
     return parts
 
 
+def _first_existing_font(*paths):
+    for path in paths:
+        if path and os.path.isfile(path):
+            return path
+    return None
+
+
+def _try_register_ttfont(name, path):
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    if not path:
+        return False
+    if name in pdfmetrics.getRegisteredFontNames():
+        return True
+    try:
+        pdfmetrics.registerFont(TTFont(name, path))
+        return True
+    except Exception as e:
+        logging.warning(f'PDF 폰트 등록 실패 ({name}: {path}): {e}')
+        return False
+
+
+def _register_abstract_pdf_fonts():
+    """Word와 맞춰 영문 Calibri, 한글 맑은 고딕을 등록. 없으면 가까운 대체 폰트."""
+    from reportlab.pdfbase import pdfmetrics
+
+    home_fonts = os.path.expanduser('~/Library/Fonts')
+    word_fonts = '/Applications/Microsoft Word.app/Contents/Resources/DFonts'
+
+    latin = _first_existing_font(
+        os.path.join(home_fonts, 'calibri.ttf'),
+        os.path.join(home_fonts, 'Calibri.ttf'),
+        os.path.join(word_fonts, 'Calibri.ttf'),
+        os.path.join(word_fonts, 'calibri.ttf'),
+        '/usr/share/fonts/truetype/crosextra/Carlito-Regular.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf',
+        '/System/Library/Fonts/Supplemental/Arial.ttf',
+        'C:/Windows/Fonts/calibri.ttf',
+        'C:/Windows/Fonts/arial.ttf',
+    )
+    latin_bold = _first_existing_font(
+        os.path.join(home_fonts, 'calibrib.ttf'),
+        os.path.join(home_fonts, 'Calibrib.ttf'),
+        os.path.join(word_fonts, 'Calibrib.ttf'),
+        '/usr/share/fonts/truetype/crosextra/Carlito-Bold.ttf',
+        '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf',
+        '/System/Library/Fonts/Supplemental/Arial Bold.ttf',
+        'C:/Windows/Fonts/calibrib.ttf',
+    )
+    korean = _first_existing_font(
+        os.path.join(home_fonts, 'malgun.ttf'),
+        os.path.join(word_fonts, 'malgun.ttf'),
+        'C:/Windows/Fonts/malgun.ttf',
+        '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
+        os.path.join(home_fonts, 'NanumGothic.ttf'),
+        '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
+    )
+    korean_bold = _first_existing_font(
+        os.path.join(home_fonts, 'malgunbd.ttf'),
+        os.path.join(word_fonts, 'malgunbd.ttf'),
+        'C:/Windows/Fonts/malgunbd.ttf',
+        '/usr/share/fonts/truetype/nanum/NanumGothicBold.ttf',
+        os.path.join(home_fonts, 'NanumBarunGothicBold.ttf'),
+        korean,
+    )
+
+    latin_name = 'Helvetica'
+    if _try_register_ttfont('AbstractLatin', latin):
+        latin_name = 'AbstractLatin'
+        if not _try_register_ttfont('AbstractLatin-Bold', latin_bold):
+            _try_register_ttfont('AbstractLatin-Bold', latin)
+        try:
+            pdfmetrics.registerFontFamily(
+                'AbstractLatin',
+                normal='AbstractLatin',
+                bold='AbstractLatin-Bold',
+                italic='AbstractLatin',
+                boldItalic='AbstractLatin-Bold',
+            )
+        except Exception:
+            pass
+
+    korean_name = latin_name
+    if _try_register_ttfont('AbstractKorean', korean):
+        korean_name = 'AbstractKorean'
+        if not _try_register_ttfont('AbstractKorean-Bold', korean_bold):
+            _try_register_ttfont('AbstractKorean-Bold', korean)
+        try:
+            pdfmetrics.registerFontFamily(
+                'AbstractKorean',
+                normal='AbstractKorean',
+                bold='AbstractKorean-Bold',
+                italic='AbstractKorean',
+                boldItalic='AbstractKorean-Bold',
+            )
+        except Exception:
+            pass
+
+    return latin_name, korean_name
+
+
+def _pdf_mixed_font_markup(text, korean_font, latin_font=None):
+    """한글은 맑은 고딕, 나머지는 Calibri가 쓰이도록 구간을 나눈다."""
+    text = text or ''
+    if not text:
+        return ''
+    if not korean_font or korean_font == latin_font:
+        return escape(text)
+
+    chunks = []
+    for match in re.finditer(r'[\uac00-\ud7a3]+|[^\uac00-\ud7a3]+', text):
+        part = match.group(0)
+        escaped = escape(part)
+        if re.search(r'[\uac00-\ud7a3]', part):
+            chunks.append(f'<font name="{korean_font}">{escaped}</font>')
+        else:
+            chunks.append(escaped)
+    return ''.join(chunks)
+
+
 def _build_abstract_pdf_bytes(draft):
     from io import BytesIO
     from reportlab.lib import colors
     from reportlab.lib.enums import TA_CENTER, TA_LEFT
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
-    from reportlab.lib.units import mm
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
-    import platform
+    from reportlab.lib.units import inch
+    from reportlab.platypus import Paragraph, SimpleDocTemplate
 
     draft = draft or {}
+    latin_font, korean_font = _register_abstract_pdf_fonts()
     buffer = BytesIO()
     pdf = SimpleDocTemplate(
         buffer,
         pagesize=A4,
-        leftMargin=20 * mm,
-        rightMargin=20 * mm,
-        topMargin=18 * mm,
-        bottomMargin=18 * mm,
+        leftMargin=inch,
+        rightMargin=inch,
+        topMargin=inch,
+        bottomMargin=inch,
     )
-
-    # Word 기본 폰트는 보통 Calibri인데, ReportLab은 시스템 폰트가 동일하게 없으면
-    # 글자 폭/줄바꿈이 달라질 수 있습니다.
-    # 우선 본문에 한글이 있으면 한글 폰트(가능한 경우)로, 아니면 Helvetica로 통일합니다.
-    draft_text = json.dumps(draft or {}, ensure_ascii=False)
-    contains_korean = bool(re.search(r'[가-힣]', draft_text))
-
-    font_name = 'Helvetica'
-    font_paths = [
-        '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
-        '/Library/Fonts/AppleGothic.ttf',
-        '/System/Library/Fonts/AppleGothic.ttf',
-        '/System/Library/Fonts/Supplemental/AppleSDGothicNeo-Regular.ttf',
-    ] if platform.system() == 'Darwin' else [
-        '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-        'C:/Windows/Fonts/malgun.ttf',
-    ]
-    if contains_korean:
-        for path in font_paths:
-            try:
-                if os.path.exists(path):
-                    pdfmetrics.registerFont(TTFont('AbstractKorean', path))
-                    font_name = 'AbstractKorean'
-                    break
-            except Exception:
-                continue
 
     styles = getSampleStyleSheet()
     navy = colors.HexColor('#3d4799')
-    presenting_blue = colors.HexColor('#3d4799')
     body_style = ParagraphStyle(
         'AbstractBody',
         parent=styles['Normal'],
-        fontName=font_name,
+        fontName=latin_font,
         fontSize=11,
-        leading=15,
+        leading=13,
         alignment=TA_LEFT,
-        spaceAfter=4,
+        spaceAfter=8,
     )
     topic_style = ParagraphStyle(
         'AbstractTopic',
         parent=body_style,
         fontSize=11,
-        leading=14,
-        spaceAfter=10,
+        leading=13,
+        spaceAfter=8,
     )
     title_style = ParagraphStyle(
         'AbstractTitle',
         parent=body_style,
         alignment=TA_CENTER,
         fontSize=16,
-        leading=20,
+        leading=18,
         spaceAfter=8,
     )
     author_style = ParagraphStyle(
@@ -4646,8 +5273,8 @@ def _build_abstract_pdf_bytes(draft):
         parent=body_style,
         alignment=TA_CENTER,
         fontSize=11,
-        leading=15,
-        spaceAfter=6,
+        leading=13,
+        spaceAfter=8,
     )
     affil_style = ParagraphStyle(
         'AbstractAffil',
@@ -4655,32 +5282,33 @@ def _build_abstract_pdf_bytes(draft):
         alignment=TA_CENTER,
         fontSize=10,
         leading=13,
-        spaceAfter=14,
+        spaceAfter=8,
     )
     heading_style = ParagraphStyle(
         'AbstractHeading',
         parent=body_style,
         fontSize=12,
-        leading=15,
+        leading=14,
         textColor=navy,
-        spaceBefore=8,
-        spaceAfter=4,
+        spaceBefore=0,
+        spaceAfter=8,
     )
 
     story = []
     topics = ' / '.join(part for part in [draft.get('topic_first'), draft.get('topic_second')] if part)
     if topics:
-        story.append(Paragraph(topics, topic_style))
+        story.append(Paragraph(_pdf_mixed_font_markup(topics, korean_font, latin_font), topic_style))
 
-    title = escape(draft.get('title') or '')
+    title = draft.get('title') or ''
     if title:
-        story.append(Paragraph(f'<b>{title}</b>', title_style))
+        story.append(Paragraph(f'<b>{_pdf_mixed_font_markup(title, korean_font, latin_font)}</b>', title_style))
 
     author_chunks = []
     for author in draft.get('authors') or []:
-        name = escape(f"{author.get('first_name') or ''} {author.get('family_name') or ''}".strip())
-        if not name:
+        raw_name = f"{author.get('first_name') or ''} {author.get('family_name') or ''}".strip()
+        if not raw_name:
             continue
+        name = _pdf_mixed_font_markup(raw_name, korean_font, latin_font)
         if author.get('presenting'):
             name = f'<font color="#3d4799">{name}</font>'
         name = f'<u><b>{name}</b></u>'
@@ -4695,14 +5323,16 @@ def _build_abstract_pdf_bytes(draft):
     for index, inst in enumerate(draft.get('institutions') or []):
         label = escape(str(inst.get('no') or index + 1))
         line = ', '.join(
-            escape(part) for part in [
+            part for part in [
                 inst.get('department') or '',
                 inst.get('organization') or '',
                 inst.get('country') or '',
             ] if part
         )
         if line:
-            affil_chunks.append(f'<super>{label}</super><b>{line}</b>')
+            affil_chunks.append(
+                f'<super>{label}</super><b>{_pdf_mixed_font_markup(line, korean_font, latin_font)}</b>'
+            )
     if affil_chunks:
         story.append(Paragraph(', '.join(affil_chunks), affil_style))
 
@@ -4714,12 +5344,11 @@ def _build_abstract_pdf_bytes(draft):
     ):
         story.append(Paragraph(f'<b>{heading}</b>', heading_style))
         fragments = _html_to_reportlab_fragments(draft.get(key) or '')
-        # fragment 각각을 Paragraph로 만들면 줄바꿈/여백이 Word와 달라질 수 있어
-        # 한 섹션을 한 Paragraph로 합쳐서 <br/>로 구분합니다.
-        body_html = '<br/>'.join(escape(p) for p in fragments if p)
+        body_html = '<br/>'.join(
+            _pdf_mixed_font_markup(part, korean_font, latin_font) for part in fragments if part
+        )
         if body_html:
             story.append(Paragraph(body_html, body_style))
-        story.append(Spacer(1, 4))
 
     pdf.build(story)
     return buffer.getvalue()
@@ -6019,6 +6648,426 @@ def get_event_program(event_id):
         logging.error(f"Error getting event program: {str(e)}")
         return jsonify({'error': '프로그램 데이터 조회 중 오류가 발생했습니다.'}), 500
 
+
+ABSTRACT_ASSIGN_TRACKS = (
+    {
+        'id': 'datablitz',
+        'label': 'Datablitz',
+        'abbrev': 'DB',
+        'needles': ('datablitz', 'data blitz'),
+    },
+    {
+        'id': 'oral',
+        'label': 'Oral Presentation',
+        'abbrev': 'OP',
+        'needles': ('oral presentation',),
+    },
+    {
+        'id': 'poster',
+        'label': 'Poster Presentation (e-poster)',
+        'abbrev': 'PP',
+        'needles': ('poster presentation', 'e-poster', 'eposter', 'poster session', 'poster'),
+    },
+)
+
+
+def _event_program_file(event_id):
+    return os.path.join('uploads', f'event_program_{event_id}.json')
+
+
+def _load_event_program_sessions(event_id):
+    path = _event_program_file(event_id)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f) or {}
+        sessions = data.get('sessions') or []
+        return sessions if isinstance(sessions, list) else []
+    except (TypeError, ValueError, OSError) as e:
+        logging.error(f'Error loading program for event {event_id}: {e}')
+        return []
+
+
+def _write_event_program_sessions(event_id, sessions):
+    path = _event_program_file(event_id)
+    os.makedirs('uploads', exist_ok=True)
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump({'sessions': sessions}, f, ensure_ascii=False, indent=2)
+
+
+def _classify_abstract_track(session):
+    if not isinstance(session, dict):
+        return None
+    title = (session.get('title') or '').strip().lower()
+    stype = (session.get('sessionType') or '').strip().lower()
+    blob = re.sub(r'\s+', ' ', f'{stype} {title}').strip()
+    compact = re.sub(r'[\s\-]+', '', blob)
+    tracks = {track['id']: track for track in ABSTRACT_ASSIGN_TRACKS}
+
+    if 'datablitz' in compact:
+        return tracks['datablitz']
+    if (
+        'eposter' in compact
+        or 'posterpresentation' in compact
+        or 'postersession' in compact
+        or re.search(r'\bposter\b', blob)
+    ):
+        return tracks['poster']
+    if 'oralpresentation' in compact or re.search(r'\boral\b', blob):
+        return tracks['oral']
+    return None
+
+
+def _abstract_session_number(session, track=None):
+    title = (session.get('title') or '').strip()
+    stype = (session.get('sessionType') or '').strip()
+    shown = (
+        session.get('displayAbbreviation')
+        or session.get('sessionAbbreviation')
+        or ''
+    ).strip()
+    blob = f'{title} {stype} {shown}'.strip()
+    patterns = (
+        r'(?:datablitz|data\s*blitz|oral(?:\s*presentation)?|poster(?:\s*presentation)?|e-?poster)\s*[-_]?\s*(\d+)',
+        r'\b(?:DB|OP|PP)\s*[-_]?\s*(\d+)\b',
+        r'(\d+)\s*$',
+    )
+    for pattern in patterns:
+        match = re.search(pattern, blob, re.I)
+        if match:
+            return match.group(1)
+    match = re.search(r'(\d+)\s*$', title)
+    return match.group(1) if match else ''
+
+
+def _session_abstract_role(session):
+    track = _classify_abstract_track(session)
+    if not track:
+        return ''
+    number = _abstract_session_number(session, track)
+    return f"{track['abbrev']} {number}" if number else track['abbrev']
+
+
+def _is_abstract_session_role(part):
+    return bool(re.match(r'^(DB|OP|PP)(?:\s+\d+)?$', (part or '').strip(), re.I))
+
+
+def _program_person_id(entity):
+    if not isinstance(entity, dict):
+        return 0
+    raw = entity.get('participantId')
+    if raw is None:
+        raw = entity.get('id')
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _hhmm_to_minutes(value):
+    text = str(value or '').strip()
+    parts = re.split(r'[:.]', text)
+    if len(parts) < 2:
+        return None
+    try:
+        return int(parts[0]) * 60 + int(parts[1])
+    except (TypeError, ValueError):
+        return None
+
+
+def _minutes_to_hhmm(total):
+    total = max(0, int(total))
+    return f'{total // 60:02d}:{total % 60:02d}'
+
+
+def _split_time_range(start_time, end_time, count):
+    start_m = _hhmm_to_minutes(start_time)
+    end_m = _hhmm_to_minutes(end_time)
+    if start_m is None or end_m is None or count <= 0 or end_m <= start_m:
+        return []
+    span = end_m - start_m
+    slots = []
+    for i in range(count):
+        slot_start = start_m + (span * i) // count
+        slot_end = start_m + (span * (i + 1)) // count
+        slots.append((_minutes_to_hhmm(slot_start), _minutes_to_hhmm(slot_end)))
+    return slots
+
+
+def _redistribute_session_speaker_times(session):
+    speakers = session.get('speakers') or []
+    if not speakers:
+        session['speakers'] = []
+        return
+    slots = _split_time_range(session.get('startTime'), session.get('endTime'), len(speakers))
+    for speaker, (start, end) in zip(speakers, slots):
+        if isinstance(speaker, dict):
+            speaker['startTime'] = start
+            speaker['endTime'] = end
+
+
+def _participant_display_name(participant):
+    return (
+        (participant.name_kor or '').strip()
+        or (participant.name_eng or '').strip()
+        or f'{(participant.first_name or "").strip()} {(participant.family_name or "").strip()}'.strip()
+        or (participant.email or '').strip()
+        or f'참가자 {participant.id}'
+    )
+
+
+def _replace_abstract_track_role(participant, abbrev):
+    keep = []
+    for part in (participant.role or '').replace('·', '/').split('/'):
+        part = part.strip()
+        if not part or _is_abstract_session_role(part):
+            continue
+        if part not in keep:
+            keep.append(part)
+    if '초록' not in keep:
+        keep.insert(0, '초록')
+    if abbrev and abbrev not in keep:
+        try:
+            insert_at = keep.index('초록') + 1
+        except ValueError:
+            insert_at = 0
+        keep.insert(insert_at, abbrev)
+    participant.role = '/'.join(keep)
+
+
+def _build_abstract_program_speaker(participant, abstract, abbrev, start_time, end_time):
+    name = _participant_display_name(participant)
+    return {
+        'participantId': participant.id,
+        'id': participant.id,
+        'name': name,
+        'name_kor': participant.name_kor or '',
+        'name_eng': participant.name_eng or '',
+        'first_name': participant.first_name or '',
+        'family_name': participant.family_name or '',
+        'email': participant.email or '',
+        'affiliation': participant.affiliation_kor or participant.affiliation_eng or '',
+        'affiliation_kor': participant.affiliation_kor or '',
+        'affiliation_eng': participant.affiliation_eng or '',
+        'department_kor': participant.department_kor or '',
+        'department_eng': participant.department_eng or '',
+        'country': participant.country or '',
+        'country_code': participant.country_code or '',
+        'position': participant.position or '',
+        'topic': (abstract.title if abstract else '') or name,
+        'startTime': start_time,
+        'endTime': end_time,
+        'from_abstract': True,
+        'abstract_abbrev': abbrev,
+    }
+
+
+@app.route('/event/<int:event_id>/abstract_submitters')
+def abstract_submitters_page(event_id):
+    Event.query.get_or_404(event_id)
+    return redirect(url_for('event_program', event_id=event_id))
+
+
+@app.route('/api/event/<int:event_id>/abstract_submitters')
+def api_abstract_submitters(event_id):
+    Event.query.get_or_404(event_id)
+    rows = AbstractSubmission.query.filter(
+        AbstractSubmission.event_id == event_id,
+        db.or_(
+            AbstractSubmission.status == 'submitted',
+            AbstractSubmission.status.is_(None),
+        ),
+    ).order_by(AbstractSubmission.created_at.desc()).all()
+
+    latest_by_pid = {}
+    for row in rows:
+        latest_by_pid.setdefault(row.participant_id, row)
+
+    assigned = {}
+    for index, session in enumerate(_load_event_program_sessions(event_id)):
+        track = _classify_abstract_track(session)
+        if not track:
+            continue
+        for speaker in session.get('speakers') or []:
+            pid = _program_person_id(speaker)
+            if pid:
+                assigned[pid] = {
+                    'session_index': index,
+                    'session_title': session.get('title') or track['label'],
+                    'abbrev': speaker.get('abstract_abbrev') or _session_abstract_role(session) or track['abbrev'],
+                    'start_time': speaker.get('startTime') or session.get('startTime') or '',
+                    'end_time': speaker.get('endTime') or session.get('endTime') or '',
+                }
+
+    people = []
+    if latest_by_pid:
+        participants = Participant.query.filter(
+            Participant.event_id == event_id,
+            Participant.id.in_(list(latest_by_pid.keys())),
+        ).all()
+        by_id = {p.id: p for p in participants}
+        for pid, abstract in latest_by_pid.items():
+            participant = by_id.get(pid)
+            if not participant:
+                continue
+            info = assigned.get(pid) or {}
+            people.append({
+                'id': participant.id,
+                'name': _participant_display_name(participant),
+                'email': participant.email or '',
+                'affiliation': participant.affiliation_kor or participant.affiliation_eng or '',
+                'department': participant.department_kor or participant.department_eng or '',
+                'abstract_title': abstract.title or '',
+                'role': participant.role or '',
+                'assigned_session': info.get('session_title') or '',
+                'assigned_abbrev': info.get('abbrev') or '',
+                'assigned_time': (
+                    f"{info['start_time']}-{info['end_time']}"
+                    if info.get('start_time') and info.get('end_time') else ''
+                ),
+            })
+    people.sort(key=lambda item: (item['name'] or '').lower())
+    return jsonify({'people': people})
+
+
+@app.route('/api/event/<int:event_id>/abstract_assign_sessions')
+def api_abstract_assign_sessions(event_id):
+    Event.query.get_or_404(event_id)
+    grouped = {track['id']: {'track': track, 'sessions': []} for track in ABSTRACT_ASSIGN_TRACKS}
+    for index, session in enumerate(_load_event_program_sessions(event_id)):
+        track = _classify_abstract_track(session)
+        if not track:
+            continue
+        grouped[track['id']]['sessions'].append({
+            'index': index,
+            'title': session.get('title') or track['label'],
+            'session_type': session.get('sessionType') or '',
+            'date': session.get('date') or '',
+            'start_time': session.get('startTime') or '',
+            'end_time': session.get('endTime') or '',
+            'venue': session.get('venue') or '',
+            'speaker_count': len(session.get('speakers') or []),
+            'abbrev': track['abbrev'],
+        })
+    result = []
+    for track in ABSTRACT_ASSIGN_TRACKS:
+        bucket = grouped[track['id']]
+        result.append({
+            'id': track['id'],
+            'label': track['label'],
+            'abbrev': track['abbrev'],
+            'sessions': bucket['sessions'],
+        })
+    return jsonify({'tracks': result})
+
+
+@app.route('/api/event/<int:event_id>/abstract_assign', methods=['POST'])
+def api_abstract_assign(event_id):
+    Event.query.get_or_404(event_id)
+    data = request.get_json(silent=True) or {}
+    try:
+        session_index = int(data.get('session_index'))
+    except (TypeError, ValueError):
+        return jsonify({'error': '세션을 선택해주세요.'}), 400
+
+    participant_ids = []
+    for raw in data.get('participant_ids') or []:
+        try:
+            pid = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if pid > 0 and pid not in participant_ids:
+            participant_ids.append(pid)
+    if not participant_ids:
+        return jsonify({'error': '배정할 초록 제출자를 선택해주세요.'}), 400
+
+    sessions = _load_event_program_sessions(event_id)
+    if session_index < 0 or session_index >= len(sessions):
+        return jsonify({'error': '선택한 세션을 프로그램에서 찾을 수 없습니다.'}), 404
+
+    target = sessions[session_index]
+    track = _classify_abstract_track(target)
+    if not track:
+        return jsonify({'error': 'Datablitz, Oral Presentation, Poster Presentation 세션만 배정할 수 있습니다.'}), 400
+    role_label = _session_abstract_role(target)
+
+    participants = Participant.query.filter(
+        Participant.event_id == event_id,
+        Participant.id.in_(participant_ids),
+    ).all()
+    by_id = {p.id: p for p in participants}
+    missing = [pid for pid in participant_ids if pid not in by_id]
+    if missing:
+        return jsonify({'error': '선택한 참가자를 찾을 수 없습니다.'}), 400
+
+    abstracts = {}
+    for row in AbstractSubmission.query.filter(
+        AbstractSubmission.event_id == event_id,
+        AbstractSubmission.participant_id.in_(participant_ids),
+        db.or_(
+            AbstractSubmission.status == 'submitted',
+            AbstractSubmission.status.is_(None),
+        ),
+    ).order_by(AbstractSubmission.created_at.desc()).all():
+        abstracts.setdefault(row.participant_id, row)
+
+    selected = set(participant_ids)
+    for session in sessions:
+        session_track = _classify_abstract_track(session)
+        if not session_track:
+            continue
+        speakers = [s for s in (session.get('speakers') or []) if _program_person_id(s) not in selected]
+        if len(speakers) != len(session.get('speakers') or []):
+            session['speakers'] = speakers
+            _redistribute_session_speaker_times(session)
+
+    target_speakers = list(target.get('speakers') or [])
+    existing_ids = {_program_person_id(s) for s in target_speakers}
+    for pid in participant_ids:
+        if pid in existing_ids:
+            continue
+        participant = by_id[pid]
+        speaker = _build_abstract_program_speaker(
+            participant,
+            abstracts.get(pid),
+            role_label,
+            target.get('startTime') or '',
+            target.get('endTime') or '',
+        )
+        target_speakers.append(speaker)
+        existing_ids.add(pid)
+        _replace_abstract_track_role(participant, role_label)
+
+    target['speakers'] = target_speakers
+    _redistribute_session_speaker_times(target)
+
+    for session in sessions:
+        label = _session_abstract_role(session)
+        if not label:
+            continue
+        for speaker in session.get('speakers') or []:
+            if isinstance(speaker, dict) and (speaker.get('from_abstract') or speaker.get('abstract_abbrev')):
+                speaker['abstract_abbrev'] = label
+
+    try:
+        _write_event_program_sessions(event_id, sessions)
+        _sync_program_roles_to_participants(event_id, sessions)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f'Error assigning abstract speakers for event {event_id}: {e}')
+        return jsonify({'error': '연자 배정 중 오류가 발생했습니다.'}), 500
+
+    return jsonify({
+        'success': True,
+        'assigned': len(participant_ids),
+        'session_title': target.get('title') or track['label'],
+        'abbrev': role_label,
+        'speaker_count': len(target.get('speakers') or []),
+    })
+
+
 def _iter_program_session_people(session: dict):
     """세션 JSON에서 (인물 dict, 역할) 목록을 반환."""
     people = []
@@ -6035,8 +7084,13 @@ def _iter_program_session_people(session: dict):
             },
             '좌장',
         ))
+    session_role = _session_abstract_role(session)
     for speaker in session.get('speakers') or []:
-        people.append((speaker, '연자'))
+        stored = (speaker.get('abstract_abbrev') or '').strip()
+        if stored or speaker.get('from_abstract'):
+            people.append((speaker, session_role or stored))
+        else:
+            people.append((speaker, '연자'))
     return people
 
 
@@ -6086,7 +7140,20 @@ def _sync_program_roles_to_participants(event_id: int, sessions: list) -> int:
         if not participant or not roles:
             continue
         before = participant.role or ''
-        _enrich_participant_from_program_data(participant, {'role': '/'.join(roles)})
+        abstract_roles = [role for role in roles if _is_abstract_session_role(role)]
+        other_roles = [role for role in roles if not _is_abstract_session_role(role)]
+        if abstract_roles:
+            _replace_abstract_track_role(participant, abstract_roles[-1])
+            if other_roles:
+                _enrich_participant_from_program_data(participant, {
+                    'role': '/'.join(other_roles),
+                    'from_program_register': True,
+                })
+        else:
+            _enrich_participant_from_program_data(participant, {
+                'role': '/'.join(roles),
+                'from_program_register': True,
+            })
         if (participant.role or '') != before:
             updated += 1
     return updated
@@ -6802,8 +7869,36 @@ def _parse_optional_birth_date(value):
         return None
 
 
+def _is_actual_event_registration(registration) -> bool:
+    """결제·신청이 끝난 실제 행사 등록인지. 미등록·빈 값은 False."""
+    value = (registration or '').strip()
+    return bool(value) and value != '미등록'
+
+
+def _apply_program_registration_status(participant: Participant) -> None:
+    """프로그램으로 좌장·연자를 넣을 때 등록구분은 건드리지 않는다. 비어 있으면 미등록."""
+    if not (participant.registration or '').strip():
+        participant.registration = '미등록'
+
+
+def _resolve_bulk_registration(row_value, default_registration, existing_registration=None) -> str:
+    """참가자 업로드: 파일 값 또는 선택한 등록구분. 이미 사전등록된 사람은 미등록으로 내리지 않는다."""
+    incoming = (row_value or '').strip() or (default_registration or '미등록').strip() or '미등록'
+    existing = (existing_registration or '').strip()
+    if _is_actual_event_registration(existing) and not _is_actual_event_registration(incoming):
+        return existing
+    return incoming
+
+
+def _parse_upload_default_registration(raw) -> str:
+    value = (raw or '').strip()
+    if value in ('미등록', '사전등록'):
+        return value
+    return '미등록'
+
+
 def _enrich_participant_from_program_data(participant: Participant, data: dict, member: Optional[Member] = None) -> None:
-    """프로그램에서 참가자로 연결할 때 역할·국가·등록구분·프로필 반영."""
+    """프로그램에서 참가자로 연결할 때 역할·국가·프로필 반영. 기존 등록구분은 유지."""
     role = (data.get('role') or '').strip()
     if role:
         existing_roles = [
@@ -6824,10 +7919,17 @@ def _enrich_participant_from_program_data(participant: Participant, data: dict, 
     if country_code:
         participant.country_code = country_code
 
-    if data.get('from_program_register') or data.get('registration'):
-        participant.registration = (data.get('registration') or '사전등록').strip()
+    # 프로그램으로 넣었다고 이미 등록된 사람의 등록구분을 바꾸지 않는다.
+    # 비어 있으면 미등록으로만 채운다. 사전등록은 그대로 둔다.
+    if data.get('from_program_register'):
+        _apply_program_registration_status(participant)
+    elif not _is_actual_event_registration(participant.registration):
+        incoming = (data.get('registration') or '').strip()
+        if incoming:
+            participant.registration = incoming
 
     # 비어 있는 프로필 필드는 회원/역대 데이터로 채움
+    fill_participant_missing_from_master(participant)
     if member:
         if not participant.birth_date and member.birth_date:
             participant.birth_date = member.birth_date
@@ -6883,11 +7985,12 @@ def _create_participant_from_member(event_id: int, member: Member, data: Optiona
       role=(data.get('role') or '').strip(),
       country=(data.get('country') or '').strip(),
       country_code=(data.get('country_code') or '').strip(),
-      registration=(data.get('registration') or '사전등록').strip(),
+      registration=(data.get('registration') or '미등록').strip(),
       accept_or_decline='대기',
   )
   db.session.add(participant)
   db.session.flush()
+  fill_participant_missing_from_master(participant)
   return participant
 
 
@@ -6897,8 +8000,6 @@ def _create_participant_from_history(event_id: int, data: dict) -> Participant:
   email = (data.get('email') or '').strip()
   if not name_kor and not name_eng:
       raise ValueError('이름 정보가 없습니다.')
-  if not email:
-      raise ValueError('이메일이 없어 참가자로 등록할 수 없습니다.')
 
   participant = Participant(
       event_id=event_id,
@@ -6920,11 +8021,12 @@ def _create_participant_from_history(event_id: int, data: dict) -> Participant:
       role=(data.get('role') or '').strip(),
       country=(data.get('country') or '').strip(),
       country_code=(data.get('country_code') or '').strip(),
-      registration=(data.get('registration') or '사전등록').strip(),
+      registration=(data.get('registration') or '미등록').strip(),
       accept_or_decline='대기',
   )
   db.session.add(participant)
   db.session.flush()
+  fill_participant_missing_from_master(participant)
   return participant
 
 
@@ -7061,9 +8163,10 @@ def add_event_participant(event_id):
             affiliation_kor=data.get('affiliation', ''),
             name_eng=data.get('name_eng', ''),
             phone=data.get('phone', ''),
-            registration=data.get('registration', 'Online'),  # 실제 컬럼
-            accept_or_decline=data.get('accept_or_decline', 'Accept')  # 실제 컬럼
+            registration=data.get('registration') or '미등록',
+            accept_or_decline=data.get('accept_or_decline') or '대기'
         )
+        fill_participant_missing_from_master(participant)
         
         db.session.add(participant)
         db.session.commit()
@@ -7085,6 +8188,23 @@ def add_event_participant(event_id):
         logging.error(f"Error adding participant: {str(e)}")
         logging.error(f"Full traceback: {error_details}")
         return jsonify({'error': f'{str(e)}'}), 500
+
+
+REGISTRATION_OPTIONS = ('미등록', '사전등록', '현장등록', 'VIP등록', '일반등록', '무료')
+
+
+@app.route('/api/participant/<int:participant_id>/registration', methods=['POST'])
+def update_participant_registration(participant_id):
+    """참가자 목록에서 등록구분만 간단히 변경."""
+    participant = Participant.query.get_or_404(participant_id)
+    data = request.get_json(silent=True) or {}
+    value = (data.get('registration') or '').strip()
+    if value not in REGISTRATION_OPTIONS:
+        return jsonify({'success': False, 'error': '허용되지 않는 등록구분입니다.'}), 400
+    participant.registration = value
+    db.session.commit()
+    return jsonify({'success': True, 'registration': value})
+
 
 @app.route('/api/event/<int:event_id>/date', methods=['PUT'])
 def update_event_date(event_id):

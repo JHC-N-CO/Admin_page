@@ -252,7 +252,9 @@
                                     <td data-column="license_number">{{ participant[17] }}</td>
                                     <td data-column="birth_date">{{ participant[18].strftime('%Y-%m-%d') if participant[18] else '' }}</td>
                                     <td data-column="workplace_type">{{ participant[19] }}</td>
-                                    <td data-column="registration">{{ participant[20] }}</td>
+                                    <td data-column="registration">
+                                        <button type="button" class="registration-link" data-participant-id="{{ participant[0] }}" data-registration="{{ participant[20] or '미등록' }}">{{ participant[20] or '미등록' }}</button>
+                                    </td>
                                     <td data-column="remark_user">{{ participant[27] }}</td>
                                     <td data-column="remark_admin">{{ participant[28] }}</td>
                                     <td data-column="check_in_time" class="check-in-time">{{ participant[29] }}</td>
@@ -446,6 +448,15 @@
         </div>
     </div>
         
+    <div id="registrationPop" class="registration-pop" hidden>
+        <button type="button" data-value="미등록">미등록</button>
+        <button type="button" data-value="사전등록">사전등록</button>
+        <button type="button" data-value="현장등록">현장등록</button>
+        <button type="button" data-value="VIP등록">VIP등록</button>
+        <button type="button" data-value="일반등록">일반등록</button>
+        <button type="button" data-value="무료">무료</button>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="../static/js/admin_participants.js"></script>
     <script src="{{ url_for('static', filename='js/email_compose.js') }}"></script>

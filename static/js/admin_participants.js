@@ -985,3 +985,78 @@ function closeRoleDlPops() {
 
 document.querySelector('.table-wrapper')?.addEventListener('scroll', closeRoleDlPops);
 window.addEventListener('resize', closeRoleDlPops);
+
+let registrationPopTrigger = null;
+
+function getRegistrationPop() {
+    return document.getElementById('registrationPop');
+}
+
+function closeRegistrationPop() {
+    const pop = getRegistrationPop();
+    if (pop) pop.hidden = true;
+    registrationPopTrigger = null;
+}
+
+function openRegistrationPop(trigger) {
+    const pop = getRegistrationPop();
+    if (!pop) return;
+    const current = trigger.getAttribute('data-registration') || '미등록';
+    pop.querySelectorAll('button').forEach((btn) => {
+        btn.classList.toggle('is-current', btn.getAttribute('data-value') === current);
+    });
+    pop.hidden = false;
+    const rect = trigger.getBoundingClientRect();
+    const popHeight = pop.offsetHeight;
+    let top = rect.bottom + 4;
+    if (top + popHeight > window.innerHeight - 8) {
+        top = Math.max(8, rect.top - popHeight - 4);
+    }
+    pop.style.left = `${Math.min(rect.left, window.innerWidth - pop.offsetWidth - 8)}px`;
+    pop.style.top = `${top}px`;
+    registrationPopTrigger = trigger;
+}
+
+document.addEventListener('click', function (event) {
+    const trigger = event.target.closest('.registration-link');
+    if (trigger) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (registrationPopTrigger === trigger) {
+            closeRegistrationPop();
+            return;
+        }
+        openRegistrationPop(trigger);
+        return;
+    }
+    if (!event.target.closest('#registrationPop')) {
+        closeRegistrationPop();
+    }
+});
+
+document.getElementById('registrationPop')?.addEventListener('click', async function (event) {
+    const btn = event.target.closest('button[data-value]');
+    if (!btn || !registrationPopTrigger) return;
+    event.preventDefault();
+    const value = btn.getAttribute('data-value');
+    const participantId = registrationPopTrigger.getAttribute('data-participant-id');
+    try {
+        const response = await fetch(`/api/participant/${participantId}/registration`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ registration: value }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+            throw new Error(data.error || '변경에 실패했습니다.');
+        }
+        registrationPopTrigger.textContent = data.registration;
+        registrationPopTrigger.setAttribute('data-registration', data.registration);
+        closeRegistrationPop();
+    } catch (error) {
+        alert(error.message);
+    }
+});
+
+document.querySelector('.table-wrapper')?.addEventListener('scroll', closeRegistrationPop);
+window.addEventListener('resize', closeRegistrationPop);
