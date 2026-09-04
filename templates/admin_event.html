@@ -3,13 +3,13 @@
 <head>
     <title>행사 관리</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_event.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_common.css') }}?v=20250902a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_event.css') }}?v=20250902a">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <!-- Removed inline <style>; all CSS is now in static/css/admin_event.css -->
 </head>
 <body>
     <div class="container">
-        <!-- 사이드바 -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Admin</h2>
@@ -28,61 +28,72 @@
             <div class="sidebar-footer">&copy; 2025. JHC Conference</div>
         </div>
 
-        <!-- 메인 콘텐츠 -->
         <div class="main-content">
             <div class="page-header">
                 <h1>행사 관리</h1>
-                <a href="/chairs_speakers_history" class="history-list-link">
-                    역대 좌장/연자 리스트
-                </a>
+                <a href="/chairs_speakers_history" class="back-link">← 역대 좌장/연자 리스트</a>
             </div>
-            
-            <div class="event-form">
-                <form action="/create_event" method="post">
-            <input type="text" name="name" placeholder="행사명" required>
-            <div class="date-picker-wrap">
-              <input type="text" id="start_date" name="start_date" placeholder="시작일 (YYYY/MM/DD)" required autocomplete="off">
-            </div>
-            <div class="date-picker-wrap">
-              <input type="text" id="end_date" name="end_date" placeholder="종료일 (YYYY/MM/DD)" required autocomplete="off">
-            </div>
-                    <button type="submit">행사 생성</button>
-          </form>
-        </div>
 
-            <div class="table-container">
-          <form action="/delete_events" method="post">
-                    <table>
-              <thead>
-                <tr>
-                  <th><input type="checkbox" onclick="toggleSelectAll(this, 'selected_events')"></th>
-                  <th>행사명</th>
-                  <th>행사 ID</th>
-                  <th>시작일</th>
-                  <th>종료일</th>
-                  <th>참가자 수</th>
-                  <th>참가자 등록</th>
-                  <th>초록 제출</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for event in events %}
-                <tr>
-                  <td><input type="checkbox" name="selected_events" value="{{ event[0] }}"></td>
-                  <td><a class="event-name-link" href="/event/{{ event[0] }}">{{ event[1] }}</a></td>
-                  <td>{{ event[4] }}</td>
-                  <td>{{ event[2] }}</td>
-                  <td>{{ event[3] }}</td>
-                  <td>{{ event[5] }}</td>
-                  <td><a class="action-link register-link" href="/register/{{ event[0] }}" target="_blank">참가자 등록</a></td>
-                  <td><a class="action-link register-link" href="/abstract/{{ event[0] }}" target="_blank">초록 제출</a></td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-                    <button type="submit" class="delete-btn">선택 삭제</button>
-          </form>
+            <div class="admin-toolbar">
+                <form action="/create_event" method="post" class="event-create-form">
+                    <input type="text" name="name" placeholder="행사명" required>
+                    <div class="date-picker-wrap">
+                        <input type="text" id="start_date" name="start_date" placeholder="시작일 (YYYY-MM-DD)" required autocomplete="off">
+                    </div>
+                    <div class="date-picker-wrap">
+                        <input type="text" id="end_date" name="end_date" placeholder="종료일 (YYYY-MM-DD)" required autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> 행사 생성
+                    </button>
+                </form>
             </div>
+
+            <form action="/delete_events" method="post">
+                <div class="admin-list-toolbar">
+                    <div></div>
+                    <div class="admin-list-actions">
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> 선택 삭제
+                        </button>
+                    </div>
+                </div>
+
+                <div class="admin-table-section">
+                    <div class="table-container">
+                        <div class="table-wrapper" id="events-table-wrapper">
+                            <table id="events-table">
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" onclick="toggleSelectAll(this, 'selected_events')"></th>
+                                        <th>행사명</th>
+                                        <th>행사 ID</th>
+                                        <th>시작일</th>
+                                        <th>종료일</th>
+                                        <th>참가자 수</th>
+                                        <th>참가자 등록</th>
+                                        <th>초록 제출</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in events %}
+                                    <tr>
+                                        <td><input type="checkbox" name="selected_events" value="{{ event[0] }}"></td>
+                                        <td><a class="event-name-link" href="/event/{{ event[0] }}">{{ event[1] }}</a></td>
+                                        <td>{{ event[4] }}</td>
+                                        <td>{{ event[2] }}</td>
+                                        <td>{{ event[3] }}</td>
+                                        <td>{{ event[5] }}</td>
+                                        <td><a class="action-link register-link" href="/register/{{ event[0] }}" target="_blank">참가자 등록</a></td>
+                                        <td><a class="action-link register-link" href="/abstract/{{ event[0] }}" target="_blank">초록 제출</a></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </form>
         </div>
     </div>
     <script src="../static/js/admin_event.js"></script>

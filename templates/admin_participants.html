@@ -3,7 +3,8 @@
 <head>
     <title>참가자 관리</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_participants.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_common.css') }}?v=20250903r">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_participants.css') }}?v=20250903r">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
@@ -36,158 +37,179 @@
                 <h1>참가자 관리</h1>
                 <a href="/" class="back-link">← 행사 관리 페이지로</a>
             </div>
-            <div class="event-info">
-                <h2>행사명: {{ event[1] }}</h2>
-                <div class="event-details">
-                    <div class="event-info-actions">
-                        <p>시작일: <span id="event-start-date">{{ event[2] }}</span></p>
-                        <p>종료일: <span id="event-end-date">{{ event[3] }}</span></p>
-                        <div class="location-info">
-                            {% if event[5] %}
-                                <p>장소: <span id="event-location">{{ event[5] }}</span></p>
-                            {% else %}
-                                <p>장소: <span id="event-location" class="no-location">장소가 설정되지 않았습니다</span></p>
-                            {% endif %}
-                        </div>
-                        <button type="button" class="edit-event-info-btn" onclick="editEventInfo()">행사 정보 편집</button>
-                    </div>
+
+            <div class="program-meta-bar">
+                <div class="program-meta-event">
+                    <span class="program-meta-title">{{ event[1] }}</span>
+                    <span class="program-meta-dates"><span id="event-start-date">{{ event[2] }}</span> – <span id="event-end-date">{{ event[3] }}</span></span>
+                    {% if event[5] %}
+                    <span class="program-meta-location"><span id="event-location">{{ event[5] }}</span></span>
+                    {% else %}
+                    <span class="program-meta-location"><span id="event-location" class="no-location">장소 미설정</span></span>
+                    {% endif %}
+                </div>
+                <div class="program-meta-controls">
+                    <button type="button" class="program-meta-icon-btn" onclick="editEventInfo()" title="행사 정보 편집">
+                        <i class="fas fa-pen"></i>
+                    </button>
                 </div>
             </div>
-            <div class="participants-section">
-                <form id="deleteForm" action="/delete_participants/{{ event[0] }}" method="post">
-                    <div class="action-buttons">
-                        <button type="button" class="secondary" onclick="openPopup('/add_participant/{{ event[0] }}')">참가자 추가</button>
-                        <button type="button" class="secondary" onclick="openPopup('/upload_participants/{{ event[0] }}')">참가자 업로드</button>
-                        <button type="button" class="secondary" onclick="openMemberSelector({{ event[0] }})">회원에서 추가</button>
-                        <button type="button" class="primary" onclick="openPopupAttn('/track_checkin/{{ event[0] }}')">출결 관리</button>
-                        <button type="button" class="primary" onclick="window.location.href='/event_program/{{ event[0] }}'">행사 프로그램 관리</button>
-                    </div>
-                    <div class="table-actions">
-                        <div class="search-box">
-                            <input type="text" id="search-input" placeholder="검색...">
-                        </div>
-                        <div class="column-selector">
-                            <button type="button" class="column-selector-btn" title="컬럼 설정">
-                                <i class="fas fa-cog"></i>
-                            </button>
-                            <div class="column-selector-dropdown">
-                                <div class="column-selector-header">표시할 컬럼 선택</div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-event-id" data-column="event_id">
-                                    <label for="col-event-id">이벤트 ID</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-code" data-column="code" checked>
-                                    <label for="col-code">코드</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-role" data-column="role" checked>
-                                    <label for="col-role">역할</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-country" data-column="country" checked>
-                                    <label for="col-country">국가</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-country-code" data-column="country_code" checked>
-                                    <label for="col-country-code">국가약어</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-name-kor" data-column="name_kor" checked>
-                                    <label for="col-name-kor">성명(KOR)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-name-eng" data-column="name_eng" checked>
-                                    <label for="col-name-eng">성명(ENG)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-first-name" data-column="first_name" checked>
-                                    <label for="col-first-name">이름(First Name)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-family-name" data-column="family_name" checked>
-                                    <label for="col-family-name">성(Last Name)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-email" data-column="email" checked>
-                                    <label for="col-email">이메일</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-phone" data-column="phone" checked>
-                                    <label for="col-phone">전화</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-affiliation-eng" data-column="affiliation_eng" checked>
-                                    <label for="col-affiliation-eng">소속(ENG)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-department-eng" data-column="department_eng" checked>
-                                    <label for="col-department-eng">과(ENG)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-affiliation-kor" data-column="affiliation_kor" checked>
-                                    <label for="col-affiliation-kor">소속(KOR)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-department-kor" data-column="department_kor" checked>
-                                    <label for="col-department-kor">과(KOR)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-position" data-column="position" checked>
-                                    <label for="col-position">직위</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-license" data-column="license_number" checked>
-                                    <label for="col-license">면허번호</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-birth-date" data-column="birth_date" checked>
-                                    <label for="col-birth-date">생년월일</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-workplace-type" data-column="workplace_type" checked>
-                                    <label for="col-workplace-type">회원구분</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-registration" data-column="registration" checked>
-                                    <label for="col-registration">등록구분</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-remark-user" data-column="remark_user" checked>
-                                    <label for="col-remark-user">비고(사용자)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-remark-admin" data-column="remark_admin" checked>
-                                    <label for="col-remark-admin">비고(관리자)</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-check-in" data-column="check_in_time" checked>
-                                    <label for="col-check-in">체크인</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-check-out" data-column="check_out_time" checked>
-                                    <label for="col-check-out">체크아웃</label>
-                                </div>
-                                <div class="column-option">
-                                    <input type="checkbox" id="col-actions" data-column="actions" checked>
-                                    <label for="col-actions">관리</label>
-                                </div>
-                                <div class="column-selector-actions">
-                                    <button type="button" class="select-all-columns">전체 선택</button>
-                                    <button type="button" class="deselect-all-columns">전체 해제</button>
-                                    <button type="button" class="apply-columns primary">적용</button>
-                                </div>
+
+            <div class="participants-toolbar">
+                <div class="participants-controls">
+                    <button type="button" class="btn btn-secondary" onclick="openPopup('/add_participant/{{ event[0] }}')">
+                        <i class="fas fa-user-plus"></i> 참가자 추가
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="openPopup('/upload_participants/{{ event[0] }}')">
+                        <i class="fas fa-file-upload"></i> 참가자 업로드
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="openMemberSelector({{ event[0] }})">
+                        <i class="fas fa-users"></i> 회원에서 추가
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="openPopupAttn('/track_checkin/{{ event[0] }}')">
+                        <i class="fas fa-clipboard-check"></i> 출결 관리
+                    </button>
+                    <a class="btn btn-primary" href="/event_program/{{ event[0] }}" style="display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
+                        <i class="fas fa-calendar-alt"></i> 행사 프로그램 관리
+                    </a>
+                </div>
+            </div>
+
+            <div class="participants-list-toolbar">
+                <div class="excel-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="search-input" placeholder="검색...">
+                </div>
+                <div class="participants-list-actions">
+                    <div class="column-selector">
+                        <button type="button" class="btn btn-secondary column-selector-btn" title="컬럼 설정">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                        <div class="column-selector-dropdown">
+                            <div class="column-selector-header">표시할 컬럼 선택</div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-event-id" data-column="event_id">
+                                <label for="col-event-id">이벤트 ID</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-code" data-column="code" checked>
+                                <label for="col-code">코드</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-role" data-column="role" checked>
+                                <label for="col-role">역할</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-country" data-column="country" checked>
+                                <label for="col-country">국가</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-country-code" data-column="country_code" checked>
+                                <label for="col-country-code">국가약어</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-name-kor" data-column="name_kor" checked>
+                                <label for="col-name-kor">성명(KOR)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-name-eng" data-column="name_eng" checked>
+                                <label for="col-name-eng">성명(ENG)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-first-name" data-column="first_name" checked>
+                                <label for="col-first-name">이름(First Name)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-family-name" data-column="family_name" checked>
+                                <label for="col-family-name">성(Last Name)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-email" data-column="email" checked>
+                                <label for="col-email">이메일</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-phone" data-column="phone" checked>
+                                <label for="col-phone">전화</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-affiliation-eng" data-column="affiliation_eng" checked>
+                                <label for="col-affiliation-eng">소속(ENG)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-department-eng" data-column="department_eng" checked>
+                                <label for="col-department-eng">과(ENG)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-affiliation-kor" data-column="affiliation_kor" checked>
+                                <label for="col-affiliation-kor">소속(KOR)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-department-kor" data-column="department_kor" checked>
+                                <label for="col-department-kor">과(KOR)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-position" data-column="position" checked>
+                                <label for="col-position">직위</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-license" data-column="license_number" checked>
+                                <label for="col-license">면허번호</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-birth-date" data-column="birth_date" checked>
+                                <label for="col-birth-date">생년월일</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-workplace-type" data-column="workplace_type" checked>
+                                <label for="col-workplace-type">회원구분</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-registration" data-column="registration" checked>
+                                <label for="col-registration">등록구분</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-remark-user" data-column="remark_user" checked>
+                                <label for="col-remark-user">비고(사용자)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-remark-admin" data-column="remark_admin" checked>
+                                <label for="col-remark-admin">비고(관리자)</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-check-in" data-column="check_in_time" checked>
+                                <label for="col-check-in">체크인</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-check-out" data-column="check_out_time" checked>
+                                <label for="col-check-out">체크아웃</label>
+                            </div>
+                            <div class="column-option">
+                                <input type="checkbox" id="col-actions" data-column="actions" checked>
+                                <label for="col-actions">관리</label>
+                            </div>
+                            <div class="column-selector-actions">
+                                <button type="button" class="select-all-columns">전체 선택</button>
+                                <button type="button" class="deselect-all-columns">전체 해제</button>
+                                <button type="button" class="apply-columns btn btn-primary">적용</button>
                             </div>
                         </div>
-                        <div class="inline-action-buttons">
-                            <button type="button" class="secondary" onclick="submitDeleteForm()">선택 삭제</button>
-                            <button type="button" class="primary" onclick="downloadExcel()">선택 다운로드</button>
-                            <button type="button" class="primary" onclick="openEmailPopup()">이메일 발송</button>
-                        </div>
                     </div>
-                    
+                    <button type="button" class="btn btn-danger" onclick="submitDeleteForm()">
+                        <i class="fas fa-trash"></i> 선택 삭제
+                    </button>
+                    <button type="button" class="btn btn-info" onclick="downloadExcel()">
+                        <i class="fas fa-download"></i> 선택 다운로드
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="openEmailPopup()">
+                        <i class="fas fa-envelope"></i> 이메일 발송
+                    </button>
+                </div>
+            </div>
+
+            <div class="participants-section">
+                <form id="deleteForm" action="/delete_participants/{{ event[0] }}" method="post">
                     <div class="table-container">
-                        <div class="table-wrapper">
+                        <div class="table-wrapper" id="participants-table-wrapper">
                             <table id="participants-table">
                             <thead>
                                 <tr>
@@ -226,8 +248,8 @@
                                     <td class="hidden-column" data-column="event_id">{{ event[4] }}</td>
                                     <td data-column="code">{{ participant[2] }}</td>
                                     <td data-column="role">{{ participant[3]|colored_roles(event[0], abstract_by_participant.get(participant[0])) }}</td>
-                                    <td data-column="country">{{ participant[4] }}</td>
-                                    <td data-column="country_code">{{ participant[5] }}</td>
+                                    <td data-column="country"{% if participant[4] %} title="{{ participant[4] }}"{% endif %}>{{ participant[4] }}</td>
+                                    <td data-column="country_code"{% if participant[5] %} title="{{ participant[5] }}"{% endif %}>{{ participant[5] }}</td>
                                     <td data-column="name_kor">{{ participant[6] }}</td>
                                     <td data-column="name_eng">
                                         {% if participant[7] %}
@@ -244,9 +266,9 @@
                                     <td data-column="family_name">{{ participant[9] }}</td>
                                     <td data-column="email">{{ participant[10] }}</td>
                                     <td data-column="phone">{{ participant[11] }}</td>
-                                    <td data-column="affiliation_eng">{{ participant[12] }}</td>
+                                    <td data-column="affiliation_eng"{% if participant[12] %} title="{{ participant[12] }}"{% endif %}>{{ participant[12] }}</td>
                                     <td data-column="department_eng">{{ participant[13] }}</td>
-                                    <td data-column="affiliation_kor">{{ participant[14] }}</td>
+                                    <td data-column="affiliation_kor"{% if participant[14] %} title="{{ participant[14] }}"{% endif %}>{{ participant[14] }}</td>
                                     <td data-column="department_kor">{{ participant[15] }}</td>
                                     <td data-column="position">{{ participant[16] }}</td>
                                     <td data-column="license_number">{{ participant[17] }}</td>
@@ -268,7 +290,7 @@
                         </table>
                         </div>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
         
@@ -432,12 +454,6 @@
                         </div>
                     </div>
                 </div>
-                <div style="margin-bottom: 20px;">
-                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                        <input type="checkbox" id="includeAcceptButtons" style="width: 16px; height: 16px;">
-                        <span>승인/거절 버튼 포함</span>
-                    </label>
-                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeEmailComposeModal()">취소</button>
@@ -458,7 +474,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-    <script src="../static/js/admin_participants.js"></script>
+    <script src="{{ url_for('static', filename='js/admin_participants.js') }}?v=20250828h"></script>
     <script src="{{ url_for('static', filename='js/email_compose.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>

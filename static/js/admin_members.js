@@ -355,7 +355,7 @@ function exportMembers() {
 
 // Open popup function
 function openPopup(url) {
-    window.open(url, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+    window.open(url, '_blank', 'width=680,height=860,scrollbars=yes,resizable=yes');
 }
 
 (function initMemberApproval() {

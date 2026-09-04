@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>초록 심사 관리 - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract_review.css') }}?v=6">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body data-event-id="{{ event.id }}">
+    <div class="ar-page">
+        <header class="ar-header">
+            <div>
+                <a class="ar-back" href="/event_program/{{ event.id }}">← 행사 프로그램</a>
+                <h1>초록 심사</h1>
+                <p>{{ event.name }}</p>
+            </div>
+            <div class="ar-header-actions">
+                <a class="btn btn-secondary" href="/abstract_review/{{ event.id }}" target="_blank">
+                    심사자 로그인 페이지
+                </a>
+            </div>
+        </header>
+
+        <nav class="ar-tabs">
+            <button type="button" class="ar-tab active" data-tab="assign">심사자 배정</button>
+            <button type="button" class="ar-tab" data-tab="results">채점 결과</button>
+        </nav>
+
+        <section id="arAssignPanel" class="ar-panel">
+            <div class="ar-toolbar">
+                <input type="search" id="arAbstractFilter" placeholder="초록/제출자 검색">
+                <span class="ar-hint">제출된 초록을 고른 뒤, 참가자 중 심사자를 1명 지정하세요.</span>
+            </div>
+            <div id="arAbstractList" class="ar-card-list">불러오는 중...</div>
+        </section>
+
+        <section id="arResultsPanel" class="ar-panel" hidden>
+            <div class="ar-toolbar">
+                <button type="button" class="btn btn-secondary" id="arResultsRefresh">새로고침</button>
+                <button type="button" class="btn btn-primary" id="arResultsExcel">엑셀 다운로드</button>
+                <span class="ar-hint">채점자별로 본인이 채점한 제출자 순위(1, 2, 3…)와 항목 점수를 보여줍니다.</span>
+            </div>
+            <div id="arResultsBody" class="ar-results">불러오는 중...</div>
+        </section>
+    </div>
+
+    <div id="arReviewerModal" class="ar-modal" hidden>
+        <div class="ar-modal-card">
+            <div class="ar-modal-header">
+                <h3>심사자 지정</h3>
+                <button type="button" class="ar-modal-close" id="arReviewerModalClose">&times;</button>
+            </div>
+            <p id="arReviewerModalSubtitle" class="ar-modal-sub"></p>
+            <input type="search" id="arReviewerSearch" placeholder="이름 / 이메일 / 소속 검색">
+            <div id="arReviewerSearchResults" class="ar-search-results"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/abstract_review_admin.js') }}?v=6"></script>
+</body>
+</html>

@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <title>역대 좌장/연자 리스트</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/chairs_speakers_history.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_common.css') }}?v=20250903q">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/chairs_speakers_history.css') }}?v=20250903q">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
@@ -12,6 +13,13 @@
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Admin</h2>
+                <button class="sidebar-toggle" id="sidebarToggleBtn" aria-label="사이드바 토글">
+                    <svg width="28" height="28" viewBox="0 0 32 32">
+                        <rect y="7" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="14.5" width="32" height="3" rx="1.5" fill="#888"/>
+                        <rect y="22" width="32" height="3" rx="1.5" fill="#888"/>
+                    </svg>
+                </button>
             </div>
             <ul class="nav-menu">
                 <li class="nav-item"><a href="/members" class="nav-link">회원 관리</a></li>
@@ -20,29 +28,24 @@
             <div class="sidebar-footer">&copy; 2025. JHC Conference</div>
         </div>
 
-        <div class="main-content history-page">
-            <div class="history-header">
-                <div>
-                    <h1>역대 좌장/연자 리스트</h1>
-                    {% if event %}
-                    <p class="history-subtitle">행사: {{ event.name }}</p>
-                    {% else %}
-                    <p class="history-subtitle">학회 역대 좌장 / 연자 / 패널 명단</p>
-                    {% endif %}
-                </div>
+        <div class="main-content">
+            <div class="page-header">
+                <h1>역대 좌장/연자 리스트</h1>
                 {% if event %}
+                <p class="page-subtitle">행사: {{ event.name }}</p>
                 <a href="/event_program/{{ event.id }}" class="back-link">← 행사 프로그램으로</a>
                 {% else %}
+                <p class="page-subtitle">학회 역대 좌장 / 연자 / 패널 명단</p>
                 <a href="/" class="back-link">← 행사 관리로</a>
                 {% endif %}
             </div>
 
-            <div class="upload-panel">
-                <h3>데이터 업로드</h3>
+            <div class="admin-toolbar upload-panel">
+                <h3 class="upload-panel-title"><i class="fas fa-file-upload"></i> 데이터 업로드</h3>
                 <div class="upload-row">
-                    <form id="historyUploadForm">
-                        <label><strong>역대 명단 CSV</strong> (좌장/연자/패널 기본 정보)</label>
-                        <div class="upload-row">
+                    <form id="historyUploadForm" class="upload-form">
+                        <label class="upload-label"><strong>역대 명단 CSV</strong> (좌장/연자/패널 기본 정보)</label>
+                        <div class="upload-controls">
                             <input type="file" name="file" accept=".csv" required>
                             <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> 업로드</button>
                         </div>
@@ -50,9 +53,9 @@
                     <span id="historyUploadStatus" class="upload-status"></span>
                 </div>
                 <div class="upload-row">
-                    <form id="sessionsUploadForm">
-                        <label><strong>세션/발표 이력 CSV</strong> (날짜·역할·발표자·세션주제·발표주제)</label>
-                        <div class="upload-row">
+                    <form id="sessionsUploadForm" class="upload-form">
+                        <label class="upload-label"><strong>세션/발표 이력 CSV</strong> (날짜·역할·발표자·세션주제·발표주제)</label>
+                        <div class="upload-controls">
                             <input type="file" name="file" accept=".csv" required>
                             <button type="submit" class="btn btn-success"><i class="fas fa-upload"></i> 업로드</button>
                             <a href="/api/chairs_speakers_history/sessions_template" class="btn btn-secondary">
@@ -62,34 +65,39 @@
                     </form>
                     <span id="sessionsUploadStatus" class="upload-status"></span>
                 </div>
-                <p style="margin:8px 0 0; font-size:12px; color:#5f6368;">
+                <p class="upload-hint">
                     세션 CSV: 좌장 행 → 세션 제목, 연자 행 → 발표 제목. 이메일·면허번호로 명단과 연결됩니다.
                 </p>
             </div>
 
-            <div class="history-toolbar">
-                <input type="text" id="searchInput" class="search-input" placeholder="이름, 소속, 이메일, 연도 검색...">
-                <select id="roleFilter">
-                    <option value="">전체 역할</option>
-                    <option value="좌장">좌장</option>
-                    <option value="연자">연자</option>
-                    <option value="패널">패널</option>
-                </select>
-                <select id="regionFilter">
-                    <option value="">국내/해외 전체</option>
-                    <option value="국내">국내</option>
-                    <option value="해외">해외</option>
-                </select>
-                <select id="deptFilter">
-                    <option value="">타과 구분 전체</option>
-                    <option value="타과">타과</option>
-                </select>
-                <button type="button" id="mergeSelectedBtn" class="btn btn-warning" disabled>
-                    <i class="fas fa-compress-alt"></i> 선택 병합 (<span id="mergeSelectedCount">0</span>)
-                </button>
-                <button type="button" id="deleteSelectedBtn" class="btn btn-danger" disabled>
-                    <i class="fas fa-trash"></i> 선택 삭제 (<span id="selectedCount">0</span>)
-                </button>
+            <div class="admin-list-toolbar history-filters-toolbar">
+                <div class="excel-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="이름, 소속, 이메일, 연도 검색...">
+                </div>
+                <div class="admin-list-actions">
+                    <select id="roleFilter" class="history-filter-select" aria-label="역할 필터">
+                        <option value="">전체 역할</option>
+                        <option value="좌장">좌장</option>
+                        <option value="연자">연자</option>
+                        <option value="패널">패널</option>
+                    </select>
+                    <select id="regionFilter" class="history-filter-select" aria-label="국내/해외 필터">
+                        <option value="">국내/해외 전체</option>
+                        <option value="국내">국내</option>
+                        <option value="해외">해외</option>
+                    </select>
+                    <select id="deptFilter" class="history-filter-select" aria-label="타과 구분 필터">
+                        <option value="">타과 구분 전체</option>
+                        <option value="타과">타과</option>
+                    </select>
+                    <button type="button" id="mergeSelectedBtn" class="btn btn-warning" disabled>
+                        <i class="fas fa-compress-alt"></i> 선택 병합 (<span id="mergeSelectedCount">0</span>)
+                    </button>
+                    <button type="button" id="deleteSelectedBtn" class="btn btn-danger" disabled>
+                        <i class="fas fa-trash"></i> 선택 삭제 (<span id="selectedCount">0</span>)
+                    </button>
+                </div>
             </div>
 
             <div id="duplicateReviewPanel" class="duplicate-panel" hidden>
@@ -102,37 +110,42 @@
 
             <div class="history-meta">총 <strong id="historyCount">0명</strong></div>
 
-            <div class="table-wrap">
-                <table class="history-table">
-                    <thead>
-                        <tr>
-                            <th class="col-check"><input type="checkbox" id="selectAllCheckbox" title="전체 선택"></th>
-                            <th class="col-num">번호</th>
-                            <th class="col-name-kor col-sticky-name">성명(KOR)</th>
-                            <th class="col-name-eng col-sticky-name">성명(ENG)</th>
-                            <th>이메일</th>
-                            <th class="col-phone">전화</th>
-                            <th>소속(KOR)</th>
-                            <th>과(KOR)</th>
-                            <th>소속(ENG)</th>
-                            <th>과(ENG)</th>
-                            <th>직위</th>
-                            <th>면허번호</th>
-                            <th>생년월일</th>
-                            <th>회원구분</th>
-                            <th class="col-country">국가</th>
-                            <th>국가약어</th>
-                            <th>연자비</th>
-                            <th>은행정보</th>
-                            <th class="col-narrow-detail">프로필</th>
-                            <th class="col-narrow-detail">참여연도</th>
-                            <th class="col-narrow-detail">세션/발표 제목</th>
-                        </tr>
-                    </thead>
-                    <tbody id="historyTableBody">
-                        <tr><td colspan="21" class="empty-state">불러오는 중...</td></tr>
-                    </tbody>
-                </table>
+            <div class="admin-table-section">
+                <div class="table-container">
+                    <div class="table-wrapper history-table-wrap">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-check"><input type="checkbox" id="selectAllCheckbox" title="전체 선택"></th>
+                                    <th class="col-num">번호</th>
+                                    <th class="col-name-kor col-sticky-name">성명(KOR)</th>
+                                    <th class="col-name-eng col-sticky-name">성명(ENG)</th>
+                                    <th>이메일</th>
+                                    <th class="col-phone">전화</th>
+                                    <th>소속(KOR)</th>
+                                    <th>과(KOR)</th>
+                                    <th>소속(ENG)</th>
+                                    <th>과(ENG)</th>
+                                    <th>직위</th>
+                                    <th>면허번호</th>
+                                    <th>생년월일</th>
+                                    <th>회원구분</th>
+                                    <th class="col-country">국가</th>
+                                    <th>국가약어</th>
+                                    <th>연자비</th>
+                                    <th>은행정보</th>
+                                    <th class="col-narrow-detail">프로필</th>
+                                    <th class="col-narrow-detail">참여연도</th>
+                                    <th class="col-narrow-detail">세션/발표</th>
+                                    <th class="col-actions">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyTableBody">
+                                <tr><td colspan="22" class="empty-state">불러오는 중...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -151,6 +164,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/chairs_speakers_history.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chairs_speakers_history.js') }}?v=20250903p"></script>
 </body>
 </html>

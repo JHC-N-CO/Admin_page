@@ -46,8 +46,193 @@ body {
     text-decoration: underline;
 }
 
-/* Event Info */
+/* Event Info (legacy – kept for compatibility) */
 .event-info {
+    display: none;
+}
+
+/* Unified program meta bar */
+.program-meta-bar {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+}
+
+.program-meta-event {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    min-width: 0;
+}
+
+.program-meta-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+    letter-spacing: -0.01em;
+}
+
+.program-meta-dates {
+    font-size: 13px;
+    color: #6b7280;
+    white-space: nowrap;
+}
+
+.program-meta-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px 24px;
+    flex: 1;
+    min-width: 0;
+}
+
+.program-meta-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.program-meta-label {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.program-meta-date-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.program-meta-date-tabs .date-tab {
+    padding: 5px 12px;
+    min-width: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.program-meta-date-tabs .date-tab:hover {
+    border-color: #93c5fd;
+    background: #f8fafc;
+    color: #1d4ed8;
+}
+
+.program-meta-date-tabs .date-tab.active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    box-shadow: none;
+}
+
+.program-venue-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.program-meta-bar .venue-item {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    padding: 4px 8px 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #374151;
+}
+
+.program-meta-bar .venue-item .venue-name {
+    font-weight: 600;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.program-meta-bar .venue-item .venue-actions {
+    display: inline-flex;
+    gap: 2px;
+}
+
+.program-meta-bar .venue-item .venue-action-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #9ca3af;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.program-meta-bar .venue-item .venue-action-btn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+.program-meta-icon-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: 1px dashed #d1d5db;
+    border-radius: 999px;
+    background: #fff;
+    color: #6b7280;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.program-meta-icon-btn:hover {
+    border-color: #2563eb;
+    color: #2563eb;
+    background: #eff6ff;
+}
+
+@media (max-width: 900px) {
+    .program-meta-bar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .program-meta-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .program-meta-group {
+        flex-wrap: wrap;
+    }
+}
+
+/* Event Info (legacy block styles) */
+.event-info.legacy-visible {
+    display: block;
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -127,8 +312,13 @@ body {
     font-size: 12px;
 }
 
-/* 강의 장소 관리 */
+/* 강의 장소 관리 (legacy – meta bar로 이동) */
 .venue-management {
+    display: none;
+}
+
+.venue-management.legacy-visible {
+    display: block;
     background: white;
     border: 1px solid #dadce0;
     border-radius: 8px;
@@ -404,7 +594,37 @@ body {
 .scroll-venues-area {
     flex: 1;
     display: flex;
+    position: relative;
     height: 2880px; /* 12시간 * 240px */
+}
+
+.span-sessions-layer {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    pointer-events: none;
+}
+
+.span-sessions-layer .session-block {
+    pointer-events: auto;
+    /* 일반 세션(layer 0)과 동일하게 열 가장자리 기준 */
+    left: 0;
+    right: 0;
+}
+
+.session-speakers.poster-exhibition-speakers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+}
+
+.session-speakers.poster-exhibition-speakers .session-speaker-item {
+    margin: 0;
+}
+
+.session-speakers.poster-exhibition-speakers .session-speaker-name {
+    font-size: 11px;
+    font-weight: 500;
 }
 
 .scroll-sessions-area {
@@ -1334,34 +1554,41 @@ body {
 
 .excel-table th,
 .excel-table td {
-    padding: 10px 12px;
+    padding: 5px 12px;
     border-bottom: 1px solid #e2e8f0;
     font-size: 13px;
     text-align: left;
     color: #1f2937;
     line-height: 1.4;
     overflow: hidden;
-    height: 50px;
-    max-height: 50px;
-    min-height: 50px;
-    vertical-align: top;
-    max-width: 220px;
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    vertical-align: middle;
+    white-space: nowrap;
+    max-width: none;
+}
+
+.excel-table td {
+    font-size: 12px;
 }
 
 .excel-table td > div {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    display: block;
     overflow: hidden;
-    word-break: break-word;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    word-break: normal;
+    max-width: 240px;
+    max-height: none;
     line-height: 1.4;
-    max-height: calc(1.4em * 2);
 }
 
 .excel-table th {
     font-weight: 600;
     color: #111827;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .excel-table tbody tr:hover {
@@ -1405,6 +1632,21 @@ body {
     font-weight: 600;
 }
 
+.excel-table .decline-status--clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.excel-table .decline-status--clickable:hover {
+    color: #b91c1c;
+}
+
+.excel-table .pending-status {
+    color: #6b7280;
+    font-weight: 500;
+}
+
 .excel-table .action-link {
     color: #2563eb;
     text-decoration: none;
@@ -1430,13 +1672,16 @@ body {
     color: #2563eb;
 }
 
-/* 좌장·연자 뷰: 한 줄 표시 + 절반 높이 + 넘치면 tooltip, 가로 스크롤 */
-.excel-table--people {
+/* 좌장·연자 / 프로그램 뷰 공통: 한 줄 + 가로 스크롤 */
+.excel-table--people,
+.excel-table--program {
     min-width: max-content;
 }
 
 .excel-table--people th,
-.excel-table--people td {
+.excel-table--people td,
+.excel-table--program th,
+.excel-table--program td {
     height: auto;
     min-height: 0;
     max-height: none;
@@ -1446,11 +1691,13 @@ body {
     white-space: nowrap;
 }
 
-.excel-table--people td {
+.excel-table--people td,
+.excel-table--program td {
     font-size: 12px;
 }
 
-.excel-table--people td > div {
+.excel-table--people td > div,
+.excel-table--program td > div {
     display: block;
     -webkit-line-clamp: none;
     -webkit-box-orient: horizontal;
@@ -1509,6 +1756,11 @@ body {
     flex-direction: column;
     overflow: hidden;
     animation: titleModalIn 0.18s ease;
+}
+
+.title-modal-dialog--compact {
+    width: min(420px, 100%);
+    max-height: min(50vh, 420px);
 }
 
 @keyframes titleModalIn {
@@ -1609,6 +1861,20 @@ body {
     color: #999;
     font-size: 13px;
     text-align: center;
+}
+
+.decline-reason-text {
+    padding: 4px 0 8px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.6;
+    color: #202124;
+    font-size: 14px;
+}
+
+.decline-reason-text.title-modal-empty {
+    text-align: left;
+    color: #5f6368;
 }
 
 .people-session-presentation {
@@ -2547,8 +2813,12 @@ body {
     opacity: 0.3;
 }
 
-/* 날짜 선택 탭 스타일 */
+/* 날짜 선택 탭 (legacy container – meta bar로 이동) */
 .date-tabs {
+    display: none;
+}
+
+.date-tabs.legacy-visible {
     background: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -2877,32 +3147,84 @@ body {
 }
 
 .abstract-submitters-table-wrap .assigned-pill {
-    display: inline-block;
-    padding: 2px 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.5rem;
+    padding: 3px 10px;
     border-radius: 999px;
-    background: #eef0f8;
-    color: #3d4799;
+    border: 1px solid transparent;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    line-height: 1.35;
 }
 
 .abstract-submitters-table-wrap .assigned-empty {
-    color: #bbb;
+    color: #9aa3b5;
+    font-size: 12px;
 }
 
 #sessionModal .session-edit-modal {
-    max-width: 680px;
+    display: flex;
+    flex-direction: column;
+    max-width: 720px;
+    width: calc(100% - 32px);
     margin: 4vh auto;
-    max-height: 88vh;
+    max-height: min(88vh, 860px);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(32, 33, 36, 0.18);
+    border: 1px solid #e8eaed;
 }
 
-#sessionModal .modal-header,
-#sessionModal .modal-footer {
-    padding: 12px 16px;
+#sessionModal .modal-header {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid #eef0f3;
+    background: #fff;
+}
+
+#sessionModal .modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 650;
+    color: #202124;
+    letter-spacing: -0.01em;
+}
+
+#sessionModal .modal-header .close {
+    color: #9aa0a6;
+    font-size: 22px;
+    line-height: 1;
+    padding: 0 2px;
+}
+
+#sessionModal .modal-header .close:hover {
+    color: #5f6368;
 }
 
 #sessionModal .modal-body {
-    padding: 14px 16px 16px;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 16px 18px;
+    background: #fff;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+#sessionModal .modal-footer {
+    flex: 0 0 auto;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px;
+    border-top: 1px solid #eef0f3;
+    background: #fafbfc;
 }
 
 #sessionModal .form-group {
@@ -2910,9 +3232,13 @@ body {
 }
 
 #sessionModal .form-group label {
-    margin-bottom: 4px;
-    font-size: 12px;
-    color: #5f6368;
+    display: block;
+    margin: 0 0 5px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #80868b;
+    text-transform: none;
 }
 
 #sessionModal .form-group input,
@@ -2920,54 +3246,153 @@ body {
 #sessionModal .speaker-form input[type="text"],
 #sessionModal .speaker-form input[type="time"] {
     width: 100%;
-    padding: 6px 8px;
-    border: 1px solid #dadce0;
-    border-radius: 4px;
+    padding: 7px 10px;
+    border: 1px solid #e0e3e7;
+    border-radius: 8px;
     font-size: 13px;
+    color: #202124;
+    background: #fff;
     box-sizing: border-box;
-    height: 32px;
+    height: 34px;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-#sessionModal .session-grid {
+#sessionModal .form-group input:focus,
+#sessionModal .form-group select:focus,
+#sessionModal .speaker-form input:focus {
+    outline: none;
+    border-color: #3d4799;
+    box-shadow: 0 0 0 3px rgba(61, 71, 153, 0.12);
+}
+
+#sessionModal .session-meta {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px 12px;
+    gap: 12px;
     margin-bottom: 12px;
 }
 
-#sessionModal .session-grid .span-2 {
+#sessionModal .session-meta .span-2 {
     grid-column: 1 / -1;
 }
 
-#sessionModal .time-range-group {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+#sessionModal .time-range-group,
+#sessionModal .speaker-time-pair {
+    display: flex;
+    align-items: center;
     gap: 6px;
 }
 
+#sessionModal .time-sep {
+    flex: 0 0 auto;
+    color: #b0b4ba;
+    font-size: 12px;
+    line-height: 1;
+}
+
+#sessionModal .session-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    border: 1px solid #e8eaed;
+    border-radius: 10px;
+    background: #f8f9fb;
+    cursor: pointer;
+    user-select: none;
+}
+
+#sessionModal .session-option:last-of-type {
+    margin-bottom: 14px;
+}
+
+#sessionModal .session-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#sessionModal .session-option-ui {
+    position: relative;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 20px;
+    border-radius: 999px;
+    background: #d5d8de;
+    transition: background 0.15s ease;
+}
+
+#sessionModal .session-option-ui::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    transition: transform 0.15s ease;
+}
+
+#sessionModal .session-option input:checked + .session-option-ui {
+    background: #3d4799;
+}
+
+#sessionModal .session-option input:checked + .session-option-ui::after {
+    transform: translateX(14px);
+}
+
+#sessionModal .session-option-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+#sessionModal .session-option-text strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #202124;
+}
+
+#sessionModal .session-option-text em {
+    font-style: normal;
+    font-size: 11px;
+    color: #80868b;
+}
+
 #sessionModal .session-section {
-    margin-top: 12px;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid #eef0f3;
 }
 
 #sessionModal .section-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
 }
 
-#sessionModal .section-head label {
+#sessionModal .section-head > label {
     margin: 0;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 650;
     color: #3d4799;
 }
 
+#sessionModal .section-head-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 #sessionModal .section-hint {
-    margin-left: 6px;
     font-size: 11px;
     font-weight: 400;
-    color: #888;
+    color: #9aa0a6;
 }
 
 #sessionModal .btn-text {
@@ -2977,28 +3402,58 @@ body {
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    padding: 0;
+    padding: 2px 0;
 }
 
 #sessionModal .btn-text:hover {
-    text-decoration: underline;
+    color: #2d3677;
+}
+
+#sessionModal .person-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#sessionModal .person-list:empty::after {
+    content: '아직 추가된 사람이 없습니다';
+    display: block;
+    padding: 10px 12px;
+    border: 1px dashed #e0e3e7;
+    border-radius: 8px;
+    color: #9aa0a6;
+    font-size: 12px;
+    text-align: center;
 }
 
 #sessionModal .person-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 6px;
+    gap: 8px;
+    margin: 0;
+    padding: 6px 8px;
+    border: 1px solid #eef0f3;
+    border-radius: 8px;
+    background: #fff;
+}
+
+#sessionModal .person-row:hover {
+    border-color: #e0e3e7;
+    background: #fafbfc;
 }
 
 #sessionModal .speaker-form .speaker-drag-handle {
-    flex: 0 0 16px;
-    width: 16px;
-    color: #b0b0b0;
+    flex: 0 0 14px;
+    width: 14px;
+    color: #c4c7cc;
     cursor: grab;
     text-align: center;
     line-height: 1;
     user-select: none;
+}
+
+#sessionModal .speaker-form .speaker-drag-handle:hover {
+    color: #80868b;
 }
 
 #sessionModal .speaker-form .speaker-drag-handle:active {
@@ -3006,48 +3461,129 @@ body {
 }
 
 #sessionModal .speaker-form.dragging {
-    opacity: 0.45;
+    opacity: 0.5;
+    border-style: dashed;
 }
 
 #sessionModal .person-row .participant-selector {
-    flex: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1.1;
     min-width: 0;
 }
 
+#sessionModal .chair-form .participant-selector {
+    flex: 1;
+}
+
 #sessionModal .speaker-form input[name^="speaker_topic_"] {
-    flex: 1.2;
-    min-width: 110px;
+    flex: 1.35;
+    min-width: 120px;
+}
+
+#sessionModal .session-edit-modal.poster-exhibition-mode .speaker-time-pair {
+    display: none;
+}
+
+#sessionModal .session-edit-modal.poster-exhibition-mode #sessionSpanAllVenuesOption {
+    opacity: 0.65;
+    pointer-events: none;
 }
 
 #sessionModal .speaker-form input[type="time"] {
-    width: 102px;
-    flex: 0 0 102px;
+    width: 96px;
+    flex: 0 0 96px;
+    padding-left: 6px;
+    padding-right: 4px;
 }
 
 #sessionModal .selected-participant {
-    min-height: 32px;
-    padding: 4px 8px;
+    flex: 1;
+    min-width: 0;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border: 1px solid #e0e3e7;
+    border-radius: 8px;
+    background: #fff;
+    box-sizing: border-box;
+    cursor: default;
+}
+
+#sessionModal .selected-participant:hover {
+    border-color: #cfd3d9;
 }
 
 #sessionModal .selected-participant .placeholder {
     font-style: normal;
     font-size: 13px;
+    color: #9aa0a6;
 }
 
 #sessionModal .participant-name {
     font-size: 13px;
+    font-weight: 500;
+    color: #202124;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 #sessionModal .participant-search-btn {
-    padding: 6px 8px;
-    min-width: 32px;
+    flex: 0 0 30px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #80868b;
+    box-shadow: none;
+}
+
+#sessionModal .participant-search-btn:hover {
+    background: #eef0f8;
+    color: #3d4799;
 }
 
 #sessionModal .remove-speaker-btn {
-    flex: 0 0 24px;
-    width: 24px;
-    height: 24px;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #c4c7cc;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#sessionModal .remove-speaker-btn:hover {
+    background: #fce8e6;
+    color: #d93025;
+}
+
+@media (max-width: 720px) {
+    #sessionModal .session-meta {
+        grid-template-columns: 1fr;
+    }
+
+    #sessionModal .speaker-form.person-row {
+        flex-wrap: wrap;
+    }
+
+    #sessionModal .speaker-form input[name^="speaker_topic_"],
+    #sessionModal .speaker-time-pair {
+        flex: 1 1 100%;
+    }
+
+    #sessionModal .speaker-form input[type="time"] {
+        flex: 1 1 auto;
+        width: auto;
+    }
 }

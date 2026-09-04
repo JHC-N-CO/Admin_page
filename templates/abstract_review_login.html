@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>발표 심사 시스템 - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract_review.css') }}?v=4">
+</head>
+<body class="ar-judge-body ar-auth-body">
+    <div class="ar-login-card">
+        <div class="ar-login-header">
+            <h1>발표 심사 시스템</h1>
+            <p class="ar-auth-event">{{ event.name }}</p>
+            <p class="ar-login-desc">심사자 이름과 이메일을 입력하세요</p>
+        </div>
+        {% if error %}
+        <div class="ar-error">{{ error }}</div>
+        {% endif %}
+        <form method="post" action="{{ url_for('abstract_review_judge_login_post', event_id=event.id) }}" class="ar-login-form">
+            <label>
+                이름
+                <input type="text" name="name" required autocomplete="name" placeholder="이름 (혹은 영문 이름)">
+            </label>
+            <label>
+                이메일
+                <input type="email" name="email" required autocomplete="email" placeholder="참가 등록 이메일">
+            </label>
+            <p class="ar-auth-note">* 입력하신 이름·이메일은 시스템상의 정보와 일치해야 합니다.</p>
+            <button type="submit" class="btn btn-primary ar-login-submit">로그인</button>
+        </form>
+    </div>
+</body>
+</html>

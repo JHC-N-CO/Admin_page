@@ -3,7 +3,8 @@
 <head>
     <title>회원 관리</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_members.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_common.css') }}?v=20250902a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_members.css') }}?v=20250902a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Removed inline <style>; all CSS is now in static/css/admin_members.css -->
 </head>
@@ -34,19 +35,27 @@
             <div class="page-header">
                 <h1>회원 목록</h1>
             </div>
-            <div class="members-section">
-                <form action="/members/delete" method="post" id="deleteForm">
-                    <div class="action-buttons">
-                        <button type="button" class="secondary" onclick="openPopup('/add_member')">회원 추가</button>
-                        <button type="button" class="secondary" onclick="openPopup('/upload_members')">회원 업로드</button>
+
+            <div class="admin-toolbar">
+                <div class="admin-toolbar-controls">
+                    <button type="button" class="btn btn-secondary" onclick="openPopup('/add_member')">
+                        <i class="fas fa-user-plus"></i> 회원 추가
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="openPopup('/upload_members')">
+                        <i class="fas fa-file-upload"></i> 회원 업로드
+                    </button>
+                </div>
+            </div>
+
+            <form action="/members/delete" method="post" id="deleteForm">
+                <div class="admin-list-toolbar">
+                    <div class="excel-search">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="search-input" placeholder="검색...">
                     </div>
-                    <div class="table-actions">
-                        <div class="search-box">
-                            <input type="text" id="search-input" placeholder="검색...">
-                        </div>
-                        <div class="table-toolbar-controls">
+                    <div class="admin-list-actions">
                         <div class="column-selector">
-                            <button type="button" class="column-selector-btn" title="컬럼 설정">
+                            <button type="button" class="btn btn-secondary column-selector-btn" title="컬럼 설정">
                                 <i class="fas fa-cog"></i>
                             </button>
                             <div class="column-selector-dropdown">
@@ -123,18 +132,22 @@
                                 <div class="column-selector-actions">
                                     <button type="button" class="select-all-columns">전체 선택</button>
                                     <button type="button" class="deselect-all-columns">전체 해제</button>
-                                    <button type="button" class="apply-columns primary">적용</button>
+                                    <button type="button" class="apply-columns btn btn-primary">적용</button>
                                 </div>
                             </div>
                         </div>
-                        <div class="table-bulk-actions">
-                            <button type="button" class="primary" onclick="exportMembers()">선택 다운로드</button>
-                            <button type="submit" class="danger">선택 삭제</button>
-                        </div>
-                        </div>
+                        <button type="button" class="btn btn-info" onclick="exportMembers()">
+                            <i class="fas fa-download"></i> 선택 다운로드
+                        </button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> 선택 삭제
+                        </button>
                     </div>
+                </div>
+
+                <div class="admin-table-section">
                     <div class="table-container">
-                        <div class="table-wrapper">
+                        <div class="table-wrapper" id="members-table-wrapper">
                             <table id="members-table">
                             <thead>
                                 <tr>
@@ -203,8 +216,8 @@
                         </table>
                         </div>
                     </div>
-                </form>
-            </div>
+                </div>
+            </form>
         </div>
     </div>
 

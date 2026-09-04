@@ -1195,7 +1195,7 @@ async function sendEmailToRecipients() {
     const ccInput = document.getElementById('emailCC');
     const cc = ccInput ? ccInput.value.trim() : '';
     
-    // 승인/거절 버튼 포함 여부 확인
+    // 수락/거절 버튼 포함 여부 확인
     const includeButtonsInput = document.getElementById('includeAcceptButtons');
     const includeButtons = includeButtonsInput ? includeButtonsInput.checked : false;
     

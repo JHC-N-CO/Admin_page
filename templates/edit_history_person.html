@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>역대 인물 수정</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_participant.css') }}?v=20250903e">
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>역대 인물 수정</h1>
+        </div>
+
+        {% if error %}
+        <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        <form action="/chairs_speakers_history/edit" method="post">
+            <input type="hidden" name="key" value="{{ person_key }}">
+
+            <div class="form-section">
+                <h3>이름 정보</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="name_kor">성명(KOR)</label>
+                        <input type="text" id="name_kor" name="성명(KOR)" value="{{ person.get('성명(KOR)', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="name_eng">성명(ENG)</label>
+                        <input type="text" id="name_eng" name="성명(ENG)" value="{{ person.get('성명(ENG)', '') }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="first_name">이름(First Name)</label>
+                        <input type="text" id="first_name" name="이름(First Name)" value="{{ person.get('이름(First Name)', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="family_name">성(Last Name)</label>
+                        <input type="text" id="family_name" name="성(Last Name)" value="{{ person.get('성(Last Name)', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>연락처 정보</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="email">이메일</label>
+                        <input type="text" id="email" name="이메일" value="{{ person.get('이메일', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">전화</label>
+                        <input type="text" id="phone" name="전화" value="{{ person.get('전화', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>소속 정보</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="affiliation_kor">소속(KOR)</label>
+                        <input type="text" id="affiliation_kor" name="소속(KOR)" value="{{ person.get('소속(KOR)', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="department_kor">과(KOR)</label>
+                        <input type="text" id="department_kor" name="과(KOR)" value="{{ person.get('과(KOR)', '') }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="affiliation_eng">소속(ENG)</label>
+                        <input type="text" id="affiliation_eng" name="소속(ENG)" value="{{ person.get('소속(ENG)', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="department_eng">과(ENG)</label>
+                        <input type="text" id="department_eng" name="과(ENG)" value="{{ person.get('과(ENG)', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>추가 정보</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="position">직위</label>
+                        <input type="text" id="position" name="직위" value="{{ person.get('직위', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="license">면허번호</label>
+                        <input type="text" id="license" name="면허번호" value="{{ person.get('면허번호', '') }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="birth_date">생년월일</label>
+                        <input type="text" id="birth_date" name="생년월일" value="{{ person.get('생년월일', '') }}" placeholder="YYYY-MM-DD">
+                    </div>
+                    <div class="form-group">
+                        <label for="workplace_type">회원구분</label>
+                        <input type="text" id="workplace_type" name="회원구분" value="{{ person.get('회원구분', '') }}">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="country">국가</label>
+                        <input type="text" id="country" name="국가" value="{{ person.get('국가', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="country_code">국가약어</label>
+                        <input type="text" id="country_code" name="국가약어" value="{{ person.get('국가약어', '') }}" maxlength="10">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fee">연자비</label>
+                        <input type="text" id="fee" name="연자비" value="{{ person.get('연자비', '') }}">
+                    </div>
+                    <div class="form-group">
+                        <label for="bank">은행정보</label>
+                        <input type="text" id="bank" name="은행정보" value="{{ person.get('은행정보', '') }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>프로필</h3>
+                <div class="form-group">
+                    <label for="profile">프로필</label>
+                    <textarea id="profile" name="프로필" rows="4">{{ person.get('프로필', '') }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <button type="button" class="btn-secondary" onclick="window.close();">취소</button>
+                <button type="submit" class="btn-primary">저장</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>

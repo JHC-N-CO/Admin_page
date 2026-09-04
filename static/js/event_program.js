@@ -478,13 +478,16 @@ function initializeDateTabs() {
     }
     
     // 날짜 탭 생성
+    const dateTabsWrap = document.getElementById('dateTabsWrap');
     const dateTabsContainer = document.getElementById('dateTabs');
-    dateTabsContainer.style.display = 'flex';
-    
-    dateTabsContainer.innerHTML = '<span class="date-tabs-label">날짜 선택:</span>';
+    if (dateTabsWrap) dateTabsWrap.style.display = 'flex';
+    if (!dateTabsContainer) return;
+
+    dateTabsContainer.innerHTML = '';
     
     eventDates.forEach((date, index) => {
-        const tab = document.createElement('div');
+        const tab = document.createElement('button');
+        tab.type = 'button';
         tab.className = 'date-tab';
         tab.onclick = () => selectDate(date);
         
@@ -493,10 +496,7 @@ function initializeDateTabs() {
         const dayName = dayNames[dateObj.getDay()];
         const formattedDate = `${dateObj.getMonth() + 1}/${dateObj.getDate()}`;
         
-        tab.innerHTML = `
-            <div class="date-tab-date">${formattedDate}</div>
-            <div class="date-tab-day">${dayName}요일</div>
-        `;
+        tab.textContent = `${formattedDate} ${dayName}`;
         
         dateTabsContainer.appendChild(tab);
     });
@@ -566,6 +566,8 @@ document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
     initializeViewModeControls();
     bindPeopleSessionsModal();
+    bindDeclineReasonModal();
+    startAcceptDeclinePolling();
     // startCurrentTimeIndicator(); // 현재 시간 표시선 제거됨
     
     // 자동 충돌 해결 비활성화 (날짜별 세션 혼합 방지)
@@ -1153,6 +1155,7 @@ function handleMouseMove(e) {
             // 마우스 위치에서 가장 가까운 venue 찾기
             const mouseX = e.clientX;
             const mouseY = e.clientY;
+            const isSpanDrag = isSpanAllVenuesSession(currentDragSession);
             
             let targetVenueArea = null;
             let targetVenueIndex = -1;
@@ -1165,34 +1168,38 @@ function handleMouseMove(e) {
                     venueArea.classList.remove('drag-over');
                 }
             });
-            
-            // 모든 venue area를 순회하며 마우스와 가장 가까운 것 찾기
-            venues.forEach((venue, venueIndex) => {
-                const venueArea = document.getElementById(`venueSessionsArea_${venueIndex}`);
-                if (venueArea) {
-                    const rect = venueArea.getBoundingClientRect();
-                    // 마우스가 venue 영역 안에 있는지 확인
-                    if (mouseX >= rect.left && mouseX <= rect.right &&
-                        mouseY >= rect.top && mouseY <= rect.bottom) {
-                        targetVenueArea = venueArea;
-                        targetVenueIndex = venueIndex;
-                        minDistance = 0;
-                    } else if (minDistance > 0) {
-                        // 영역 밖이면 가장 가까운 venue 계산
-                        const centerX = rect.left + rect.width / 2;
-                        const distance = Math.abs(mouseX - centerX);
-                        if (distance < minDistance) {
-                            minDistance = distance;
+
+            if (isSpanDrag) {
+                targetVenueArea = getSessionLayoutArea(currentDragSession);
+            } else {
+                // 모든 venue area를 순회하며 마우스와 가장 가까운 것 찾기
+                venues.forEach((venue, venueIndex) => {
+                    const venueArea = document.getElementById(`venueSessionsArea_${venueIndex}`);
+                    if (venueArea) {
+                        const rect = venueArea.getBoundingClientRect();
+                        // 마우스가 venue 영역 안에 있는지 확인
+                        if (mouseX >= rect.left && mouseX <= rect.right &&
+                            mouseY >= rect.top && mouseY <= rect.bottom) {
                             targetVenueArea = venueArea;
                             targetVenueIndex = venueIndex;
+                            minDistance = 0;
+                        } else if (minDistance > 0) {
+                            // 영역 밖이면 가장 가까운 venue 계산
+                            const centerX = rect.left + rect.width / 2;
+                            const distance = Math.abs(mouseX - centerX);
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                targetVenueArea = venueArea;
+                                targetVenueIndex = venueIndex;
+                            }
                         }
                     }
+                });
+                
+                // 타겟 venue가 없으면 원래 venue 사용
+                if (!targetVenueArea) {
+                    targetVenueArea = currentDragSession.closest('.venue-sessions-area');
                 }
-            });
-            
-            // 타겟 venue가 없으면 원래 venue 사용
-            if (!targetVenueArea) {
-                targetVenueArea = currentDragSession.closest('.venue-sessions-area');
             }
             
             if (!targetVenueArea) {
@@ -1200,15 +1207,17 @@ function handleMouseMove(e) {
                 return;
             }
             
-            // 타겟 venue에 하이라이트 추가
-            targetVenueArea.classList.add('drag-over');
-            
-            // 세션 블록이 다른 venue로 이동해야 하는지 확인
-            const currentParent = currentDragSession.parentElement;
-            if (currentParent !== targetVenueArea) {
-                // 세션 블록을 새로운 venue로 실시간 이동
-                console.log(`🔄 Moving session block to venue ${targetVenueIndex} during drag`);
-                targetVenueArea.appendChild(currentDragSession);
+            // 타겟 venue에 하이라이트 추가 (전체 열 세션은 제외)
+            if (!isSpanDrag) {
+                targetVenueArea.classList.add('drag-over');
+                
+                // 세션 블록이 다른 venue로 이동해야 하는지 확인
+                const currentParent = currentDragSession.parentElement;
+                if (currentParent !== targetVenueArea) {
+                    // 세션 블록을 새로운 venue로 실시간 이동
+                    console.log(`🔄 Moving session block to venue ${targetVenueIndex} during drag`);
+                    targetVenueArea.appendChild(currentDragSession);
+                }
             }
             
             const venueRect = targetVenueArea.getBoundingClientRect();
@@ -1342,16 +1351,18 @@ function handleMouseUp() {
 
                 let newVenueName = session.venue;
 
-                venues.forEach((venue, venueIndex) => {
-                    const venueArea = document.getElementById(`venueSessionsArea_${venueIndex}`);
-                    if (venueArea) {
-                        const rect = venueArea.getBoundingClientRect();
-                        if (mouseX >= rect.left && mouseX <= rect.right &&
-                            mouseY >= rect.top && mouseY <= rect.bottom) {
-                            newVenueName = venue.name;
+                if (!session.spanAllVenues && !session.posterExhibition) {
+                    venues.forEach((venue, venueIndex) => {
+                        const venueArea = document.getElementById(`venueSessionsArea_${venueIndex}`);
+                        if (venueArea) {
+                            const rect = venueArea.getBoundingClientRect();
+                            if (mouseX >= rect.left && mouseX <= rect.right &&
+                                mouseY >= rect.top && mouseY <= rect.bottom) {
+                                newVenueName = venue.name;
+                            }
                         }
-                    }
-                });
+                    });
+                }
 
                 if (session.venue !== newVenueName) {
                     console.log(`🔄 Venue changed: "${session.venue}" → "${newVenueName}"`);
@@ -2403,69 +2414,72 @@ function updateTooltipPosition(event) {
 }
 
 // 세션 블록에 이벤트 리스너 추가
+function bindSessionAreaListeners(areaElement) {
+    if (!areaElement) return;
+
+    areaElement.removeEventListener('mousedown', handleSessionMouseDown);
+    areaElement.removeEventListener('dblclick', handleSessionDoubleClick);
+    areaElement.removeEventListener('click', handleSessionClick);
+    areaElement.removeEventListener('mouseenter', handleSessionMouseEnter);
+    areaElement.removeEventListener('mouseleave', handleSessionMouseLeave);
+    areaElement.removeEventListener('mousemove', handleSessionMouseMove);
+
+    areaElement.addEventListener('mousedown', handleSessionMouseDown);
+    areaElement.addEventListener('dblclick', handleSessionDoubleClick);
+    areaElement.addEventListener('click', handleSessionClick);
+    areaElement.addEventListener('mouseenter', handleSessionMouseEnter);
+    areaElement.addEventListener('mouseleave', handleSessionMouseLeave);
+    areaElement.addEventListener('mousemove', handleSessionMouseMove);
+
+    areaElement.querySelectorAll('.session-block').forEach((block) => {
+        block.removeEventListener('mouseenter', handleSessionMouseEnter);
+        block.removeEventListener('mouseleave', handleSessionMouseLeave);
+        block.removeEventListener('mousemove', handleSessionMouseMove);
+        block.addEventListener('mouseenter', handleSessionMouseEnter);
+        block.addEventListener('mouseleave', handleSessionMouseLeave);
+        block.addEventListener('mousemove', handleSessionMouseMove);
+
+        const resizeHandle = block.querySelector('.resize-handle.bottom');
+        if (resizeHandle) {
+            resizeHandle.removeEventListener('mousedown', handleResizeStart);
+            resizeHandle.addEventListener('mousedown', function(e) {
+                handleResizeStart(e);
+            });
+        }
+    });
+}
+
+function getSessionLayoutArea(sessionBlock) {
+    if (!sessionBlock) return null;
+    if (
+        sessionBlock.dataset.spanAllVenues === 'true'
+        || sessionBlock.classList.contains('span-all-venues')
+    ) {
+        return document.getElementById('spanSessionsLayer') || sessionBlock.parentElement;
+    }
+    return sessionBlock.closest('.venue-sessions-area')
+        || sessionBlock.closest('.span-sessions-layer')
+        || sessionBlock.parentElement;
+}
+
+function isSpanAllVenuesSession(sessionOrBlock) {
+    if (!sessionOrBlock) return false;
+    if (sessionOrBlock.dataset) {
+        return sessionOrBlock.dataset.spanAllVenues === 'true'
+            || sessionOrBlock.classList.contains('span-all-venues');
+    }
+    return !!sessionOrBlock.spanAllVenues || !!sessionOrBlock.posterExhibition;
+}
+
 function addSessionEventListeners() {
     console.log('Adding session event listeners to all venue areas');
-    
-    // 모든 장소의 세션 영역에 이벤트 리스너 추가
+
     venues.forEach((venue, venueIndex) => {
-        const venueSessionsArea = document.getElementById(`venueSessionsArea_${venueIndex}`);
-        if (!venueSessionsArea) return;
-        
-        console.log(`Adding event listeners to venue ${venueIndex}: ${venue.name}`);
-        
-        // 기존 이벤트 리스너 제거 (중복 방지)
-        venueSessionsArea.removeEventListener('mousedown', handleSessionMouseDown);
-        venueSessionsArea.removeEventListener('dblclick', handleSessionDoubleClick);
-        venueSessionsArea.removeEventListener('click', handleSessionClick);
-        venueSessionsArea.removeEventListener('mouseenter', handleSessionMouseEnter);
-        venueSessionsArea.removeEventListener('mouseleave', handleSessionMouseLeave);
-        venueSessionsArea.removeEventListener('mousemove', handleSessionMouseMove);
-        
-        // 새로운 이벤트 리스너 등록
-        venueSessionsArea.addEventListener('mousedown', handleSessionMouseDown);
-        venueSessionsArea.addEventListener('dblclick', handleSessionDoubleClick);
-        venueSessionsArea.addEventListener('click', handleSessionClick);
-        venueSessionsArea.addEventListener('mouseenter', handleSessionMouseEnter);
-        venueSessionsArea.addEventListener('mouseleave', handleSessionMouseLeave);
-        venueSessionsArea.addEventListener('mousemove', handleSessionMouseMove);
-        
-        // 세션 블록 확인
-        const sessionBlocks = venueSessionsArea.querySelectorAll('.session-block');
-        console.log(`Found ${sessionBlocks.length} session blocks in venue ${venueIndex}`);
-        
-        // 세션 블록에 직접 이벤트 리스너 추가 (이벤트 위임 대신)
-        sessionBlocks.forEach((block, index) => {
-            console.log(`Adding direct event listeners to session block ${index} in venue ${venueIndex}`);
-            
-            // 기존 이벤트 리스너 제거
-            block.removeEventListener('mouseenter', handleSessionMouseEnter);
-            block.removeEventListener('mouseleave', handleSessionMouseLeave);
-            block.removeEventListener('mousemove', handleSessionMouseMove);
-            
-            // 새로운 이벤트 리스너 추가
-            block.addEventListener('mouseenter', handleSessionMouseEnter);
-            block.addEventListener('mouseleave', handleSessionMouseLeave);
-            block.addEventListener('mousemove', handleSessionMouseMove);
-            
-            // 리사이즈 핸들에 직접 이벤트 리스너 추가 (핵심!)
-            const resizeHandle = block.querySelector('.resize-handle.bottom');
-            if (resizeHandle) {
-                console.log(`  ✅ Adding mousedown listener to resize handle in block ${index}`);
-                
-                // 기존 리스너 제거
-                resizeHandle.removeEventListener('mousedown', handleResizeStart);
-                
-                // 새로운 리스너 추가
-                resizeHandle.addEventListener('mousedown', function(e) {
-                    console.log('🎯 RESIZE HANDLE MOUSEDOWN - Direct listener');
-                    handleResizeStart(e);
-                });
-            } else {
-                console.warn(`  ⚠️ No resize handle found in block ${index}`);
-            }
-        });
+        bindSessionAreaListeners(document.getElementById(`venueSessionsArea_${venueIndex}`));
     });
-    
+    bindSessionAreaListeners(document.getElementById('spanSessionsLayer'));
+    bindSessionAreaListeners(document.getElementById(UNASSIGNED_VENUE_AREA_ID));
+
     console.log('Event listeners registered successfully');
 }
 
@@ -2704,14 +2718,13 @@ function startDrag(event, sessionIndex) {
     dragStartY = event.clientY;
     
     // 드래그 시작 시 마우스와 세션 블록의 상대적 위치 계산
-    // 해당 세션 블록이 속한 venue의 sessions area를 기준으로 계산
-    const venueSessionsArea = sessionBlock.closest('.venue-sessions-area');
-    if (!venueSessionsArea) {
-        console.error('Venue sessions area not found for session block');
+    const layoutArea = getSessionLayoutArea(sessionBlock);
+    if (!layoutArea) {
+        console.error('Layout area not found for session block');
         return;
     }
     
-    const venueRect = venueSessionsArea.getBoundingClientRect();
+    const venueRect = layoutArea.getBoundingClientRect();
     const scrollTop = document.getElementById('scrollContainer').scrollTop;
     const mouseY = event.clientY - venueRect.top + scrollTop;
     const sessionTop = parseFloat(sessionBlock.style.top);
@@ -2722,7 +2735,7 @@ function startDrag(event, sessionIndex) {
         mouseY: mouseY,
         sessionTop: sessionTop,
         dragOffsetY: dragOffsetY,
-        venueSessionsArea: venueSessionsArea.id
+        layoutArea: layoutArea.id
     });
     
     // 마우스 커서 스타일 변경
@@ -2775,6 +2788,12 @@ function addSession() {
     currentSessionIndex = -1;
     document.getElementById('modalTitle').textContent = '세션 추가';
     document.getElementById('sessionForm').reset();
+    const abstractAssignable = document.getElementById('sessionAbstractAssignable');
+    if (abstractAssignable) abstractAssignable.checked = false;
+    const posterExhibition = document.getElementById('sessionPosterExhibition');
+    if (posterExhibition) posterExhibition.checked = false;
+    const spanAllVenues = document.getElementById('sessionSpanAllVenues');
+    if (spanAllVenues) spanAllVenues.checked = false;
     
     // 좌장 목록 초기화 (기본 좌장 추가 안 함 - 선택사항)
     document.getElementById('chairsContainer').innerHTML = '';
@@ -2807,6 +2826,18 @@ function editSession(index) {
     document.getElementById('sessionVenue').value = session.venue || '';
     document.getElementById('sessionStartTime').value = session.startTime;
     document.getElementById('sessionEndTime').value = session.endTime;
+    const abstractAssignable = document.getElementById('sessionAbstractAssignable');
+    if (abstractAssignable) {
+        abstractAssignable.checked = !!session.abstractAssignable;
+    }
+    const posterExhibition = document.getElementById('sessionPosterExhibition');
+    if (posterExhibition) {
+        posterExhibition.checked = !!session.posterExhibition;
+    }
+    const spanAllVenues = document.getElementById('sessionSpanAllVenues');
+    if (spanAllVenues) {
+        spanAllVenues.checked = !!session.spanAllVenues || !!session.posterExhibition;
+    }
     
     console.log('📂 Setting session type:', session.sessionType);
     
@@ -2872,13 +2903,41 @@ function editSession(index) {
     
     console.log(`🔍 Loading ${session.speakers ? session.speakers.length : 0} speakers for session "${session.title}"`);
     console.log('📋 Session speakers data:', session.speakers);
+
+    let speakersToLoad = session.speakers || [];
+    if (session.posterExhibition) {
+        const key = [
+            (session.sessionType || '').trim().toLowerCase(),
+            (session.title || '').trim().toLowerCase(),
+            (session.venue || '').trim().toLowerCase(),
+        ].join('|');
+        const merged = [];
+        const seen = new Set();
+        sessions.forEach((other) => {
+            if (!other?.posterExhibition) return;
+            const otherKey = [
+                (other.sessionType || '').trim().toLowerCase(),
+                (other.title || '').trim().toLowerCase(),
+                (other.venue || '').trim().toLowerCase(),
+            ].join('|');
+            if (otherKey !== key) return;
+            (other.speakers || []).forEach((speaker) => {
+                const pid = speaker.participantId || speaker.id;
+                if (!pid || seen.has(String(pid))) return;
+                seen.add(String(pid));
+                merged.push(speaker);
+            });
+        });
+        speakersToLoad = merged;
+        session.speakers = merged.map((speaker) => ({ ...speaker }));
+    }
     
-    if (session.speakers && session.speakers.length > 0) {
-        session.speakers.forEach((speaker, index) => {
+    if (speakersToLoad && speakersToLoad.length > 0) {
+        speakersToLoad.forEach((speaker, index) => {
             console.log(`🔍 Loading speaker ${index + 1}:`, speaker);
         addSpeakerToForm(speaker);
     });
-        console.log(`✅ Loaded ${session.speakers.length} speakers into edit modal`);
+        console.log(`✅ Loaded ${speakersToLoad.length} speakers into edit modal`);
     } else {
         console.log('⚠️ No speakers found in session data');
     }
@@ -3298,9 +3357,52 @@ function deleteSelectedSessions() {
 }
 
 // Open session modal
+function isPosterExhibitionMode() {
+    return !!document.getElementById('sessionPosterExhibition')?.checked;
+}
+
+function updateSessionPosterExhibitionUI() {
+    const modalContent = document.querySelector('#sessionModal .session-edit-modal');
+    const posterOn = isPosterExhibitionMode();
+    const spanInput = document.getElementById('sessionSpanAllVenues');
+    const speakersLabel = document.getElementById('sessionSpeakersLabel');
+    const speakersHint = document.getElementById('sessionSpeakersHint');
+
+    if (modalContent) {
+        modalContent.classList.toggle('poster-exhibition-mode', posterOn);
+    }
+    if (posterOn && spanInput) {
+        spanInput.checked = true;
+    }
+    if (speakersLabel) {
+        speakersLabel.textContent = posterOn ? '포스터 발표자' : '발표자';
+    }
+    if (speakersHint) {
+        speakersHint.textContent = posterOn ? '이름만 표시 · 시간 배정 없음' : '드래그로 순서 변경';
+    }
+
+    document.querySelectorAll('#speakersContainer .speaker-time-pair input').forEach((input) => {
+        if (posterOn) {
+            input.removeAttribute('required');
+            input.value = '';
+        } else {
+            input.setAttribute('required', 'required');
+        }
+    });
+}
+
+function bindSessionPosterExhibitionToggle() {
+    const posterInput = document.getElementById('sessionPosterExhibition');
+    if (!posterInput || posterInput.dataset.bound === '1') return;
+    posterInput.dataset.bound = '1';
+    posterInput.addEventListener('change', updateSessionPosterExhibitionUI);
+}
+
 function openSessionModal() {
     // 세션 타입 드롭다운 업데이트
     updateSessionTypeDropdown();
+    bindSessionPosterExhibitionToggle();
+    updateSessionPosterExhibitionUI();
     document.getElementById('sessionModal').style.display = 'block';
 }
 
@@ -3499,9 +3601,12 @@ function addSpeakerToForm(speakerData = null) {
                     <i class="fas fa-search"></i>
                 </button>
             </div>
-            <input type="text" name="speaker_topic_${speakerId}" value="${speakerData ? (speakerData.topic || '') : ''}" placeholder="주제" required>
-            <input type="time" name="speaker_start_${speakerId}" value="${speakerData ? (speakerData.startTime || '') : ''}" step="300" required>
-            <input type="time" name="speaker_end_${speakerId}" value="${speakerData ? (speakerData.endTime || '') : ''}" step="300" required>
+            <input type="text" name="speaker_topic_${speakerId}" value="${speakerData ? (speakerData.topic || '') : ''}" placeholder="${isPosterExhibitionMode() ? '포스터 제목 (선택)' : '주제'}" ${isPosterExhibitionMode() ? '' : 'required'}>
+            <div class="speaker-time-pair">
+                <input type="time" name="speaker_start_${speakerId}" value="${(!isPosterExhibitionMode() && speakerData) ? (speakerData.startTime || '') : ''}" step="300" ${isPosterExhibitionMode() ? '' : 'required'}>
+                <span class="time-sep" aria-hidden="true">–</span>
+                <input type="time" name="speaker_end_${speakerId}" value="${(!isPosterExhibitionMode() && speakerData) ? (speakerData.endTime || '') : ''}" step="300" ${isPosterExhibitionMode() ? '' : 'required'}>
+            </div>
             <button type="button" class="remove-speaker-btn" onclick="removeSpeaker(${speakerId})" aria-label="발표자 삭제">
                 <i class="fas fa-times"></i>
             </button>
@@ -3557,6 +3662,7 @@ function speakerRowTimeInputs(row) {
 }
 
 function redistributeSpeakerTimesInForm() {
+    if (isPosterExhibitionMode()) return;
     const rows = [...document.querySelectorAll('#speakersContainer .speaker-form')];
     if (!rows.length) return;
 
@@ -3749,48 +3855,60 @@ function saveSession() {
     // Collect speakers data
     const speakers = [];
     const speakerForms = document.querySelectorAll('.speaker-form');
+    const posterExhibition = isPosterExhibitionMode();
     
     for (let i = 0; i < speakerForms.length; i++) {
         const form = speakerForms[i];
         const speakerId = form.getAttribute('data-speaker-id');
         const participantId = formData.get(`speaker_participant_${speakerId}`);
-        const topic = formData.get(`speaker_topic_${speakerId}`)?.trim();
+        const topic = formData.get(`speaker_topic_${speakerId}`)?.trim() || '';
         const speakerStart = formData.get(`speaker_start_${speakerId}`);
         const speakerEnd = formData.get(`speaker_end_${speakerId}`);
         
-        if (participantId && topic && speakerStart && speakerEnd) {
-            // 참가자 ID로 이름 찾기
-            const participant = participants.find(p => p.id == participantId);
-            if (!participant) {
-                alert('선택한 발표자 정보를 찾을 수 없습니다.');
-                return;
-            }
-            
-            // 발표자 데이터 검증
-            if (topic.length === 0) {
-                alert('발표 주제를 입력해주세요.');
-                return;
-            }
-            
-            const snappedSpeakerStart = snapToGrid(speakerStart);
-            const snappedSpeakerEnd = snapToGrid(speakerEnd);
-            
-            // Validate speaker times within session time
-            if (snappedSpeakerStart < startTime || snappedSpeakerEnd > endTime) {
-                alert('발표자 시간은 세션 시간 내에 있어야 합니다.');
-                return;
-            }
-            
+        if (!participantId) {
+            continue;
+        }
+
+        const participant = participants.find(p => p.id == participantId);
+        if (!participant) {
+            alert(posterExhibition ? '선택한 포스터 발표자 정보를 찾을 수 없습니다.' : '선택한 발표자 정보를 찾을 수 없습니다.');
+            return;
+        }
+
+        if (posterExhibition) {
             speakers.push(buildProgramSpeakerSlot(participant, {
                 topic: topic,
-                startTime: snappedSpeakerStart,
-                endTime: snappedSpeakerEnd
+                startTime: '',
+                endTime: '',
+                untimed: true
             }));
+            continue;
         }
+
+        if (!topic || !speakerStart || !speakerEnd) {
+            continue;
+        }
+            
+        const snappedSpeakerStart = snapToGrid(speakerStart);
+        const snappedSpeakerEnd = snapToGrid(speakerEnd);
+        
+        // Validate speaker times within session time
+        if (snappedSpeakerStart < startTime || snappedSpeakerEnd > endTime) {
+            alert('발표자 시간은 세션 시간 내에 있어야 합니다.');
+            return;
+        }
+        
+        speakers.push(buildProgramSpeakerSlot(participant, {
+            topic: topic,
+            startTime: snappedSpeakerStart,
+            endTime: snappedSpeakerEnd
+        }));
     }
     
-    // Sort speakers by start time
-    speakers.sort((a, b) => new Date(`2000-01-01 ${a.startTime}`) - new Date(`2000-01-01 ${b.startTime}`));
+    // Sort speakers by start time (포스터 전시는 입력 순서 유지)
+    if (!posterExhibition) {
+        speakers.sort((a, b) => new Date(`2000-01-01 ${a.startTime}`) - new Date(`2000-01-01 ${b.startTime}`));
+    }
     
     const venue = formData.get('sessionVenue')?.trim();
     console.log('📍 Venue:', venue);
@@ -3887,7 +4005,11 @@ function saveSession() {
         date: sessionDate,  // 기존 세션 수정 시 날짜 유지, 새 세션 생성 시 현재 선택된 날짜 사용
         sessionAbbreviation: sessionAbbreviation,  // 엑셀에서 업로드된 원본 약어
         displayAbbreviation: displayAbbreviation,  // 표시용 약어 (번호 포함 가능)
-        displaySessionType: displaySessionType  // 표시용 세션 타입 (번호 포함 가능)
+        displaySessionType: displaySessionType,  // 표시용 세션 타입 (번호 포함 가능)
+        abstractAssignable: !!document.getElementById('sessionAbstractAssignable')?.checked,
+        posterExhibition: !!document.getElementById('sessionPosterExhibition')?.checked,
+        spanAllVenues: !!document.getElementById('sessionSpanAllVenues')?.checked
+            || !!document.getElementById('sessionPosterExhibition')?.checked
     };
     
     console.log('=== SAVE SESSION ===');
@@ -3902,6 +4024,28 @@ function saveSession() {
         // Update existing session
         sessions[currentSessionIndex] = sessionData;
         console.log('Updated existing session at index:', currentSessionIndex);
+    }
+
+    // 포스터 전시: 같은 제목/장소의 다른 날짜 세션에도 발표자 목록 동기화
+    if (sessionData.posterExhibition) {
+        const key = [
+            (sessionData.sessionType || '').trim().toLowerCase(),
+            (sessionData.title || '').trim().toLowerCase(),
+            (sessionData.venue || '').trim().toLowerCase(),
+        ].join('|');
+        const sharedSpeakers = (sessionData.speakers || []).map((speaker) => ({ ...speaker }));
+        sessions.forEach((session) => {
+            if (!session || !session.posterExhibition) return;
+            const otherKey = [
+                (session.sessionType || '').trim().toLowerCase(),
+                (session.title || '').trim().toLowerCase(),
+                (session.venue || '').trim().toLowerCase(),
+            ].join('|');
+            if (otherKey !== key) return;
+            session.speakers = sharedSpeakers.map((speaker) => ({ ...speaker }));
+            session.spanAllVenues = true;
+            session.posterExhibition = true;
+        });
     }
     
     console.log('All sessions after save:', sessions);
@@ -5462,10 +5606,133 @@ function togglePeopleSort(key) {
     applyPeopleViewFilters();
 }
 
-function formatAcceptDeclineStatus(status) {
-    if (status === 'Accept') return '<span class="accept-status">승인</span>';
-    if (status === 'Decline') return '<span class="decline-status">거절</span>';
-    return status || '-';
+function escapeHtmlAttr(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function formatAcceptDeclineStatus(participantOrStatus) {
+    const isObject = participantOrStatus && typeof participantOrStatus === 'object';
+    const status = isObject ? participantOrStatus.accept_or_decline : participantOrStatus;
+    if (status === 'Accept') return '<span class="accept-status">수락</span>';
+    if (status === 'Decline') {
+        if (!isObject) {
+            return '<span class="decline-status">거절</span>';
+        }
+        const participantName = participantOrStatus.name_kor
+            || [participantOrStatus.first_name, participantOrStatus.family_name].filter(Boolean).join(' ')
+            || participantOrStatus.name_eng
+            || participantOrStatus.name
+            || '참가자';
+        const fullReason = (participantOrStatus.decline_reason || '').trim() || '거절 사유 없음';
+        return `<span class="decline-status decline-status--clickable" title="클릭하여 거절 사유 보기" data-full-reason="${escapeHtmlAttr(fullReason)}" data-participant-name="${escapeHtmlAttr(participantName)}" onclick="showDeclineReason(this)">거절</span>`;
+    }
+    if (!status || status === '대기') return '<span class="pending-status">대기</span>';
+    return escapeHtmlAttr(status);
+}
+
+function showDeclineReason(element) {
+    const reason = (element.getAttribute('data-full-reason') || '').trim();
+    const participantName = element.getAttribute('data-participant-name') || '참가자';
+    openDeclineReasonPopup(participantName, reason);
+}
+
+function bindDeclineReasonModal() {
+    const modal = document.getElementById('declineReasonPopupModal');
+    if (!modal || modal.dataset.bound === '1') return;
+
+    modal.querySelector('.title-modal-backdrop')?.addEventListener('click', closeDeclineReasonPopup);
+    modal.querySelector('.title-modal-close')?.addEventListener('click', closeDeclineReasonPopup);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) {
+            closeDeclineReasonPopup();
+        }
+    });
+    modal.dataset.bound = '1';
+}
+
+function openDeclineReasonPopup(personName, reason) {
+    const modal = document.getElementById('declineReasonPopupModal');
+    const titleEl = document.getElementById('declineReasonPopupTitle');
+    const subtitleEl = document.getElementById('declineReasonPopupPersonName');
+    const bodyEl = document.getElementById('declineReasonPopupBody');
+    if (!modal || !bodyEl) return;
+
+    bindDeclineReasonModal();
+
+    if (titleEl) titleEl.textContent = '거절 사유';
+    if (subtitleEl) subtitleEl.textContent = personName || '';
+
+    bodyEl.innerHTML = '';
+    const text = document.createElement('div');
+    text.className = 'title-modal-text decline-reason-text';
+    const trimmed = (reason || '').trim();
+    if (trimmed && trimmed !== '거절 사유 없음') {
+        text.textContent = trimmed;
+    } else {
+        text.classList.add('title-modal-empty');
+        text.textContent = '거절 사유가 등록되지 않았습니다.';
+    }
+    bodyEl.appendChild(text);
+
+    modal.hidden = false;
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDeclineReasonPopup() {
+    const modal = document.getElementById('declineReasonPopupModal');
+    if (!modal || modal.hidden) return;
+    modal.hidden = true;
+    document.body.style.overflow = '';
+}
+
+function startAcceptDeclinePolling() {
+    setInterval(() => {
+        if (currentViewMode !== 'excel' || excelViewState.subMode !== 'people') return;
+        refreshAcceptDeclineStatuses();
+    }, 5000);
+    // 엑셀 좌장/연자 뷰 진입 직후에도 한 번 맞춤
+    refreshAcceptDeclineStatuses();
+}
+
+async function refreshAcceptDeclineStatuses() {
+    try {
+        const eventId = document.body.getAttribute('data-event-id');
+        if (!eventId || !Array.isArray(participants) || participants.length === 0) return;
+
+        const response = await fetch(`/get_participant_status?event_id=${eventId}`);
+        if (!response.ok) return;
+        const statuses = await response.json();
+        if (!Array.isArray(statuses)) return;
+
+        let changed = false;
+        statuses.forEach((statusRow) => {
+            const match = participants.find((p) =>
+                (statusRow.id != null && Number(p.id) === Number(statusRow.id))
+                || (statusRow.code != null && p.code != null && Number(p.code) === Number(statusRow.code))
+            );
+            if (!match) return;
+
+            const nextStatus = statusRow.accept_or_decline || '';
+            const nextReason = statusRow.decline_reason || '';
+            if ((match.accept_or_decline || '') !== nextStatus || (match.decline_reason || '') !== nextReason) {
+                match.accept_or_decline = nextStatus;
+                match.decline_reason = nextReason;
+                changed = true;
+            }
+        });
+
+        if (changed && currentViewMode === 'excel' && excelViewState.subMode === 'people') {
+            excelViewState.peopleRows = generatePeopleViewData();
+            applyPeopleViewFilters();
+        }
+    } catch (error) {
+        console.error('Failed to refresh accept/decline status:', error);
+    }
 }
 
 function renderAttachmentCell(filepath) {
@@ -5476,7 +5743,7 @@ function renderAttachmentCell(filepath) {
 
 function openParticipantEditPopup(participantId) {
     if (!participantId) return;
-    window.open(`/edit_participant/${participantId}`, '_blank', 'width=500,height=800,scrollbars=yes,resizable=yes');
+    window.open(`/edit_participant/${participantId}`, '_blank', 'width=680,height=860,scrollbars=yes,resizable=yes');
 }
 
 async function downloadProgramPersonFile(filepath, event) {
@@ -5624,6 +5891,7 @@ function renderPeopleViewTable() {
     if (!table || !tableHead || !tableBody) return;
 
     table.classList.add('excel-table--people');
+    table.classList.remove('excel-table--program');
 
     const headers = [
         { label: '번호' },
@@ -5636,7 +5904,7 @@ function renderPeopleViewTable() {
         { label: '이메일' },
         { label: '참여 세션' },
         { label: '등록구분' },
-        { label: '승인/거절' },
+        { label: '수락/거절' },
         { label: 'CV' },
         { label: '사진' },
         { label: 'PPT' },
@@ -5705,7 +5973,7 @@ function renderPeopleViewTable() {
                 row.email || p.email || '',
                 row.sessionsText || '',
                 registrationLabel,
-                formatAcceptDeclineStatus(p.accept_or_decline),
+                formatAcceptDeclineStatus(p),
                 renderAttachmentCell(p.cv),
                 renderAttachmentCell(p.photo),
                 renderAttachmentCell(p.ppt),
@@ -5777,6 +6045,7 @@ function renderExcelViewTable() {
     if (!table || !tableHead || !tableBody) return;
 
     table.classList.remove('excel-table--people');
+    table.classList.add('excel-table--program');
     
     tableHead.innerHTML = '';
     tableBody.innerHTML = '';
@@ -5817,9 +6086,9 @@ function renderExcelViewTable() {
                     td.title = '';
                 } else {
                     const cellStr = String(cell);
-                    // 줄바꿈 문자(\n)를 <br>로 변환하여 표시 (line-clamp와 호환)
-                    cellDiv.innerHTML = cellStr.replace(/\n/g, '<br>');
-                    // 툴팁으로 전체 내용 표시
+                    // 좌장·연자 뷰와 같이 한 줄로 표시 (줄바꿈 → 구분자)
+                    const displayText = cellStr.replace(/\r?\n+/g, ' / ').trim();
+                    cellDiv.textContent = displayText;
                     td.title = cellStr;
                 }
                 
@@ -6137,6 +6406,116 @@ function exportProgramCalendar(detailLevel = 'session') {
 }
 
 // 일반 캘린더 내보내기 (기존 방식)
+// 캘린더 내보내기: 전체 열 표시 / 포스터 전시 세션 헬퍼
+function isCalendarSpanSession(session) {
+    return !!(session && (session.spanAllVenues || session.posterExhibition));
+}
+
+function isPosterExhibitionSession(session) {
+    return !!(session && session.posterExhibition);
+}
+
+function getCalendarExportVenueNames(dateSessions) {
+    if (Array.isArray(venues) && venues.length > 0) {
+        return venues.map((venue) => (venue.name || '').trim()).filter(Boolean);
+    }
+    const venuesSet = new Set();
+    (dateSessions || []).forEach((session) => {
+        if (session.venue) venuesSet.add(session.venue);
+    });
+    return Array.from(venuesSet).sort();
+}
+
+function posterExhibitionSessionKey(session) {
+    return [
+        (session.sessionType || '').trim().toLowerCase(),
+        (session.title || '').trim().toLowerCase(),
+        (session.venue || '').trim().toLowerCase(),
+    ].join('|');
+}
+
+function collectSessionsForCalendarExportDate(date, sessionsByDate) {
+    const base = [...(sessionsByDate[date] || [])];
+    const posterKeys = new Set(
+        base.filter((session) => isPosterExhibitionSession(session))
+            .map(posterExhibitionSessionKey)
+    );
+    Object.entries(sessionsByDate || {}).forEach(([otherDate, list]) => {
+        if (otherDate === date) return;
+        (list || []).forEach((session) => {
+            if (!isPosterExhibitionSession(session)) return;
+            const key = posterExhibitionSessionKey(session);
+            if (posterKeys.has(key)) return;
+            posterKeys.add(key);
+            base.push(session);
+        });
+    });
+    return base;
+}
+
+function formatSimpleCalendarSessionContent(session, excludeNames) {
+    let content = '';
+    let sessionHeader = session.displayAbbreviation
+        ? `[${session.displayAbbreviation}] ${session.title}`
+        : session.title;
+
+    if (excludeNames && session.startTime && session.endTime) {
+        const durationMinutes = calculateDurationInMinutes(session.startTime, session.endTime);
+        if (durationMinutes !== null) {
+            sessionHeader += ` (${durationMinutes}')`;
+        }
+    }
+    content += sessionHeader + '\n';
+
+    if (!excludeNames) {
+        if (session.chairs && session.chairs.length > 0) {
+            const chairNames = session.chairs.map((chair) => {
+                const name = getPreferredNameForEntity(chair, 'eng');
+                const chairInfo = getParticipantInfo(chair.id || chair.participantId);
+                const country = (chair.country || chairInfo?.country) ? ` (${chair.country || chairInfo.country})` : '';
+                return name + country;
+            }).filter(Boolean).join(', ');
+            content += 'Chair: ' + chairNames + '\n';
+        } else if (session.chair) {
+            content += 'Chair: ' + session.chair + '\n';
+        }
+    }
+
+    // 포스터 전시 세션은 발표자 이름을 내보내지 않음
+    if (
+        !excludeNames
+        && !isPosterExhibitionSession(session)
+        && session.speakers
+        && session.speakers.length > 0
+    ) {
+        content += '\n';
+        session.speakers.forEach((speaker) => {
+            const speakerInfo = getParticipantInfo(speaker.participantId);
+            const speakerName = getSpeakerDisplayName(speaker, 'eng');
+            const speakerCountry = speaker.country || speakerInfo?.country || '';
+            const topic = speaker.topic || '';
+            const time = speaker.startTime && speaker.endTime
+                ? ` (${speaker.startTime}-${speaker.endTime})`
+                : '';
+
+            if (topic) {
+                content += `- "${topic}"`;
+                if (speakerName) {
+                    content += ` - ${speakerName}`;
+                    if (speakerCountry) content += ` (${speakerCountry})`;
+                }
+                content += time + '\n';
+            } else if (speakerName) {
+                content += `- ${speakerName}`;
+                if (speakerCountry) content += ` (${speakerCountry})`;
+                content += time + '\n';
+            }
+        });
+    }
+
+    return content.trim();
+}
+
 function exportProgramCalendarSimple() {
     try {
         console.log('📅 Exporting simple calendar format...');
@@ -6199,14 +6578,8 @@ function exportProgramCalendarSimple() {
         const dates = Object.keys(sessionsByDate).sort();
         
         for (const date of dates) {
-            const dateSessions = sessionsByDate[date];
-            
-            // 해당 날짜의 모든 venue 추출
-            const venuesSet = new Set();
-            dateSessions.forEach(session => {
-                if (session.venue) venuesSet.add(session.venue);
-            });
-            const venuesList = Array.from(venuesSet).sort();
+            const dateSessions = collectSessionsForCalendarExportDate(date, sessionsByDate);
+            const venuesList = getCalendarExportVenueNames(dateSessions);
             
             // 모든 시간 슬롯 추출
             const timeSlotsSet = new Set();
@@ -6219,6 +6592,7 @@ function exportProgramCalendarSimple() {
             // 헤더 행 생성
             const headerRow = ['Time / Venue', ...venuesList];
             const sheetData = [headerRow];
+            const sheetMerges = [];
             
             // 셀 스타일 정보 저장 (행 인덱스, 열 인덱스, 색상 ID)
             const cellStyles = {}; // key: "row_col", value: { colorId }
@@ -6226,99 +6600,56 @@ function exportProgramCalendarSimple() {
             // 각 시간 슬롯에 대해
             for (let rowIdx = 0; rowIdx < timeSlots.length; rowIdx++) {
                 const timeSlot = timeSlots[rowIdx];
-                const [startTime, endTime] = timeSlot.split('-');
                 const row = [timeSlot];
+                const sheetRowIndex = rowIdx + 1; // header = 0
                 
-                // 각 venue에 대해
-                for (let colIdx = 0; colIdx < venuesList.length; colIdx++) {
-                    const venue = venuesList[colIdx];
-                    // 이 시간대 + venue에 해당하는 세션 찾기
-                    const matchingSessions = dateSessions.filter(session => 
-                        session.venue === venue && 
-                        `${session.startTime || ''}-${session.endTime || ''}` === timeSlot
-                    );
+                const spanSessions = dateSessions.filter((session) =>
+                    isCalendarSpanSession(session)
+                    && `${session.startTime || ''}-${session.endTime || ''}` === timeSlot
+                );
+                
+                if (spanSessions.length > 0 && venuesList.length > 0) {
+                    const cellContent = spanSessions
+                        .map((session) => formatSimpleCalendarSessionContent(session, excludeNames))
+                        .join('\n\n---\n\n');
                     
-                    if (matchingSessions.length > 0) {
-                        // 세션 정보 포맷
-                        const cellContent = matchingSessions.map(session => {
-                            let content = '';
-                            
-                            // 세션 타입과 제목
-                            let sessionHeader = session.displayAbbreviation 
-                                ? `[${session.displayAbbreviation}] ${session.title}`
-                                : session.title;
-                            
-                            // Program at a Glance 모드일 때 세션 시간(분) 추가
-                            if (excludeNames && session.startTime && session.endTime) {
-                                const durationMinutes = calculateDurationInMinutes(session.startTime, session.endTime);
-                                if (durationMinutes !== null) {
-                                    sessionHeader += ` (${durationMinutes}')`;
-                                }
-                            }
-                            
-                            content += sessionHeader + '\n';
-                            
-                            // 좌장 정보 (이름 제외 옵션이 체크되지 않은 경우에만)
-                            if (!excludeNames) {
-                                if (session.chairs && session.chairs.length > 0) {
-                                    const chairNames = session.chairs.map(chair => {
-                                        const name = getPreferredNameForEntity(chair, 'eng');
-                                        const chairInfo = getParticipantInfo(chair.id || chair.participantId);
-                                        const country = (chair.country || chairInfo?.country) ? ` (${chair.country || chairInfo.country})` : '';
-                                        return name + country;
-                                    }).filter(n => n).join(', ');
-                                    content += 'Chair: ' + chairNames + '\n';
-                                } else if (session.chair) {
-                                    content += 'Chair: ' + session.chair + '\n';
-                                }
-                            }
-                            
-                            // 발표자 정보 (이름 및 제목 제외 옵션이 체크되지 않은 경우에만)
-                            if (session.speakers && session.speakers.length > 0 && !excludeNames) {
-                                content += '\n';
-                                session.speakers.forEach((speaker, idx) => {
-                                    const speakerInfo = getParticipantInfo(speaker.participantId);
-                                    const speakerName = getSpeakerDisplayName(speaker, 'eng');
-                                    const speakerCountry = speaker.country || speakerInfo?.country || '';
-                                    
-                                    const topic = speaker.topic || '';
-                                    const time = speaker.startTime && speaker.endTime 
-                                        ? ` (${speaker.startTime}-${speaker.endTime})` 
-                                        : '';
-                                    
-                                    if (topic) {
-                                        content += `- "${topic}"`;
-                                        if (speakerName) {
-                                            content += ` - ${speakerName}`;
-                                            if (speakerCountry) {
-                                                content += ` (${speakerCountry})`;
-                                            }
-                                        }
-                                        content += time + '\n';
-                                    } else if (speakerName) {
-                                        content += `- ${speakerName}`;
-                                        if (speakerCountry) {
-                                            content += ` (${speakerCountry})`;
-                                        }
-                                        content += time + '\n';
-                                    }
-                                });
-                            }
-                            
-                            return content.trim();
-                        }).join('\n\n---\n\n');
-                        
-                        row.push(cellContent);
-                        
-                        // 첫 번째 세션의 색상 정보 저장 (여러 세션이 있으면 첫 번째 것 사용)
-                        if (matchingSessions.length > 0 && applySessionColors) {
-                            const firstSession = matchingSessions[0];
-                            const colorId = resolveSessionColorId(firstSession);
-                            const cellKey = `${rowIdx + 1}_${colIdx + 1}`; // +1 because row 0 is header
-                            cellStyles[cellKey] = { colorId };
+                    venuesList.forEach((venue, colIdx) => {
+                        row.push(colIdx === 0 ? cellContent : '');
+                        if (applySessionColors) {
+                            const colorId = resolveSessionColorId(spanSessions[0]);
+                            cellStyles[`${sheetRowIndex}_${colIdx + 1}`] = { colorId };
                         }
-                    } else {
-                        row.push('');
+                    });
+                    
+                    if (venuesList.length > 1) {
+                        sheetMerges.push({
+                            s: { r: sheetRowIndex, c: 1 },
+                            e: { r: sheetRowIndex, c: venuesList.length },
+                        });
+                    }
+                } else {
+                    // 각 venue에 대해
+                    for (let colIdx = 0; colIdx < venuesList.length; colIdx++) {
+                        const venue = venuesList[colIdx];
+                        const matchingSessions = dateSessions.filter((session) =>
+                            !isCalendarSpanSession(session)
+                            && session.venue === venue
+                            && `${session.startTime || ''}-${session.endTime || ''}` === timeSlot
+                        );
+                        
+                        if (matchingSessions.length > 0) {
+                            const cellContent = matchingSessions
+                                .map((session) => formatSimpleCalendarSessionContent(session, excludeNames))
+                                .join('\n\n---\n\n');
+                            row.push(cellContent);
+                            
+                            if (applySessionColors) {
+                                const colorId = resolveSessionColorId(matchingSessions[0]);
+                                cellStyles[`${sheetRowIndex}_${colIdx + 1}`] = { colorId };
+                            }
+                        } else {
+                            row.push('');
+                        }
                     }
                 }
                 
@@ -6327,6 +6658,9 @@ function exportProgramCalendarSimple() {
             
             // 시트 생성
             const ws = XLSX.utils.aoa_to_sheet(sheetData);
+            if (sheetMerges.length) {
+                ws['!merges'] = (ws['!merges'] || []).concat(sheetMerges);
+            }
             
             // 색상 적용
             if (applySessionColors) {
@@ -6464,14 +6798,8 @@ function exportProgramCalendarDetailed() {
         const dates = Object.keys(sessionsByDate).sort();
         
         for (const date of dates) {
-            const dateSessions = sessionsByDate[date];
-            
-            // 해당 날짜의 모든 venue 추출
-            const venuesSet = new Set();
-            dateSessions.forEach(session => {
-                if (session.venue) venuesSet.add(session.venue);
-            });
-            const venuesList = Array.from(venuesSet).sort();
+            const dateSessions = collectSessionsForCalendarExportDate(date, sessionsByDate);
+            const venuesList = getCalendarExportVenueNames(dateSessions);
             
             // 헤더 행 생성
             const headerRow = ['세션시간', '발표시간', ...venuesList];
@@ -6531,7 +6859,8 @@ function exportProgramCalendarDetailed() {
                         speakerStartTime: session.startTime,
                         isHeaderRow: true,
                         venues: {},
-                        cellStyles: {}
+                        cellStyles: {},
+                        spanAllVenues: false
                      });
                  } else {
                      console.log(`🔄 Using existing header slot: ${headerSlotKey} for session "${session.title}"`);
@@ -6549,20 +6878,27 @@ function exportProgramCalendarDetailed() {
                  if (chairInfo) {
                      headerContent += '\n' + chairInfo;
                  }
-                 
-                 // venue에 내용 저장 (기존 내용이 있으면 누적)
-                 const existingHeaderContent = headerSlot.venues[session.venue] || '';
-                 if (existingHeaderContent) {
-                     headerSlot.venues[session.venue] = existingHeaderContent + '\n\n' + headerContent;
-                 } else {
-                     headerSlot.venues[session.venue] = headerContent;
-                 }
-                
-                const colorId = resolveSessionColorId(session);
-                headerSlot.cellStyles[session.venue] = {
-                    type: 'sessionHeader',
-                    colorId
-                };
+
+                const targetVenues = isCalendarSpanSession(session)
+                    ? venuesList
+                    : [session.venue].filter(Boolean);
+                if (isCalendarSpanSession(session)) {
+                    headerSlot.spanAllVenues = true;
+                }
+
+                targetVenues.forEach((venueName) => {
+                    const existingHeaderContent = headerSlot.venues[venueName] || '';
+                    if (existingHeaderContent) {
+                        headerSlot.venues[venueName] = existingHeaderContent + '\n\n' + headerContent;
+                    } else {
+                        headerSlot.venues[venueName] = headerContent;
+                    }
+                    const colorId = resolveSessionColorId(session);
+                    headerSlot.cellStyles[venueName] = {
+                        type: 'sessionHeader',
+                        colorId
+                    };
+                });
             });
             
             // 2단계: 발표가 있는 세션의 발표만 생성
@@ -6570,10 +6906,15 @@ function exportProgramCalendarDetailed() {
             const speakerGroups = new Map(); // key: speakerStartTime, value: [sessions...]
             
             dateSessions.forEach(session => {
+                // 포스터 전시 세션은 발표자 행을 만들지 않음
+                if (isPosterExhibitionSession(session)) {
+                    return;
+                }
                 if (session.speakers && session.speakers.length > 0) {
                     // 모든 발표자에 대해 발표 행 생성 (1명이어도)
                     session.speakers.forEach((speaker, idx) => {
                         const startTime = speaker.startTime;
+                        if (!startTime) return;
                         if (!speakerGroups.has(startTime)) {
                             speakerGroups.set(startTime, []);
                         }
@@ -6723,7 +7064,8 @@ function exportProgramCalendarDetailed() {
                         }
                         return stylesCopy;
                     })(),
-                    isHeaderRow: slot.isHeaderRow
+                    isHeaderRow: slot.isHeaderRow,
+                    spanAllVenues: !!slot.spanAllVenues
                 };
                 
                 // 세션 시간 중복 제거
@@ -6828,9 +7170,31 @@ function exportProgramCalendarDetailed() {
             });
             
             
+            // 전체 열 표시 세션: 가로 병합을 위해 첫 venue만 내용 유지
+            rowsWithTimeInfo.forEach((row) => {
+                if (!row.spanAllVenues || venuesList.length < 2) return;
+                const firstVenue = venuesList[0];
+                const sharedContent = row.venues[firstVenue]
+                    || venuesList.map((venue) => row.venues[venue]).find(Boolean)
+                    || '';
+                const sharedStyle = row.cellStyles[firstVenue]
+                    || venuesList.map((venue) => row.cellStyles[venue]).find(Boolean)
+                    || null;
+                venuesList.forEach((venue, idx) => {
+                    if (idx === 0) {
+                        row.venues[venue] = sharedContent;
+                        if (sharedStyle) row.cellStyles[venue] = { ...sharedStyle };
+                    } else {
+                        row.venues[venue] = '';
+                        delete row.cellStyles[venue];
+                    }
+                });
+            });
+            
             // 최종 데이터 행 생성
             const sheetStyles = [{}];
-            rowsWithTimeInfo.forEach(row => {
+            const spanRowMerges = [];
+            rowsWithTimeInfo.forEach((row, rowIdx) => {
                 const sheetRow = [row.sessionTime, row.speakerTime];
                 const styleRow = {};
                 
@@ -6842,6 +7206,13 @@ function exportProgramCalendarDetailed() {
                         styleRow[colIndex] = row.cellStyles[venue];
                     }
                 });
+
+                if (row.spanAllVenues && venuesList.length > 1) {
+                    spanRowMerges.push({
+                        s: { r: rowIdx + 1, c: 2 },
+                        e: { r: rowIdx + 1, c: venuesList.length + 1 },
+                    });
+                }
                 
                 sheetData.push(sheetRow);
                 sheetStyles.push(styleRow);
@@ -6891,7 +7262,8 @@ function exportProgramCalendarDetailed() {
             
             // 시간 컬럼 병합을 mergeCells에 추가
             mergeCells.push(...timeColumnMerges);
-            console.log(`📋 Added ${timeColumnMerges.length} time column merges`);
+            mergeCells.push(...spanRowMerges);
+            console.log(`📋 Added ${timeColumnMerges.length} time column merges, ${spanRowMerges.length} span-row merges`);
             
             // 셀 병합 적용 (중복 제거 및 유효성 검증)
             if (mergeCells.length > 0) {
@@ -6904,18 +7276,19 @@ function exportProgramCalendarDetailed() {
                 
                 mergeCells.forEach((merge, idx) => {
                     const { s, e } = merge;
+                    const isVertical = s.c === e.c && s.r <= e.r;
+                    const isHorizontal = s.r === e.r && s.c <= e.c;
                     
-                    // 유효성 검증 (시간 컬럼 포함)
+                    // 유효성 검증 (세로 또는 가로 병합)
                     if (s.r >= 0 && s.r <= maxRow &&
                         e.r >= 0 && e.r <= maxRow &&
                         s.c >= 0 && s.c <= maxCol &&
                         e.c >= 0 && e.c <= maxCol &&
-                        s.r <= e.r &&
-                        s.c === e.c) { // 같은 열에서만 병합
+                        (isVertical || isHorizontal)) {
                         
-                        // 중복 검사 (같은 시작 셀인지 확인)
+                        // 중복 검사
                         const isDuplicate = validMerges.some(m => 
-                            m.s.r === s.r && m.s.c === s.c
+                            m.s.r === s.r && m.s.c === s.c && m.e.r === e.r && m.e.c === e.c
                         );
                         
                         if (isDuplicate) {
@@ -6925,17 +7298,11 @@ function exportProgramCalendarDetailed() {
                         
                         // 겹침 검사 (overlapping merges)
                         const isOverlapping = validMerges.some(m => {
-                            // 같은 열에서만 겹침 검사
-                            if (m.s.c === s.c) {
-                                // 두 범위가 겹치는지 확인
-                                // A와 B가 겹치려면: A.start <= B.end AND B.start <= A.end
-                                const overlaps = s.r <= m.e.r && m.s.r <= e.r;
-                                if (overlaps) {
-                                    console.warn(`⚠️ Overlapping merge detected: ` +
-                                        `[${s.r}:${e.r}, col ${s.c}] overlaps with ` +
-                                        `[${m.s.r}:${m.e.r}, col ${m.s.c}]`);
-                                }
-                                return overlaps;
+                            if (isVertical && m.s.c === m.e.c && m.s.c === s.c) {
+                                return s.r <= m.e.r && m.s.r <= e.r;
+                            }
+                            if (isHorizontal && m.s.r === m.e.r && m.s.r === s.r) {
+                                return s.c <= m.e.c && m.s.c <= e.c;
                             }
                             return false;
                         });
@@ -8093,6 +8460,10 @@ function renderSessionsForArea(venueSessions, areaElement, options = {}) {
     const emptyStateMessage = options.emptyMessage || '시간대를 클릭하여 세션을 추가하세요!';
 
     if (!venueSessions || venueSessions.length === 0) {
+        if (options.allowBlankEmpty) {
+            areaElement.innerHTML = '';
+            return;
+        }
         areaElement.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-calendar-alt"></i>
@@ -8199,7 +8570,14 @@ function buildSessionBlockHTML(sessionData, sessionIndex, options = {}) {
                 ${tooltipHeader}
             </div>
             <div class="tooltip-speakers">
-                ${groupedSpeakers.map(group => `
+                ${session.posterExhibition
+                    ? session.speakers.map(speaker => {
+                        const speakerDisplayName = getSpeakerDisplayName(speaker, displaySettings.speakerNameLanguage);
+                        return speakerDisplayName
+                            ? `<div class="tooltip-speaker-name">• ${speakerDisplayName}</div>`
+                            : '';
+                    }).join('')
+                    : groupedSpeakers.map(group => `
                     <div class="tooltip-speaker-group">
                         ${group.topic ? `<div class="tooltip-speaker-topic" style="font-weight: 600; margin-bottom: 4px;">${group.topic}</div>` : ''}
                         <div class="tooltip-speaker-time" style="color: #888; font-size: 12px; margin-bottom: 4px;">${group.startTime} - ${group.endTime}</div>
@@ -8221,34 +8599,50 @@ function buildSessionBlockHTML(sessionData, sessionIndex, options = {}) {
             <div class="tooltip-header">
                 ${tooltipHeader}
             </div>
-            <div class="tooltip-no-speakers">발표자가 없습니다</div>
+            <div class="tooltip-no-speakers">${session.posterExhibition ? '포스터 발표자가 없습니다' : '발표자가 없습니다'}</div>
         `;
 
     let sessionSpeakersMarkup = '';
     if (displaySettings.showSpeakers && session.speakers && session.speakers.length > 0) {
+        const isPosterExhibition = !!session.posterExhibition;
         const speakerItems = session.speakers.map(speaker => {
             const speakerDisplayName = getSpeakerDisplayName(speaker, displaySettings.speakerNameLanguage);
+            if (isPosterExhibition) {
+                if (!speakerDisplayName) return '';
+                return `
+                    <div class="session-speaker-item poster-presenter">
+                        <div class="session-speaker-name">${speakerDisplayName}</div>
+                    </div>
+                `;
+            }
             return `
                 <div class="session-speaker-item">
                     ${displaySettings.showSpeakerName && speakerDisplayName ? `<div class="session-speaker-name">${speakerDisplayName}</div>` : ''}
                     ${displaySettings.showSpeakerTopic && speaker.topic ? `<div class="session-speaker-topic">${speaker.topic}</div>` : ''}
-                    ${displaySettings.showSpeakerTime ? `<div class="session-speaker-time">${speaker.startTime} - ${speaker.endTime}</div>` : ''}
+                    ${displaySettings.showSpeakerTime && speaker.startTime && speaker.endTime ? `<div class="session-speaker-time">${speaker.startTime} - ${speaker.endTime}</div>` : ''}
                 </div>
             `;
         }).join('');
-        sessionSpeakersMarkup = `<div class="session-speakers">${speakerItems}</div>`;
+        sessionSpeakersMarkup = `<div class="session-speakers${isPosterExhibition ? ' poster-exhibition-speakers' : ''}">${speakerItems}</div>`;
     }
 
     const venueInfoMarkup = options.showVenueName
         ? `<div class="session-venue-info">${session.venue || '장소 미지정'}</div>`
         : '';
 
+    const isSpanAll = !!session.spanAllVenues || !!session.posterExhibition || !!options.spanAllVenues;
+    const spanClass = isSpanAll ? ' span-all-venues' : '';
+    const positionStyle = isSpanAll
+        ? `top: ${startY}px; height: ${height}px; z-index: ${layer + 20};`
+        : `top: ${startY}px; height: ${height}px; left: ${offsetX}px; z-index: ${layer + 1};`;
+
     return `
-        <div class="session-block ${colorClass}"
+        <div class="session-block ${colorClass}${spanClass}"
              data-session-index="${sessionGlobalIndex}"
              data-venue-index="${dataVenueIndex}"
+             ${isSpanAll ? 'data-span-all-venues="true"' : ''}
              ${options.isPlaceholder ? 'data-placeholder-venue="true"' : ''}
-             style="top: ${startY}px; height: ${height}px; left: ${offsetX}px; z-index: ${layer + 1};"
+             style="${positionStyle}"
              data-tooltip-content="${encodeURIComponent(speakersTooltip)}">
             <div class="session-content">
                 ${languageMarkup}
@@ -8343,6 +8737,27 @@ function calculateSessionLayers(sessions) {
     return sessionsWithLayers;
 }
 
+function ensureSpanSessionsLayer() {
+    const scrollVenuesArea = document.getElementById('scrollVenuesArea');
+    if (!scrollVenuesArea) return null;
+
+    let layer = document.getElementById('spanSessionsLayer');
+    if (!layer) {
+        layer = document.createElement('div');
+        layer.id = 'spanSessionsLayer';
+        layer.className = 'span-sessions-layer';
+        scrollVenuesArea.insertBefore(layer, scrollVenuesArea.firstChild);
+    }
+    return layer;
+}
+
+function removeSpanSessionsLayerIfEmpty() {
+    const layer = document.getElementById('spanSessionsLayer');
+    if (layer && !layer.querySelector('.session-block')) {
+        layer.remove();
+    }
+}
+
 // 장소별 세션 렌더링
 function renderSessionsByVenue() {
     console.log('=== RENDER SESSIONS BY VENUE ===');
@@ -8353,6 +8768,51 @@ function renderSessionsByVenue() {
     const shouldFilterByDate = !!selectedDateNormalized;
 
     const registeredVenueNames = new Set(venues.map(venue => (venue.name || '').trim()));
+
+    const matchesSelectedDate = (session) => {
+        if (!shouldFilterByDate) return true;
+        const sessionDateNormalized = normalizeDateValue(session.date);
+        if (!sessionDateNormalized) return false;
+        return datesMatchForFilter(sessionDateNormalized, selectedDateNormalized);
+    };
+
+    const spanningSessions = [];
+    const seenPosterKeys = new Set();
+    sessions.forEach((session) => {
+        if (!(session.spanAllVenues || session.posterExhibition)) {
+            return;
+        }
+        if (session.posterExhibition) {
+            const key = [
+                (session.sessionType || '').trim().toLowerCase(),
+                (session.title || '').trim().toLowerCase(),
+                (session.venue || '').trim().toLowerCase(),
+            ].join('|');
+            if (seenPosterKeys.has(key)) {
+                return;
+            }
+            seenPosterKeys.add(key);
+            spanningSessions.push(session);
+            return;
+        }
+        if (matchesSelectedDate(session)) {
+            spanningSessions.push(session);
+        }
+    });
+
+    const spanLayer = ensureSpanSessionsLayer();
+    if (spanLayer) {
+        renderSessionsForArea(spanningSessions, spanLayer, {
+            dataVenueIndex: 'span',
+            spanAllVenues: true,
+            showVenueName: false,
+            allowBlankEmpty: true,
+            skipDebugLog: true
+        });
+        if (!spanningSessions.length) {
+            spanLayer.innerHTML = '';
+        }
+    }
     
     venues.forEach((venue, venueIndex) => {
         console.log(`\n📍 Processing venue ${venueIndex}: "${venue.name}"`);
@@ -8364,52 +8824,37 @@ function renderSessionsByVenue() {
         console.log(`✅ Found venue sessions area for venue ${venueIndex}`);
         
         const venueSessions = sessions.filter(session => {
+            if (session.spanAllVenues || session.posterExhibition) {
+                return false;
+            }
             const sessionVenue = (session.venue || '').trim();
             const targetVenue = (venue.name || '').trim();
             if (sessionVenue !== targetVenue) {
                 return false;
             }
 
-            if (!shouldFilterByDate) {
-                return true;
-            }
-
-            const sessionDateNormalized = normalizeDateValue(session.date);
-            if (!sessionDateNormalized) {
-                console.warn(`⚠️ Session "${session.title}" has no valid date. It will be hidden when filtering by date.`);
-                return false;
-            }
-
-            const dateMatch = datesMatchForFilter(sessionDateNormalized, selectedDateNormalized);
-
-            console.log(`  Checking session "${session.title}" - Venue: "${sessionVenue}" === "${targetVenue}": ${sessionVenue === targetVenue}, Date: "${session.date || 'NO DATE'}" (${sessionDateNormalized}) matches "${selectedDateNormalized}": ${dateMatch}`);
-            return dateMatch;
+            return matchesSelectedDate(session);
         });
 
         console.log(`✅ Venue "${venue.name}" has ${venueSessions.length} sessions on ${currentSelectedDate}:`, venueSessions);
 
         renderSessionsForArea(venueSessions, venueSessionsArea, {
             venueIndex,
-            dataVenueIndex: venueIndex
+            dataVenueIndex: venueIndex,
+            allowBlankEmpty: spanningSessions.length > 0
         });
     });
 
     const unmatchedSessions = sessions.filter(session => {
-                    const sessionVenue = (session.venue || '').trim();
+        if (session.spanAllVenues || session.posterExhibition) {
+            return false;
+        }
+        const sessionVenue = (session.venue || '').trim();
         if (registeredVenueNames.has(sessionVenue)) {
             return false;
         }
 
-        if (!shouldFilterByDate) {
-            return true;
-        }
-
-        const sessionDateNormalized = normalizeDateValue(session.date);
-        if (!sessionDateNormalized) {
-            return false;
-        }
-
-        return datesMatchForFilter(sessionDateNormalized, selectedDateNormalized);
+        return matchesSelectedDate(session);
     });
 
     if (unmatchedSessions.length > 0) {

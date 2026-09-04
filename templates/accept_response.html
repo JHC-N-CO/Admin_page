@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-    <title>Response Received</title>
-    <link rel="stylesheet" href="../static/css/accept_response.css">
-    <!-- Removed inline <style>; all CSS is now in static/css/accept_response.css -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>참가 응답</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/accept_response.css') }}">
 </head>
 <body>
     {% if participant %}
@@ -12,35 +13,43 @@
         {% set display_name = '' %}
     {% endif %}
 
-    <div id="response-form" class="form-container">
-        {% if response == 'accept' %}
-            <div class="status accept">{{ display_name }}님, 참가 수락(ACCEPT)이 정상적으로 처리되었습니다.</div>
-            <p>이 창을 닫으셔도 됩니다.</p>
-        {% elif response == 'decline' %}
-            <h2>{{ display_name }}님, 참가 거절 사유를 입력해 주세요</h2>
-            <form id="decline-form">
-                <input type="hidden" name="participant_id" value="{{ participant.id if participant else '' }}">
-                <input type="hidden" name="response" value="decline">
-                <div class="form-group">
-                    <label for="decline_reason">거절 사유:</label>
-                    <textarea name="decline_reason" id="decline_reason" required placeholder="참가를 거절하는 사유를 입력해 주세요..."></textarea>
-                </div>
-                <div class="form-group">
-                    <button type="submit" class="btn-primary">거절 사유 제출</button>
-                    <button type="button" class="btn-secondary" onclick="window.close()">취소</button>
-                </div>
-            </form>
-        {% else %}
-            <div class="status">응답이 정상적으로 처리되었습니다.</div>
-            <p>이 창을 닫으셔도 됩니다.</p>
-        {% endif %}
-    </div>
+    <main class="response-page">
+        <div id="response-form" class="response-card">
+            {% if response == 'accept' %}
+                <div class="response-icon response-icon--accept">✓</div>
+                <h1>참가 수락 완료</h1>
+                <p class="response-lead">{{ display_name }}님의 참가가 수락되었습니다.</p>
+                <p class="response-note">이 창을 닫으셔도 됩니다.</p>
+            {% elif response == 'decline' %}
+                <div class="response-icon response-icon--decline">—</div>
+                <h1>참가 거절</h1>
+                <p class="response-lead">{{ display_name }}님, 거절 사유를 입력해 주세요.</p>
+                <form id="decline-form" class="decline-form">
+                    <input type="hidden" name="participant_id" value="{{ participant.id if participant else '' }}">
+                    <input type="hidden" name="response" value="decline">
+                    <label for="decline_reason">거절 사유</label>
+                    <textarea name="decline_reason" id="decline_reason" required placeholder="참가를 거절하는 사유를 입력해 주세요."></textarea>
+                    <div class="response-actions">
+                        <button type="submit" class="btn btn-primary">제출</button>
+                        <button type="button" class="btn btn-secondary" onclick="window.close()">취소</button>
+                    </div>
+                </form>
+            {% else %}
+                <div class="response-icon response-icon--accept">✓</div>
+                <h1>응답 완료</h1>
+                <p class="response-lead">응답이 정상적으로 처리되었습니다.</p>
+                <p class="response-note">이 창을 닫으셔도 됩니다.</p>
+            {% endif %}
+        </div>
 
-    <div id="success-message" class="hidden">
-        <div class="status decline">{{ display_name }}님, 참가 거절(DECLINE)이 정상적으로 처리되었습니다.</div>
-        <p>이 창을 닫으셔도 됩니다.</p>
-    </div>
+        <div id="success-message" class="response-card hidden">
+            <div class="response-icon response-icon--decline">—</div>
+            <h1>참가 거절 완료</h1>
+            <p class="response-lead">{{ display_name }}님의 참가 거절이 접수되었습니다.</p>
+            <p class="response-note">이 창을 닫으셔도 됩니다.</p>
+        </div>
+    </main>
 
-    <script src="../static/js/accept_response.js"></script>
+    <script src="{{ url_for('static', filename='js/accept_response.js') }}"></script>
 </body>
-</html> 
+</html>

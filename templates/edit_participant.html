@@ -2,18 +2,16 @@
 <html>
 <head>
     <title>참가자 수정</title>
-    <link rel="stylesheet" href="../static/css/edit_participant.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_participant.css') }}?v=20250903d">
 </head>
 <body>
     <div class="container">
         <div class="page-header">
-            <h1><i class="fas fa-user-edit"></i> 참가자 수정</h1>
+            <h1>참가자 수정</h1>
         </div>
         
         {% if error %}
         <div class="error-message">
-            <i class="fas fa-exclamation-circle"></i>
             {{ error }}
         </div>
         {% endif %}
@@ -22,7 +20,7 @@
             
             <!-- 기본 정보 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-info-circle"></i> 기본 정보</h3>
+                <h3>기본 정보</h3>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -72,7 +70,7 @@
             
             <!-- 이름 정보 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-user"></i> 이름 정보</h3>
+                <h3>이름 정보</h3>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -115,7 +113,7 @@
             
             <!-- 연락처 정보 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-address-book"></i> 연락처 정보</h3>
+                <h3>연락처 정보</h3>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -132,7 +130,7 @@
             
             <!-- 소속 정보 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-building"></i> 소속 정보</h3>
+                <h3>소속 정보</h3>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -161,7 +159,7 @@
             
             <!-- 추가 정보 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-briefcase"></i> 추가 정보</h3>
+                <h3>추가 정보</h3>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -195,21 +193,21 @@
             
             <!-- 승인 및 동의 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-check-circle"></i> 승인 및 동의</h3>
+                <h3>수락 및 동의</h3>
                 
                 <div class="form-group">
-                    <label>승인/거절</label>
+                    <label>수락/거절</label>
                     <div class="radio-group">
                         <label class="radio-item">
                             <input type="radio" id="accept" name="accept_or_decline" value="Accept" {% if participant.accept_or_decline == 'Accept' %}checked{% endif %}>
-                            <span>Accept</span>
+                            <span>수락</span>
                         </label>
                         <label class="radio-item">
                             <input type="radio" id="decline" name="accept_or_decline" value="Decline" {% if participant.accept_or_decline == 'Decline' %}checked{% endif %}>
-                            <span>Decline</span>
+                            <span>거절</span>
                         </label>
                         <label class="radio-item">
-                            <input type="radio" id="pending" name="accept_or_decline" value="대기" {% if participant.accept_or_decline == '대기' %}checked{% endif %}>
+                            <input type="radio" id="pending" name="accept_or_decline" value="대기" {% if participant.accept_or_decline == '대기' or not participant.accept_or_decline %}checked{% endif %}>
                             <span>대기</span>
                         </label>
                     </div>
@@ -232,7 +230,7 @@
             
             <!-- 파일 첨부 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-paperclip"></i> 파일 첨부</h3>
+                <h3>파일 첨부</h3>
                 
                 <div class="form-row">
                     <div class="form-group">
@@ -273,7 +271,7 @@
             
             <!-- 비고 섹션 -->
             <div class="form-section">
-                <h3><i class="fas fa-comment"></i> 비고</h3>
+                <h3>비고</h3>
                 
                 <div class="form-group">
                     <label for="remark_user">비고(사용자)</label>
@@ -288,7 +286,7 @@
             
             <!-- 명찰 인쇄 -->
             <div class="form-section badge-section">
-                <h3><i class="fas fa-id-badge"></i> 명찰 인쇄</h3>
+                <h3>명찰 인쇄</h3>
 
                 <div class="badge-settings">
                     <div class="badge-settings-lang">
@@ -346,20 +344,14 @@
                 </div>
 
                 <div class="badge-print-actions">
-                    <button type="button" class="btn-print" onclick="printNameBadge()">
-                        <i class="fas fa-print"></i>
-                        명찰 인쇄
-                    </button>
+                    <button type="button" class="btn-print" onclick="printNameBadge()">명찰 인쇄</button>
                 </div>
             </div>
 
             <!-- 버튼 -->
             <div class="form-actions">
                 <button type="button" class="btn-secondary" onclick="window.opener ? window.close() : window.location.href='/event/{{ participant.event_id }}'; return false;">취소</button>
-                <button type="submit" class="btn-primary">
-                    <i class="fas fa-save"></i>
-                    수정 완료
-                </button>
+                <button type="submit" class="btn-primary">저장</button>
             </div>
         </form>
     </div>
@@ -374,6 +366,6 @@
         </div>
     </div>
 
-    <script src="../static/js/edit_participant.js"></script>
+    <script src="{{ url_for('static', filename='js/edit_participant.js') }}?v=20250903c"></script>
 </body>
 </html>

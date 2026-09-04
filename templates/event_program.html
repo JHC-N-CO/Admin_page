@@ -3,7 +3,7 @@
 <head>
     <title>행사 프로그램 관리</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/event_program.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/event_program.css') }}?v=20250903e">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     
@@ -59,27 +59,24 @@
                 <a href="/event/{{ event.id }}" class="back-link">← 참가자 관리 페이지로</a>
             </div>
             
-            <div class="event-info">
-                <h2>행사명: {{ event.name }}</h2>
-                <p>시작일: {{ event.start_date }}</p>
-                <p>종료일: {{ event.end_date }}</p>
-            </div>
-
-            <div class="venue-management">
-                <div class="venue-header">
-                    <h3>강의 장소 관리</h3>
-                    <button type="button" class="btn btn-primary" onclick="addVenue()">
-                        <i class="fas fa-plus"></i> 장소 추가
-                    </button>
+            <div class="program-meta-bar">
+                <div class="program-meta-event">
+                    <span class="program-meta-title">{{ event.name }}</span>
+                    <span class="program-meta-dates">{{ event.start_date }} – {{ event.end_date }}</span>
                 </div>
-                <div class="venue-list" id="venueList">
-                    <!-- 강의 장소들이 여기에 동적으로 추가됩니다 -->
+                <div class="program-meta-controls">
+                    <div class="program-meta-group program-meta-date-group" id="dateTabsWrap" style="display: none;">
+                        <span class="program-meta-label">날짜</span>
+                        <div id="dateTabs" class="program-meta-date-tabs"></div>
+                    </div>
+                    <div class="program-meta-group program-meta-venue-group">
+                        <span class="program-meta-label">장소</span>
+                        <div class="program-venue-list" id="venueList"></div>
+                        <button type="button" class="program-meta-icon-btn" onclick="addVenue()" title="장소 추가">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
                 </div>
-            </div>
-
-            <!-- 날짜 선택 탭 (행사가 여러 날일 경우) -->
-            <div id="dateTabs" class="date-tabs" style="display: none;">
-                <!-- 날짜 탭들이 여기에 동적으로 생성됩니다 -->
             </div>
 
             <div class="calendar-header">
@@ -93,11 +90,11 @@
                     <button type="button" class="btn btn-primary" onclick="openAbstractSubmittersModal()">
                         <i class="fas fa-file-alt"></i> 초록 제출자
                     </button>
+                    <a class="btn btn-secondary" href="/event/{{ event.id }}/abstract_review" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+                        <i class="fas fa-clipboard-check"></i> 초록 심사
+                    </a>
                     <button type="button" id="registerProgramPeopleBtn" class="btn btn-warning" onclick="openRegisterProgramPeopleModal()" style="display: none;" title="프로그램에만 배치된 좌장·연자를 이 행사 참가자로 일괄 등록">
                         <i class="fas fa-user-plus"></i> 좌장·연자 참가자 등록
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="saveProgram()">
-                        <i class="fas fa-save"></i> 저장
                     </button>
                     <button type="button" class="btn btn-info" onclick="exportProgram()">
                         <i class="fas fa-download"></i> 내보내기
@@ -253,7 +250,7 @@
             </div>
             <div class="modal-body">
                 <form id="sessionForm">
-                    <div class="session-grid">
+                    <div class="session-meta">
                         <div class="form-group">
                             <label for="sessionType">종류</label>
                             <select id="sessionType" name="sessionType" required>
@@ -274,29 +271,60 @@
                             <label for="sessionLanguage">언어</label>
                             <input type="text" id="sessionLanguage" name="sessionLanguage" placeholder="선택">
                         </div>
-                        <div class="form-group time-pair">
+                        <div class="form-group">
                             <label>시간</label>
                             <div class="time-range-group">
                                 <input type="time" id="sessionStartTime" name="sessionStartTime" step="300" required>
+                                <span class="time-sep" aria-hidden="true">–</span>
                                 <input type="time" id="sessionEndTime" name="sessionEndTime" step="300" required>
                             </div>
                         </div>
                     </div>
+
+                    <label class="session-option" title="체크한 세션만 초록 제출자 창의 세션 선택에 표시됩니다.">
+                        <input type="checkbox" id="sessionAbstractAssignable" name="sessionAbstractAssignable">
+                        <span class="session-option-ui"></span>
+                        <span class="session-option-text">
+                            <strong>초록 연자 배정 대상</strong>
+                            <em>초록 제출자 창에 이 세션 표시</em>
+                        </span>
+                    </label>
+
+                    <label class="session-option" title="양일간 장소에 포스터를 두고 각자 발표하는 형식입니다. 개인 시간 배정 없이 이름만 표시하며, 모든 날짜·장소 열에 표시됩니다.">
+                        <input type="checkbox" id="sessionPosterExhibition" name="sessionPosterExhibition">
+                        <span class="session-option-ui"></span>
+                        <span class="session-option-text">
+                            <strong>포스터 전시 세션</strong>
+                            <em>시간 배정 없음 · 양일 표시 · 전체 열</em>
+                        </span>
+                    </label>
+
+                    <label class="session-option" id="sessionSpanAllVenuesOption" title="실제 장소는 위에서 선택한 장소이며, 시간표에서는 모든 장소 열에 걸쳐 표시됩니다.">
+                        <input type="checkbox" id="sessionSpanAllVenues" name="sessionSpanAllVenues">
+                        <span class="session-option-ui"></span>
+                        <span class="session-option-text">
+                            <strong>시간표 전체 열 표시</strong>
+                            <em>모든 장소에 걸쳐 표시</em>
+                        </span>
+                    </label>
 
                     <div class="session-section">
                         <div class="section-head">
                             <label>좌장</label>
                             <button type="button" class="btn-text" onclick="addChair()">+ 추가</button>
                         </div>
-                        <div id="chairsContainer"></div>
+                        <div id="chairsContainer" class="person-list"></div>
                     </div>
 
                     <div class="session-section">
                         <div class="section-head">
-                            <label>발표자 <span class="section-hint">드래그하여 순서 변경</span></label>
-                            <button type="button" class="btn-text" onclick="addSpeaker()">+ 추가</button>
+                            <label id="sessionSpeakersLabel">발표자</label>
+                            <div class="section-head-right">
+                                <span class="section-hint" id="sessionSpeakersHint">드래그로 순서 변경</span>
+                                <button type="button" class="btn-text" onclick="addSpeaker()">+ 추가</button>
+                            </div>
                         </div>
-                        <div id="speakersContainer"></div>
+                        <div id="speakersContainer" class="person-list"></div>
                     </div>
                 </form>
             </div>
@@ -1023,6 +1051,12 @@
                         </div>
                     </div>
                 </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="includeAcceptButtons" style="width: 16px; height: 16px;">
+                        <span>수락/거절 버튼 포함</span>
+                    </label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeEmailComposeModal()">취소</button>
@@ -1300,7 +1334,21 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/event_program.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/abstract_submitters.js') }}"></script>
+    <div id="declineReasonPopupModal" class="title-modal" hidden>
+        <div class="title-modal-backdrop"></div>
+        <div class="title-modal-dialog title-modal-dialog--compact" role="dialog" aria-modal="true" aria-labelledby="declineReasonPopupTitle">
+            <div class="title-modal-header">
+                <div>
+                    <h3 id="declineReasonPopupTitle">거절 사유</h3>
+                    <p id="declineReasonPopupPersonName" class="title-modal-subtitle"></p>
+                </div>
+                <button type="button" class="title-modal-close" aria-label="닫기">&times;</button>
+            </div>
+            <div id="declineReasonPopupBody" class="title-modal-body"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/event_program.js') }}?v=20250903e"></script>
+    <script src="{{ url_for('static', filename='js/abstract_submitters.js') }}?v=7"></script>
 </body>
 </html>

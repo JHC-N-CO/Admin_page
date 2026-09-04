@@ -97,8 +97,53 @@ class AbstractSubmission(db.Model):
     status = db.Column(db.String(20), default='submitted', nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    review_assignments = db.relationship(
+        'AbstractReviewAssignment',
+        backref='submission',
+        lazy=True,
+        cascade='all, delete-orphan',
+    )
+
     def __repr__(self):
         return f'<AbstractSubmission {self.title}>'
+
+
+class AbstractReviewAssignment(db.Model):
+    """초록 심사 배정 + 채점 (심사자 1명 × 초록 1건)."""
+    __tablename__ = 'abstract_review_assignments'
+    __table_args__ = (
+        db.UniqueConstraint('submission_id', 'reviewer_participant_id', name='uq_abstract_review_assignment'),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id', ondelete='CASCADE'), nullable=False, index=True)
+    submission_id = db.Column(
+        db.Integer,
+        db.ForeignKey('abstract_submissions.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    reviewer_participant_id = db.Column(
+        db.Integer,
+        db.ForeignKey('participants.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    originality = db.Column(db.Integer)
+    methodology = db.Column(db.Integer)
+    conclusions = db.Column(db.Integer)
+    academic_contribution = db.Column(db.Integer)
+    total_score = db.Column(db.Integer)
+    rank = db.Column(db.Integer)
+    submitted_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    reviewer = db.relationship('Participant', foreign_keys=[reviewer_participant_id])
+
+    def __repr__(self):
+        return f'<AbstractReviewAssignment submission={self.submission_id} reviewer={self.reviewer_participant_id}>'
+
 
 # 회원 모델
 class Member(db.Model):

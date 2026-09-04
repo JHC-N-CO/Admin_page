@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>회원 정보 수정 - Admin Page</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_member.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_member.css') }}?v=20250903a">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
@@ -363,8 +363,8 @@
 
                     <!-- 버튼 -->
                     <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="window.opener ? window.close() : window.location.href='/members'; return false;">취소</button>
                         <button type="submit" class="btn-primary">수정 완료</button>
-                        <a href="#" onclick="window.opener ? window.close() : window.location.href='/members'; return false;" class="btn-secondary">취소</a>
                     </div>
                 </form>
             </div>

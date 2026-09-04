@@ -623,3 +623,98 @@ def search_history_people(query: str, limit: int = 25) -> list[dict]:
         if len(results) >= limit:
             break
     return results
+
+
+def get_person_by_key(person_key: str) -> dict | None:
+    """집계된 인물 1명 조회."""
+    key = _clean(person_key)
+    if not key:
+        return None
+    for person in load_aggregated_history():
+        if person.get('person_key') == key:
+            return person
+    return None
+
+
+def update_person_by_key(person_key: str, fields: dict) -> dict:
+    """역대 명단(및 세션 CSV의 연락처 필드)에서 해당 인물 정보를 수정."""
+    key = _clean(person_key)
+    if not key:
+        raise ValueError('인물 키가 없습니다.')
+
+    updates = {field: _clean(fields.get(field)) for field in PERSON_FIELDS if field in fields}
+    if not updates:
+        raise ValueError('수정할 필드가 없습니다.')
+
+    # 이름/성이 바뀌면 성명(ENG) 자동 반영 (명시적으로 온 값이 없을 때)
+    first = updates.get('이름(First Name)')
+    last = updates.get('성(Last Name)')
+    if ('성명(ENG)' not in updates or not updates.get('성명(ENG)')) and (first is not None or last is not None):
+        person = get_person_by_key(key) or {}
+        first_val = first if first is not None else _clean(person.get('이름(First Name)'))
+        last_val = last if last is not None else _clean(person.get('성(Last Name)'))
+        updates['성명(ENG)'] = f'{first_val} {last_val}'.strip()
+
+    uf, preferred_key = _build_person_index()
+
+    history_rows = _read_csv(HISTORY_CSV)
+    matched = 0
+    for row in history_rows:
+        if person_key_from_row(row, uf, preferred_key) != key:
+            continue
+        matched += 1
+        for field, value in updates.items():
+            row[field] = value
+
+    if matched == 0:
+        raise ValueError('해당 인물을 찾을 수 없습니다.')
+
+    history_fieldnames = _history_fieldnames(history_rows)
+    for field in updates:
+        if field not in history_fieldnames:
+            history_fieldnames.append(field)
+    _write_csv_rows(HISTORY_CSV, history_fieldnames, history_rows)
+
+    # 세션 CSV에도 동일 인물의 기본 연락처/성명을 맞춰 둠
+    session_sync_fields = (
+        '국가', '성명(KOR)', '성명(ENG)', '이메일', '전화',
+        '소속(ENG)', '과(ENG)', '소속(KOR)', '과(KOR)',
+    )
+    session_rows = _read_csv(SESSIONS_CSV)
+    if session_rows:
+        session_fieldnames = list(session_rows[0].keys())
+        for row in session_rows:
+            if person_key_from_row(_normalize_session_row(row), uf, preferred_key) != key:
+                continue
+            for field in session_sync_fields:
+                if field in updates:
+                    row[field] = updates[field]
+                    if field not in session_fieldnames:
+                        session_fieldnames.append(field)
+            # 발표자 컬럼이 있으면 성명으로 동기화
+            speaker_name = updates.get('성명(KOR)') or updates.get('성명(ENG)')
+            if speaker_name:
+                for speaker_col in ('발표자 (Speaker)', '발표자', 'Speaker'):
+                    if speaker_col in row or speaker_col in session_fieldnames:
+                        row[speaker_col] = speaker_name
+        _write_csv_rows(SESSIONS_CSV, session_fieldnames, session_rows)
+
+    updated = get_person_by_key(key)
+    # 이메일/면허 변경으로 키가 바뀌었을 수 있음 → 업데이트된 필드로 재조회
+    if updated is None:
+        people = load_aggregated_history()
+        email = _normalize_email(updates.get('이메일', ''))
+        license_no = _clean(updates.get('면허번호', ''))
+        for person in people:
+            if email and _normalize_email(person.get('이메일', '')) == email:
+                return person
+            if license_no and _clean(person.get('면허번호')) == license_no:
+                return person
+        if people:
+            # fallback: 성명 매칭
+            kor = _clean(updates.get('성명(KOR)', '')).lower()
+            for person in people:
+                if kor and _clean(person.get('성명(KOR)')).lower() == kor:
+                    return person
+        raise ValueError('수정은 되었으나 갱신된 인물을 다시 찾지 못했습니다.')
+    return updated

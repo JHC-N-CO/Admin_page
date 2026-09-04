@@ -11,7 +11,7 @@ const DETAIL_COLUMN_LABELS = {
     titles: '세션/발표 제목',
 };
 
-const TABLE_COLSPAN = PERSON_COLUMNS.length + 5; // checkbox + 번호 + profile + 참여연도 + 세션/발표 제목
+const TABLE_COLSPAN = PERSON_COLUMNS.length + 6; // checkbox + 번호 + profile + 참여연도 + 세션/발표 + 관리
 
 let allPeople = [];
 let displayedPeople = [];
@@ -24,7 +24,18 @@ document.addEventListener('DOMContentLoaded', () => {
     bindDelete();
     bindMerge();
     bindTitleModal();
+    bindSidebarToggle();
 });
+
+function bindSidebarToggle() {
+    const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
+    const sidebar = document.getElementById('sidebar');
+    if (sidebarToggleBtn && sidebar) {
+        sidebarToggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+        });
+    }
+}
 
 async function loadHistory() {
     const tbody = document.getElementById('historyTableBody');
@@ -474,9 +485,25 @@ function renderTable(people) {
                 nameLabel,
                 'titles'
             )}
+            <td class="col-actions">
+                <a href="#" class="action-link history-edit-link" data-person-key="${personKey}">수정</a>
+            </td>
         </tr>`;
     }).join('');
+
+    tbody.querySelectorAll('.history-edit-link').forEach((link) => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            openHistoryEditPopup(link.dataset.personKey);
+        });
+    });
     updateSelectedCount();
+}
+
+function openHistoryEditPopup(personKey) {
+    if (!personKey) return;
+    const url = `/chairs_speakers_history/edit?key=${encodeURIComponent(personKey)}`;
+    window.open(url, '_blank', 'width=680,height=860,scrollbars=yes,resizable=yes');
 }
 
 function renderDetailCell(text, personKey, nameLabel, type) {
@@ -484,11 +511,12 @@ function renderDetailCell(text, personKey, nameLabel, type) {
         return '<td class="col-narrow-detail session-cell"></td>';
     }
     const label = DETAIL_COLUMN_LABELS[type] || '내용';
+    const preview = String(text).replace(/\s+/g, ' ').trim();
     return `<td class="col-narrow-detail session-cell session-cell-clickable"
         data-person-key="${personKey}"
         data-person-name="${nameLabel}"
         data-title-type="${type}"
-        title="클릭하여 ${label} 전체 보기">${escapeHtml(text)}</td>`;
+        title="클릭하여 ${label} 전체 보기"><div class="detail-cell-text">${escapeHtml(preview)}</div></td>`;
 }
 
 function bindTitleModal() {

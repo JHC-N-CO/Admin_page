@@ -28,7 +28,7 @@ import zipfile
 
 # SQLAlchemy 및 모델 import
 from flask_sqlalchemy import SQLAlchemy
-from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings, AbstractSubmission
+from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings, AbstractSubmission, AbstractReviewAssignment
 from config import config
 from gmail_sender import send_outbound_email
 from chairs_speakers_history import (
@@ -40,6 +40,9 @@ from chairs_speakers_history import (
     manual_merge_person_keys,
     dismiss_duplicate_group,
     search_history_people,
+    get_person_by_key,
+    update_person_by_key,
+    PERSON_FIELDS as HISTORY_PERSON_FIELDS,
 )
 
 app = Flask(__name__, static_folder='static')
@@ -80,6 +83,8 @@ def colored_roles(role_text, event_id=None, submission_id=None):
             else:
                 chunk = f'<span class="role-abstract">{escape(part)}</span>'
             html_parts.append(chunk)
+        elif part == '초록심사자':
+            html_parts.append(f'<span class="role-abstract-reviewer">{escape(part)}</span>')
         else:
             html_parts.append(escape(part))
     return Markup('/'.join(html_parts))
@@ -452,6 +457,39 @@ def migrate_existing_events():
                 print("abstract_submissions.status already exists")
             else:
                 print(f"Error adding abstract_submissions.status: {e}")
+
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS abstract_review_assignments (
+                        id SERIAL PRIMARY KEY,
+                        event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+                        submission_id INTEGER NOT NULL REFERENCES abstract_submissions(id) ON DELETE CASCADE,
+                        reviewer_participant_id INTEGER NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+                        originality INTEGER,
+                        methodology INTEGER,
+                        conclusions INTEGER,
+                        academic_contribution INTEGER,
+                        total_score INTEGER,
+                        rank INTEGER,
+                        submitted_at TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        CONSTRAINT uq_abstract_review_assignment UNIQUE (submission_id, reviewer_participant_id)
+                    );
+                """))
+                connection.execute(db.text(
+                    "CREATE INDEX IF NOT EXISTS ix_abstract_review_assignments_event_id "
+                    "ON abstract_review_assignments (event_id);"
+                ))
+                connection.execute(db.text(
+                    "CREATE INDEX IF NOT EXISTS ix_abstract_review_assignments_reviewer "
+                    "ON abstract_review_assignments (reviewer_participant_id);"
+                ))
+                connection.commit()
+            print("Ensured abstract_review_assignments table")
+        except Exception as e:
+            print(f"Error ensuring abstract_review_assignments: {e}")
         
         # 기존 이벤트에 event_id가 없는 경우 자동 생성
         events = Event.query.filter(Event.event_id.is_(None)).all()
@@ -3211,6 +3249,63 @@ def upload_image():
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': f'이미지 업로드 실패: {str(e)}'}), 500
 
+def _email_button_cell(url, label, bg_fallback, gradient, shadow_color):
+    """이메일 클라이언트(Gmail/Outlook)에서 버튼처럼 보이는 셀."""
+    cell_style = (
+        f'border-radius:50px;background-color:{bg_fallback};background:{gradient};'
+        f'box-shadow:0 4px 14px {shadow_color};'
+    )
+    link_style = (
+        'display:inline-block;min-width:64px;padding:10px 22px;'
+        'font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;'
+        'letter-spacing:0.02em;line-height:16px;color:#ffffff;text-decoration:none;'
+        f'border-radius:50px;background-color:{bg_fallback};background:{gradient};'
+        'text-align:center;-webkit-text-size-adjust:none;mso-padding-alt:10px 22px;'
+    )
+    return (
+        '<table border="0" cellspacing="0" cellpadding="0" role="presentation" '
+        'style="display:inline-block;vertical-align:top;">'
+        '<tr>'
+        f'<td align="center" bgcolor="{bg_fallback}" style="{cell_style}">'
+        f'<a href="{url}" target="_blank" style="{link_style}">'
+        f'{label}</a>'
+        '</td>'
+        '</tr>'
+        '</table>'
+    )
+
+
+def _build_accept_decline_email_buttons(accept_url, decline_url):
+    """이메일 본문 하단 수락/거절 버튼."""
+    accept_btn = _email_button_cell(
+        accept_url,
+        '수락',
+        '#10b981',
+        'linear-gradient(90deg, #6ee7b7 0%, #10b981 55%, #059669 100%)',
+        'rgba(16, 185, 129, 0.38)',
+    )
+    decline_btn = _email_button_cell(
+        decline_url,
+        '거절',
+        '#f43f5e',
+        'linear-gradient(90deg, #f472b6 0%, #fb7185 50%, #f97316 100%)',
+        'rgba(244, 63, 94, 0.35)',
+    )
+    return (
+        '<table border="0" cellspacing="0" cellpadding="0" role="presentation" width="100%" '
+        'style="margin-top:24px;border-top:1px solid #e5e7eb;">'
+        '<tr><td style="padding-top:16px;">'
+        '<p style="margin:0 0 12px;font-family:Arial,Helvetica,sans-serif;font-size:13px;'
+        'color:#6b7280;line-height:1.5;">수락 여부를 선택해 주세요.</p>'
+        '<table border="0" cellspacing="0" cellpadding="0" role="presentation">'
+        '<tr>'
+        '<td style="padding-right:8px;">' + accept_btn + '</td>'
+        '<td>' + decline_btn + '</td>'
+        '</tr></table>'
+        '</td></tr></table>'
+    )
+
+
 @app.route('/send_email', methods=['POST'])
 def send_email():
     participant_ids = request.form.get('participant_ids', '').split(',')
@@ -3301,9 +3396,7 @@ def send_email():
                 email_body = apply_mail_merge(body, participant, session_info)
                 
                 if include_buttons:
-                    email_body += '<br><br>'
-                    email_body += f'<a href="{accept_url}" style="padding:10px 20px;background:#4CAF50;color:white;text-decoration:none;border-radius:5px;">Accept</a> '
-                    email_body += f'<a href="{decline_url}" style="padding:10px 20px;background:#F44336;color:white;text-decoration:none;border-radius:5px;">Decline</a>'
+                    email_body += _build_accept_decline_email_buttons(accept_url, decline_url)
                 
                 # 제목도 Mail merge 처리
                 email_subject = apply_mail_merge(subject, participant, session_info)
@@ -4474,6 +4567,7 @@ def get_participant_status():
             return s[:16]
         return s
     return jsonify([{
+        'id': p.id,
         'event_id': p.event_id,
         'code': p.code,
         'accept_or_decline': p.accept_or_decline,
@@ -4481,7 +4575,7 @@ def get_participant_status():
         'check_out_time': format_time(p.check_out_time),
         'remark_user': p.remark_user,
         'remark_admin': p.remark_admin,
-        'decline_reason': p.decline_reason
+        'decline_reason': p.decline_reason or ''
     } for p in participants])
 
 @app.route('/select_columns')
@@ -6566,6 +6660,46 @@ def delete_chairs_speakers_history():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
+@app.route('/chairs_speakers_history/edit', methods=['GET', 'POST'])
+def edit_chairs_speakers_history_person():
+    """역대 좌장/연자 인물 정보 수정 팝업"""
+    person_key = (request.values.get('key') or '').strip()
+    if not person_key:
+        return '인물 키가 없습니다.', 400
+
+    if request.method == 'POST':
+        try:
+            fields = {field: request.form.get(field, '') for field in HISTORY_PERSON_FIELDS}
+            update_person_by_key(person_key, fields)
+            return (
+                '<!DOCTYPE html><html><head><meta charset="utf-8"><title>저장 완료</title></head>'
+                '<body><script>'
+                'if (window.opener) { try { window.opener.location.reload(); } catch (e) {} }'
+                'window.close();'
+                '</script>'
+                '<p>저장되었습니다. 이 창을 닫아 주세요.</p></body></html>'
+            )
+        except Exception as e:
+            logging.error(f"Error updating chairs/speakers history person: {e}")
+            person = get_person_by_key(person_key) or {'person_key': person_key}
+            return render_template(
+                'edit_history_person.html',
+                person=person,
+                person_key=person_key,
+                error=str(e),
+            ), 400
+
+    person = get_person_by_key(person_key)
+    if not person:
+        return '해당 인물을 찾을 수 없습니다.', 404
+    return render_template(
+        'edit_history_person.html',
+        person=person,
+        person_key=person_key,
+        error=None,
+    )
+
+
 @app.route('/api/chairs_speakers_history/merge', methods=['POST'])
 def merge_chairs_speakers_history():
     """중복 의심 인물을 관리자 확인 후 동일 인물로 병합"""
@@ -6807,6 +6941,106 @@ def _redistribute_session_speaker_times(session):
             speaker['endTime'] = end
 
 
+def _is_poster_session(session):
+    track = _classify_abstract_track(session)
+    return bool(track and track['id'] == 'poster')
+
+
+def _is_untimed_poster_session(session):
+    """Poster exhibition: names only, no per-speaker time slots."""
+    if not isinstance(session, dict):
+        return False
+    if session.get('posterExhibition'):
+        return True
+    return _is_poster_session(session)
+
+
+def _poster_exhibition_group_key(session):
+    if not isinstance(session, dict):
+        return None
+    return (
+        (session.get('sessionType') or '').strip().lower(),
+        (session.get('title') or '').strip().lower(),
+        (session.get('venue') or '').strip().lower(),
+    )
+
+
+def _iter_poster_exhibition_group(sessions, seed):
+    """Same poster exhibition across dates shares one presenter list."""
+    if not isinstance(seed, dict) or not _is_untimed_poster_session(seed):
+        return [seed] if isinstance(seed, dict) else []
+    key = _poster_exhibition_group_key(seed)
+    group = [
+        session for session in (sessions or [])
+        if isinstance(session, dict)
+        and _is_untimed_poster_session(session)
+        and _poster_exhibition_group_key(session) == key
+    ]
+    return group or [seed]
+
+
+def _sync_poster_exhibition_speakers(sessions, seed, speakers):
+    synced = []
+    for session in _iter_poster_exhibition_group(sessions, seed):
+        session['speakers'] = [dict(speaker) for speaker in (speakers or []) if isinstance(speaker, dict)]
+        session['posterExhibition'] = True
+        session['spanAllVenues'] = True
+        _sync_session_speaker_times(session)
+        synced.append(session)
+    return synced
+
+
+def _collapse_assign_sessions_for_posters(sessions_out):
+    """Show one dropdown row for multi-day poster exhibition sessions."""
+    result = []
+    seen_poster_keys = set()
+    for item in sessions_out:
+        if item.get('untimed') or item.get('poster_exhibition'):
+            key = (
+                (item.get('session_type') or '').strip().lower(),
+                (item.get('title') or '').strip().lower(),
+                (item.get('venue') or '').strip().lower(),
+            )
+            if key in seen_poster_keys:
+                continue
+            seen_poster_keys.add(key)
+            collapsed = dict(item)
+            collapsed['date'] = ''
+            collapsed['group_label'] = '포스터 전시'
+            result.append(collapsed)
+        else:
+            result.append(item)
+    return result
+
+
+def _is_calendar_placeholder_poster(session):
+    """e-poster is copied onto every venue column for the timetable; only Shilla is real."""
+    if not _is_poster_session(session):
+        return False
+    venue = (session.get('venue') or '').strip().lower()
+    return 'shilla' not in venue
+
+
+def _is_abstract_assignable_session(session):
+    return bool(isinstance(session, dict) and session.get('abstractAssignable'))
+
+
+def _sync_session_speaker_times(session):
+    """Poster exhibition sessions keep names only; others split the session equally."""
+    speakers = session.get('speakers') or []
+    if not speakers:
+        session['speakers'] = []
+        return
+    if _is_untimed_poster_session(session):
+        for speaker in speakers:
+            if isinstance(speaker, dict):
+                speaker['startTime'] = ''
+                speaker['endTime'] = ''
+                speaker['untimed'] = True
+        return
+    _redistribute_session_speaker_times(session)
+
+
 def _participant_display_name(participant):
     return (
         (participant.name_kor or '').strip()
@@ -6886,16 +7120,22 @@ def api_abstract_submitters(event_id):
 
     assigned = {}
     for index, session in enumerate(_load_event_program_sessions(event_id)):
-        track = _classify_abstract_track(session)
-        if not track:
+        if not isinstance(session, dict) or _is_calendar_placeholder_poster(session):
             continue
+        track = _classify_abstract_track(session)
         for speaker in session.get('speakers') or []:
+            if not (speaker.get('from_abstract') or speaker.get('abstract_abbrev')):
+                continue
             pid = _program_person_id(speaker)
             if pid:
                 assigned[pid] = {
                     'session_index': index,
-                    'session_title': session.get('title') or track['label'],
-                    'abbrev': speaker.get('abstract_abbrev') or _session_abstract_role(session) or track['abbrev'],
+                    'session_title': session.get('title') or (track['label'] if track else ''),
+                    'abbrev': (
+                        speaker.get('abstract_abbrev')
+                        or _session_abstract_role(session)
+                        or (track['abbrev'] if track else '')
+                    ),
                     'start_time': speaker.get('startTime') or session.get('startTime') or '',
                     'end_time': speaker.get('endTime') or session.get('endTime') or '',
                 }
@@ -6934,32 +7174,37 @@ def api_abstract_submitters(event_id):
 @app.route('/api/event/<int:event_id>/abstract_assign_sessions')
 def api_abstract_assign_sessions(event_id):
     Event.query.get_or_404(event_id)
-    grouped = {track['id']: {'track': track, 'sessions': []} for track in ABSTRACT_ASSIGN_TRACKS}
+    sessions_out = []
     for index, session in enumerate(_load_event_program_sessions(event_id)):
-        track = _classify_abstract_track(session)
-        if not track:
+        if (
+            not isinstance(session, dict)
+            or _is_calendar_placeholder_poster(session)
+            or not _is_abstract_assignable_session(session)
+        ):
             continue
-        grouped[track['id']]['sessions'].append({
+        track = _classify_abstract_track(session)
+        sessions_out.append({
             'index': index,
-            'title': session.get('title') or track['label'],
+            'title': session.get('title') or session.get('sessionType') or f'세션 {index + 1}',
             'session_type': session.get('sessionType') or '',
             'date': session.get('date') or '',
             'start_time': session.get('startTime') or '',
             'end_time': session.get('endTime') or '',
             'venue': session.get('venue') or '',
             'speaker_count': len(session.get('speakers') or []),
-            'abbrev': track['abbrev'],
+            'abbrev': (track['abbrev'] if track else '') or '',
+            'track_id': track['id'] if track else '',
+            'poster_exhibition': bool(session.get('posterExhibition')),
+            'untimed': _is_untimed_poster_session(session),
         })
-    result = []
-    for track in ABSTRACT_ASSIGN_TRACKS:
-        bucket = grouped[track['id']]
-        result.append({
-            'id': track['id'],
-            'label': track['label'],
-            'abbrev': track['abbrev'],
-            'sessions': bucket['sessions'],
-        })
-    return jsonify({'tracks': result})
+    sessions_out.sort(key=lambda item: (
+        0 if (item.get('untimed') or item.get('poster_exhibition')) else 1,
+        item.get('date') or '',
+        item.get('start_time') or '',
+        item.get('venue') or '',
+        item.get('title') or '',
+    ))
+    return jsonify({'sessions': _collapse_assign_sessions_for_posters(sessions_out)})
 
 
 @app.route('/api/event/<int:event_id>/abstract_assign', methods=['POST'])
@@ -6987,9 +7232,13 @@ def api_abstract_assign(event_id):
         return jsonify({'error': '선택한 세션을 프로그램에서 찾을 수 없습니다.'}), 404
 
     target = sessions[session_index]
+    if (
+        not isinstance(target, dict)
+        or _is_calendar_placeholder_poster(target)
+        or not _is_abstract_assignable_session(target)
+    ):
+        return jsonify({'error': '초록 연자 배정 대상으로 표시된 세션만 배정할 수 있습니다. 세션 편집에서 체크해주세요.'}), 400
     track = _classify_abstract_track(target)
-    if not track:
-        return jsonify({'error': 'Datablitz, Oral Presentation, Poster Presentation 세션만 배정할 수 있습니다.'}), 400
     role_label = _session_abstract_role(target)
 
     participants = Participant.query.filter(
@@ -7014,33 +7263,54 @@ def api_abstract_assign(event_id):
 
     selected = set(participant_ids)
     for session in sessions:
-        session_track = _classify_abstract_track(session)
-        if not session_track:
+        if not isinstance(session, dict):
             continue
         speakers = [s for s in (session.get('speakers') or []) if _program_person_id(s) not in selected]
         if len(speakers) != len(session.get('speakers') or []):
             session['speakers'] = speakers
-            _redistribute_session_speaker_times(session)
+            _sync_session_speaker_times(session)
 
     target_speakers = list(target.get('speakers') or [])
     existing_ids = {_program_person_id(s) for s in target_speakers}
+
+    # 포스터 전시는 날짜별 복제본에 흩어진 발표자를 먼저 모은다
+    if _is_untimed_poster_session(target):
+        merged = []
+        merged_ids = set()
+        for session in _iter_poster_exhibition_group(sessions, target):
+            for speaker in session.get('speakers') or []:
+                pid = _program_person_id(speaker)
+                if not pid or pid in merged_ids:
+                    continue
+                merged.append(speaker)
+                merged_ids.add(pid)
+        target_speakers = merged
+        existing_ids = merged_ids
+
     for pid in participant_ids:
         if pid in existing_ids:
             continue
         participant = by_id[pid]
+        start_time = '' if _is_untimed_poster_session(target) else (target.get('startTime') or '')
+        end_time = '' if _is_untimed_poster_session(target) else (target.get('endTime') or '')
         speaker = _build_abstract_program_speaker(
             participant,
             abstracts.get(pid),
             role_label,
-            target.get('startTime') or '',
-            target.get('endTime') or '',
+            start_time,
+            end_time,
         )
+        if _is_untimed_poster_session(target):
+            speaker['untimed'] = True
         target_speakers.append(speaker)
         existing_ids.add(pid)
         _replace_abstract_track_role(participant, role_label)
 
-    target['speakers'] = target_speakers
-    _redistribute_session_speaker_times(target)
+    if _is_untimed_poster_session(target):
+        _sync_poster_exhibition_speakers(sessions, target, target_speakers)
+    else:
+        target['speakers'] = target_speakers
+        _sync_session_speaker_times(target)
 
     for session in sessions:
         label = _session_abstract_role(session)
@@ -7062,9 +7332,805 @@ def api_abstract_assign(event_id):
     return jsonify({
         'success': True,
         'assigned': len(participant_ids),
-        'session_title': target.get('title') or track['label'],
+        'session_title': target.get('title') or (track['label'] if track else ''),
         'abbrev': role_label,
         'speaker_count': len(target.get('speakers') or []),
+    })
+
+
+ABSTRACT_REVIEW_CRITERIA = (
+    ('originality', '발표 주제의 참신성'),
+    ('methodology', '연구 방법의 타당성'),
+    ('conclusions', '결론의 타당성'),
+    ('academic_contribution', '학문적 기여도'),
+)
+ABSTRACT_REVIEWER_ROLE = '초록심사자'
+
+
+def _add_participant_role(participant, role_label):
+    role_label = (role_label or '').strip()
+    if not participant or not role_label:
+        return
+    existing = [
+        part.strip()
+        for part in (participant.role or '').replace('·', '/').split('/')
+        if part.strip()
+    ]
+    if role_label not in existing:
+        existing.append(role_label)
+        participant.role = '/'.join(existing)
+
+
+def _remove_participant_role_if_unused(participant, role_label, event_id):
+    role_label = (role_label or '').strip()
+    if not participant or not role_label:
+        return
+    still_assigned = AbstractReviewAssignment.query.filter_by(
+        event_id=event_id,
+        reviewer_participant_id=participant.id,
+    ).count()
+    if still_assigned:
+        return
+    existing = [
+        part.strip()
+        for part in (participant.role or '').replace('·', '/').split('/')
+        if part.strip() and part.strip() != role_label
+    ]
+    participant.role = '/'.join(existing)
+
+
+def _clamp_review_score(value):
+    try:
+        score = int(value)
+    except (TypeError, ValueError):
+        return None
+    if score < 1 or score > 10:
+        return None
+    return score
+
+
+def _recompute_reviewer_ranks(event_id, reviewer_participant_id):
+    rows = (
+        AbstractReviewAssignment.query
+        .filter_by(event_id=event_id, reviewer_participant_id=reviewer_participant_id)
+        .filter(AbstractReviewAssignment.total_score.isnot(None))
+        .order_by(
+            AbstractReviewAssignment.total_score.desc(),
+            AbstractReviewAssignment.submitted_at.asc(),
+            AbstractReviewAssignment.id.asc(),
+        )
+        .all()
+    )
+    for index, row in enumerate(rows, start=1):
+        row.rank = index
+    pending = (
+        AbstractReviewAssignment.query
+        .filter_by(event_id=event_id, reviewer_participant_id=reviewer_participant_id)
+        .filter(AbstractReviewAssignment.total_score.is_(None))
+        .all()
+    )
+    for row in pending:
+        row.rank = None
+
+
+def _abstract_program_placement_by_participant(event_id):
+    """참가자별 프로그램 배정 정보(세션 약어·발표시간·세션명)."""
+    out = {}
+    try:
+        sessions = _load_event_program_sessions(event_id) or []
+    except Exception:
+        return out
+    for index, session in enumerate(sessions):
+        if not isinstance(session, dict) or _is_calendar_placeholder_poster(session):
+            continue
+        track = _classify_abstract_track(session)
+        session_abbr = (
+            (session.get('displayAbbreviation') or '').strip()
+            or (session.get('sessionAbbreviation') or '').strip()
+            or _session_abstract_role(session)
+            or ((track or {}).get('abbrev') if track else '')
+            or ''
+        )
+        session_title = (session.get('title') or '').strip()
+        date = (session.get('date') or '').strip()
+        venue = (session.get('venue') or '').strip()
+        for speaker in (session.get('speakers') or []):
+            if not isinstance(speaker, dict):
+                continue
+            pid = _program_person_id(speaker)
+            if not pid:
+                continue
+            abbrev = (
+                (speaker.get('abstract_abbrev') or '').strip()
+                or session_abbr
+            )
+            start = (speaker.get('startTime') or session.get('startTime') or '').strip()
+            end = (speaker.get('endTime') or session.get('endTime') or '').strip()
+            time_parts = []
+            if date:
+                time_parts.append(date)
+            if start and end:
+                time_parts.append(f'{start}–{end}')
+            elif start:
+                time_parts.append(start)
+            if venue:
+                time_parts.append(venue)
+            presentation_time = ' · '.join(time_parts)
+            from_abstract = bool(speaker.get('from_abstract') or speaker.get('abstract_abbrev'))
+            entry = {
+                'session_abbrev': abbrev,
+                'session_title': session_title,
+                'presentation_time': presentation_time,
+                'from_abstract': from_abstract,
+                'session_index': index,
+            }
+            existing = out.get(pid)
+            if not existing:
+                out[pid] = entry
+            elif from_abstract and not existing.get('from_abstract'):
+                out[pid] = entry
+            elif from_abstract and existing.get('from_abstract') and abbrev and not existing.get('session_abbrev'):
+                out[pid] = entry
+    return out
+
+
+def _averaged_scores_for_submission(assignments):
+    scored = [row for row in assignments if row.total_score is not None]
+    if not scored:
+        return None
+    def avg(attr):
+        values = [getattr(row, attr) for row in scored if getattr(row, attr) is not None]
+        if not values:
+            return None
+        return round(sum(values) / len(values), 2)
+    originality = avg('originality')
+    methodology = avg('methodology')
+    conclusions = avg('conclusions')
+    academic = avg('academic_contribution')
+    parts = [originality, methodology, conclusions, academic]
+    if any(v is None for v in parts):
+        return None
+    return {
+        'originality': originality,
+        'methodology': methodology,
+        'conclusions': conclusions,
+        'academic_contribution': academic,
+        'total_score': round(sum(parts), 2),
+        'reviewer_count': len(scored),
+    }
+
+
+@app.route('/event/<int:event_id>/abstract_review')
+def abstract_review_admin_page(event_id):
+    event = Event.query.get_or_404(event_id)
+    return render_template('abstract_review_admin.html', event=event)
+
+
+@app.route('/api/event/<int:event_id>/abstract_review/board')
+def api_abstract_review_board(event_id):
+    Event.query.get_or_404(event_id)
+    submissions = AbstractSubmission.query.filter(
+        AbstractSubmission.event_id == event_id,
+        db.or_(
+            AbstractSubmission.status == 'submitted',
+            AbstractSubmission.status.is_(None),
+        ),
+    ).order_by(AbstractSubmission.created_at.desc()).all()
+    latest_by_pid = {}
+    for row in submissions:
+        latest_by_pid.setdefault(row.participant_id, row)
+
+    assignments = AbstractReviewAssignment.query.filter_by(event_id=event_id).all()
+    by_submission = {}
+    for row in assignments:
+        by_submission.setdefault(row.submission_id, []).append(row)
+
+    participant_ids = set(latest_by_pid.keys())
+    for rows in by_submission.values():
+        for row in rows:
+            participant_ids.add(row.reviewer_participant_id)
+    participants = Participant.query.filter(
+        Participant.event_id == event_id,
+        Participant.id.in_(list(participant_ids) or [0]),
+    ).all() if participant_ids else []
+    by_id = {p.id: p for p in participants}
+    placement = _abstract_program_placement_by_participant(event_id)
+
+    abstracts = []
+    for submission in latest_by_pid.values():
+        submitter = by_id.get(submission.participant_id)
+        rows = by_submission.get(submission.id) or []
+        reviewers = []
+        for row in rows:
+            reviewer = by_id.get(row.reviewer_participant_id)
+            reviewers.append({
+                'assignment_id': row.id,
+                'reviewer_id': row.reviewer_participant_id,
+                'name': _participant_display_name(reviewer) if reviewer else f'참가자 {row.reviewer_participant_id}',
+                'email': (reviewer.email if reviewer else '') or '',
+                'submitted': row.total_score is not None,
+                'total_score': row.total_score,
+                'rank': row.rank,
+            })
+        averaged = _averaged_scores_for_submission(rows)
+        place = placement.get(submission.participant_id) or {}
+        abstracts.append({
+            'submission_id': submission.id,
+            'title': submission.title or '',
+            'submitter_id': submission.participant_id,
+            'submitter_name': _participant_display_name(submitter) if submitter else '',
+            'affiliation': (
+                (submitter.affiliation_kor or submitter.affiliation_eng or '') if submitter else ''
+            ),
+            'department': (
+                (submitter.department_kor or submitter.department_eng or '') if submitter else ''
+            ),
+            'session_abbrev': place.get('session_abbrev') or '',
+            'session_title': place.get('session_title') or '',
+            'presentation_time': place.get('presentation_time') or '',
+            'reviewers': reviewers,
+            'averaged': averaged,
+        })
+    abstracts.sort(key=lambda item: (
+        (item['session_abbrev'] or '\uffff').lower(),
+        (item['submitter_name'] or '').lower(),
+    ))
+    return jsonify({'abstracts': abstracts})
+
+
+@app.route('/api/event/<int:event_id>/abstract_review/assign', methods=['POST'])
+def api_abstract_review_assign(event_id):
+    Event.query.get_or_404(event_id)
+    data = request.get_json(silent=True) or {}
+    try:
+        submission_id = int(data.get('submission_id'))
+        reviewer_id = int(data.get('reviewer_participant_id'))
+    except (TypeError, ValueError):
+        return jsonify({'error': '초록과 심사자를 선택해주세요.'}), 400
+
+    submission = AbstractSubmission.query.filter_by(id=submission_id, event_id=event_id).first()
+    if not submission or (submission.status not in (None, 'submitted')):
+        return jsonify({'error': '제출된 초록을 찾을 수 없습니다.'}), 404
+    reviewer = Participant.query.filter_by(id=reviewer_id, event_id=event_id).first()
+    if not reviewer:
+        return jsonify({'error': '심사자로 지정할 참가자를 찾을 수 없습니다.'}), 404
+    if reviewer.id == submission.participant_id:
+        return jsonify({'error': '본인 초록의 심사자로 지정할 수 없습니다.'}), 400
+
+    existing = AbstractReviewAssignment.query.filter_by(
+        submission_id=submission.id,
+        reviewer_participant_id=reviewer.id,
+    ).first()
+    if existing:
+        return jsonify({'error': '이미 이 초록의 심사자로 지정되어 있습니다.'}), 400
+
+    already_assigned = AbstractReviewAssignment.query.filter_by(
+        submission_id=submission.id,
+    ).first()
+    if already_assigned:
+        return jsonify({'error': '이 초록에는 이미 심사자가 지정되어 있습니다. 한 초록당 심사자는 1명만 가능합니다.'}), 400
+
+    assignment = AbstractReviewAssignment(
+        event_id=event_id,
+        submission_id=submission.id,
+        reviewer_participant_id=reviewer.id,
+    )
+    db.session.add(assignment)
+    _add_participant_role(reviewer, ABSTRACT_REVIEWER_ROLE)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f'Error assigning abstract reviewer: {e}')
+        return jsonify({'error': '심사자 지정 중 오류가 발생했습니다.'}), 500
+    return jsonify({'success': True, 'assignment_id': assignment.id})
+
+
+@app.route('/api/event/<int:event_id>/abstract_review/assign/<int:assignment_id>', methods=['DELETE'])
+def api_abstract_review_unassign(event_id, assignment_id):
+    Event.query.get_or_404(event_id)
+    assignment = AbstractReviewAssignment.query.filter_by(id=assignment_id, event_id=event_id).first_or_404()
+    reviewer = Participant.query.filter_by(id=assignment.reviewer_participant_id, event_id=event_id).first()
+    reviewer_id = assignment.reviewer_participant_id
+    db.session.delete(assignment)
+    db.session.flush()
+    if reviewer:
+        _remove_participant_role_if_unused(reviewer, ABSTRACT_REVIEWER_ROLE, event_id)
+    _recompute_reviewer_ranks(event_id, reviewer_id)
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f'Error removing abstract reviewer: {e}')
+        return jsonify({'error': '심사자 해제 중 오류가 발생했습니다.'}), 500
+    return jsonify({'success': True})
+
+
+@app.route('/api/event/<int:event_id>/abstract_review/results')
+def api_abstract_review_results(event_id):
+    Event.query.get_or_404(event_id)
+    return jsonify(_build_abstract_review_results(event_id))
+
+
+def _build_abstract_review_results(event_id):
+    assignments = AbstractReviewAssignment.query.filter_by(event_id=event_id).all()
+    if not assignments:
+        return {'reviewers': [], 'abstracts': []}
+
+    submission_ids = {row.submission_id for row in assignments}
+    reviewer_ids = {row.reviewer_participant_id for row in assignments}
+    submissions = {
+        row.id: row
+        for row in AbstractSubmission.query.filter(AbstractSubmission.id.in_(list(submission_ids))).all()
+    }
+    participants = {
+        row.id: row
+        for row in Participant.query.filter(
+            Participant.event_id == event_id,
+            Participant.id.in_(list(reviewer_ids | {s.participant_id for s in submissions.values()})),
+        ).all()
+    }
+    placement = _abstract_program_placement_by_participant(event_id)
+
+    by_reviewer = {}
+    for row in assignments:
+        by_reviewer.setdefault(row.reviewer_participant_id, []).append(row)
+
+    reviewers_out = []
+    for reviewer_id, rows in by_reviewer.items():
+        reviewer = participants.get(reviewer_id)
+        ranked = sorted(
+            [r for r in rows if r.total_score is not None],
+            key=lambda item: (
+                item.rank if item.rank is not None else 10**9,
+                -(item.total_score or 0),
+                item.id,
+            ),
+        )
+        pending = [r for r in rows if r.total_score is None]
+        items = []
+        for row in ranked + pending:
+            submission = submissions.get(row.submission_id)
+            submitter = participants.get(submission.participant_id) if submission else None
+            place = placement.get(submission.participant_id) if submission else None
+            place = place or {}
+            items.append({
+                'rank': row.rank,
+                'total_score': row.total_score,
+                'submitted': row.total_score is not None,
+                'submission_id': row.submission_id,
+                'title': (submission.title if submission else '') or '',
+                'submitter_name': _participant_display_name(submitter) if submitter else '',
+                'affiliation': (
+                    (submitter.affiliation_kor or submitter.affiliation_eng or '') if submitter else ''
+                ),
+                'department': (
+                    (submitter.department_kor or submitter.department_eng or '') if submitter else ''
+                ),
+                'session_abbrev': place.get('session_abbrev') or '',
+                'session_title': place.get('session_title') or '',
+                'scores': {
+                    'originality': row.originality,
+                    'methodology': row.methodology,
+                    'conclusions': row.conclusions,
+                    'academic_contribution': row.academic_contribution,
+                } if row.total_score is not None else None,
+            })
+        reviewers_out.append({
+            'reviewer_id': reviewer_id,
+            'name': _participant_display_name(reviewer) if reviewer else f'참가자 {reviewer_id}',
+            'email': (reviewer.email if reviewer else '') or '',
+            'assigned_count': len(rows),
+            'scored_count': len(ranked),
+            'items': items,
+        })
+    reviewers_out.sort(key=lambda item: (item['name'] or '').lower())
+
+    abstracts_out = []
+    by_submission = {}
+    for row in assignments:
+        by_submission.setdefault(row.submission_id, []).append(row)
+    for submission_id, rows in by_submission.items():
+        submission = submissions.get(submission_id)
+        submitter = participants.get(submission.participant_id) if submission else None
+        averaged = _averaged_scores_for_submission(rows)
+        place = placement.get(submission.participant_id) if submission else None
+        place = place or {}
+        abstracts_out.append({
+            'submission_id': submission_id,
+            'title': (submission.title if submission else '') or '',
+            'submitter_name': _participant_display_name(submitter) if submitter else '',
+            'affiliation': (
+                (submitter.affiliation_kor or submitter.affiliation_eng or '') if submitter else ''
+            ),
+            'department': (
+                (submitter.department_kor or submitter.department_eng or '') if submitter else ''
+            ),
+            'session_abbrev': place.get('session_abbrev') or '',
+            'session_title': place.get('session_title') or '',
+            'averaged': averaged,
+            'reviewer_count': len(rows),
+            'scored_count': len([r for r in rows if r.total_score is not None]),
+        })
+    abstracts_out.sort(
+        key=lambda item: (
+            -(item['averaged']['total_score'] if item.get('averaged') else -1),
+            (item['submitter_name'] or '').lower(),
+        )
+    )
+    return {'reviewers': reviewers_out, 'abstracts': abstracts_out}
+
+
+def _safe_excel_sheet_name(name, used):
+    raw = re.sub(r'[\[\]\*\/\\\?\:]', '', (name or 'Sheet').strip()) or 'Sheet'
+    base = raw[:28]
+    candidate = base
+    idx = 2
+    while candidate.lower() in used:
+        suffix = f'_{idx}'
+        candidate = f'{base[:28 - len(suffix)]}{suffix}'
+        idx += 1
+    used.add(candidate.lower())
+    return candidate
+
+
+@app.route('/api/event/<int:event_id>/abstract_review/results/excel')
+def api_abstract_review_results_excel(event_id):
+    event = Event.query.get_or_404(event_id)
+    payload = _build_abstract_review_results(event_id)
+    reviewers = payload.get('reviewers') or []
+    if not reviewers:
+        return jsonify({'error': '다운로드할 채점 결과가 없습니다.'}), 404
+
+    columns = [
+        '채점자', '순위', '세션약어', '세션명', '제출자', '소속', '과', '초록제목',
+        '참신성', '연구방법', '결론', '기여도', '총점', '채점상태',
+    ]
+
+    def rows_for_reviewer(reviewer, include_reviewer_name=True):
+        out = []
+        for item in reviewer.get('items') or []:
+            scores = item.get('scores') or {}
+            submitted = bool(item.get('submitted'))
+            row = {
+                '채점자': reviewer.get('name') or '' if include_reviewer_name else None,
+                '순위': item.get('rank') if submitted else '',
+                '세션약어': item.get('session_abbrev') or '',
+                '세션명': item.get('session_title') or '',
+                '제출자': item.get('submitter_name') or '',
+                '소속': item.get('affiliation') or '',
+                '과': item.get('department') or '',
+                '초록제목': item.get('title') or '',
+                '참신성': scores.get('originality') if submitted else '',
+                '연구방법': scores.get('methodology') if submitted else '',
+                '결론': scores.get('conclusions') if submitted else '',
+                '기여도': scores.get('academic_contribution') if submitted else '',
+                '총점': item.get('total_score') if submitted else '',
+                '채점상태': '완료' if submitted else '미채점',
+            }
+            if not include_reviewer_name:
+                row.pop('채점자', None)
+            out.append(row)
+        return out
+
+    all_rows = []
+    for reviewer in reviewers:
+        all_rows.extend(rows_for_reviewer(reviewer, include_reviewer_name=True))
+
+    output = BytesIO()
+    try:
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            wb = writer.book
+            header_fmt = wb.add_format({
+                'bold': True,
+                'bg_color': '#3d4799',
+                'font_color': '#FFFFFF',
+                'border': 1,
+                'align': 'center',
+                'valign': 'vcenter',
+            })
+            cell_fmt = wb.add_format({'border': 1, 'valign': 'vcenter'})
+            center_fmt = wb.add_format({'border': 1, 'align': 'center', 'valign': 'vcenter'})
+            pending_fmt = wb.add_format({
+                'border': 1,
+                'align': 'center',
+                'valign': 'vcenter',
+                'font_color': '#6b7280',
+                'italic': True,
+            })
+            score_fmt = wb.add_format({
+                'border': 1,
+                'align': 'center',
+                'valign': 'vcenter',
+                'bold': True,
+            })
+
+            def write_sheet(sheet_name, rows, cols):
+                df = pd.DataFrame(rows, columns=cols)
+                df.to_excel(writer, index=False, sheet_name=sheet_name)
+                ws = writer.sheets[sheet_name]
+                ws.freeze_panes(1, 0)
+                ws.autofilter(0, 0, max(len(df), 1), len(cols) - 1)
+                for col_idx, col_name in enumerate(cols):
+                    ws.write(0, col_idx, col_name, header_fmt)
+                for row_idx, row in enumerate(rows, start=1):
+                    for col_idx, col_name in enumerate(cols):
+                        value = row.get(col_name, '')
+                        if value is None:
+                            value = ''
+                        if col_name in ('순위', '참신성', '연구방법', '결론', '기여도'):
+                            fmt = center_fmt
+                        elif col_name == '총점':
+                            fmt = score_fmt
+                        elif col_name == '채점상태' and value == '미채점':
+                            fmt = pending_fmt
+                        else:
+                            fmt = cell_fmt
+                        ws.write(row_idx, col_idx, value, fmt)
+                widths = {
+                    '채점자': 14, '순위': 6, '세션약어': 10, '세션명': 22,
+                    '제출자': 14, '소속': 22, '과': 16, '초록제목': 40,
+                    '참신성': 8, '연구방법': 8, '결론': 8, '기여도': 8,
+                    '총점': 8, '채점상태': 10,
+                }
+                for col_idx, col_name in enumerate(cols):
+                    ws.set_column(col_idx, col_idx, widths.get(col_name, 14))
+                ws.set_row(0, 22)
+
+            write_sheet('전체', all_rows, columns)
+
+            used_names = {'전체'}
+            per_reviewer_cols = [c for c in columns if c != '채점자']
+            for reviewer in reviewers:
+                sheet_name = _safe_excel_sheet_name(reviewer.get('name') or '채점자', used_names)
+                write_sheet(
+                    sheet_name,
+                    rows_for_reviewer(reviewer, include_reviewer_name=False),
+                    per_reviewer_cols,
+                )
+    except Exception as e:
+        logging.error(f'Error exporting abstract review excel: {e}')
+        return jsonify({'error': '엑셀 생성 중 오류가 발생했습니다.'}), 500
+
+    output.seek(0)
+    event_label = (event.event_id or event.name or str(event_id)).replace(' ', '_')
+    filename = f'abstract_review_{event_label}_{datetime.now().strftime("%Y%m%d")}.xlsx'
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+
+
+@app.route('/api/event/<int:event_id>/abstract_review/participants')
+def api_abstract_review_participant_search(event_id):
+    Event.query.get_or_404(event_id)
+    q = (request.args.get('q') or '').strip().lower()
+    rows = Participant.query.filter_by(event_id=event_id).order_by(Participant.id.asc()).limit(500).all()
+    people = []
+    for participant in rows:
+        name = _participant_display_name(participant)
+        email = (participant.email or '').strip()
+        affiliation = (participant.affiliation_kor or participant.affiliation_eng or '').strip()
+        hay = f'{name} {email} {affiliation}'.lower()
+        if q and q not in hay:
+            continue
+        people.append({
+            'id': participant.id,
+            'name': name,
+            'email': email,
+            'affiliation': affiliation,
+            'department': (participant.department_kor or participant.department_eng or '').strip(),
+            'role': participant.role or '',
+        })
+        if len(people) >= 40:
+            break
+    return jsonify({'people': people})
+
+
+@app.route('/abstract_review/<int:event_id>')
+def abstract_review_judge_login(event_id):
+    event = Event.query.get_or_404(event_id)
+    error = None
+    if request.method == 'GET' and request.args.get('error'):
+        error = request.args.get('error')
+    return render_template('abstract_review_login.html', event=event, error=error)
+
+
+@app.route('/abstract_review/<int:event_id>/login', methods=['POST'])
+def abstract_review_judge_login_post(event_id):
+    event = Event.query.get_or_404(event_id)
+    name = (request.form.get('name') or '').strip()
+    email = (request.form.get('email') or '').strip().lower()
+    if not name or not email:
+        return render_template(
+            'abstract_review_login.html',
+            event=event,
+            error='이름과 이메일을 모두 입력해주세요.',
+        )
+
+    candidates = Participant.query.filter(
+        Participant.event_id == event_id,
+        db.func.lower(Participant.email) == email,
+    ).all()
+    matched = None
+    for participant in candidates:
+        names = {
+            (participant.name_kor or '').strip().lower(),
+            (participant.name_eng or '').strip().lower(),
+            _participant_display_name(participant).strip().lower(),
+            f'{(participant.first_name or "").strip()} {(participant.family_name or "").strip()}'.strip().lower(),
+        }
+        if name.lower() in names or any(name.lower() == n for n in names if n):
+            matched = participant
+            break
+        if any(name.lower() in n for n in names if n):
+            matched = participant
+            break
+
+    if not matched:
+        return render_template(
+            'abstract_review_login.html',
+            event=event,
+            error='이름/이메일이 참가자 명단과 일치하지 않습니다.',
+        )
+
+    assigned = AbstractReviewAssignment.query.filter_by(
+        event_id=event_id,
+        reviewer_participant_id=matched.id,
+    ).count()
+    if not assigned:
+        return render_template(
+            'abstract_review_login.html',
+            event=event,
+            error='배정된 심사가 없습니다. 관리자에게 문의해주세요.',
+        )
+
+    session['abstract_review_event_id'] = event_id
+    session['abstract_review_reviewer_id'] = matched.id
+    session['abstract_review_reviewer_name'] = _participant_display_name(matched)
+    return redirect(url_for('abstract_review_judge_portal', event_id=event_id))
+
+
+@app.route('/abstract_review/<int:event_id>/portal')
+def abstract_review_judge_portal(event_id):
+    event = Event.query.get_or_404(event_id)
+    if session.get('abstract_review_event_id') != event_id or not session.get('abstract_review_reviewer_id'):
+        return redirect(url_for('abstract_review_judge_login', event_id=event_id))
+    reviewer = Participant.query.filter_by(
+        id=session['abstract_review_reviewer_id'],
+        event_id=event_id,
+    ).first()
+    if not reviewer:
+        session.pop('abstract_review_event_id', None)
+        session.pop('abstract_review_reviewer_id', None)
+        return redirect(url_for('abstract_review_judge_login', event_id=event_id))
+    return render_template(
+        'abstract_review_portal.html',
+        event=event,
+        reviewer_name=_participant_display_name(reviewer),
+        criteria=ABSTRACT_REVIEW_CRITERIA,
+    )
+
+
+@app.route('/abstract_review/<int:event_id>/logout')
+def abstract_review_judge_logout(event_id):
+    session.pop('abstract_review_event_id', None)
+    session.pop('abstract_review_reviewer_id', None)
+    session.pop('abstract_review_reviewer_name', None)
+    return redirect(url_for('abstract_review_judge_login', event_id=event_id))
+
+
+@app.route('/api/abstract_review/<int:event_id>/assignments')
+def api_abstract_review_judge_assignments(event_id):
+    Event.query.get_or_404(event_id)
+    reviewer_id = session.get('abstract_review_reviewer_id')
+    if session.get('abstract_review_event_id') != event_id or not reviewer_id:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    rows = (
+        AbstractReviewAssignment.query
+        .filter_by(event_id=event_id, reviewer_participant_id=reviewer_id)
+        .order_by(AbstractReviewAssignment.id.asc())
+        .all()
+    )
+    submission_ids = [row.submission_id for row in rows]
+    submissions = {
+        row.id: row
+        for row in AbstractSubmission.query.filter(AbstractSubmission.id.in_(submission_ids or [0])).all()
+    }
+    submitter_ids = {row.participant_id for row in submissions.values()}
+    participants = {
+        row.id: row
+        for row in Participant.query.filter(Participant.id.in_(list(submitter_ids) or [0])).all()
+    }
+    placement = _abstract_program_placement_by_participant(event_id)
+
+    items = []
+    for row in rows:
+        submission = submissions.get(row.submission_id)
+        submitter = participants.get(submission.participant_id) if submission else None
+        place = placement.get(submission.participant_id) if submission else None
+        place = place or {}
+        topic_code = place.get('session_abbrev') or ''
+        if not topic_code and submission:
+            topic_code = (submission.topic_first or '').strip() or f'A-{submission.id}'
+        items.append({
+            'assignment_id': row.id,
+            'topic_code': topic_code,
+            'session_abbrev': place.get('session_abbrev') or '',
+            'session_title': place.get('session_title') or '',
+            'title': (submission.title if submission else '') or '',
+            'submitter_name': _participant_display_name(submitter) if submitter else '',
+            'affiliation': (
+                (submitter.affiliation_kor or submitter.affiliation_eng or '') if submitter else ''
+            ),
+            'department': (
+                (submitter.department_kor or submitter.department_eng or '') if submitter else ''
+            ),
+            'presentation_time': place.get('presentation_time') or '',
+            'originality': row.originality,
+            'methodology': row.methodology,
+            'conclusions': row.conclusions,
+            'academic_contribution': row.academic_contribution,
+            'total_score': row.total_score,
+            'rank': row.rank,
+            'submitted': row.total_score is not None,
+        })
+    return jsonify({'items': items, 'criteria': [
+        {'key': key, 'label': label} for key, label in ABSTRACT_REVIEW_CRITERIA
+    ]})
+
+
+@app.route('/api/abstract_review/<int:event_id>/score', methods=['POST'])
+def api_abstract_review_judge_score(event_id):
+    Event.query.get_or_404(event_id)
+    reviewer_id = session.get('abstract_review_reviewer_id')
+    if session.get('abstract_review_event_id') != event_id or not reviewer_id:
+        return jsonify({'error': '로그인이 필요합니다.'}), 401
+
+    data = request.get_json(silent=True) or {}
+    try:
+        assignment_id = int(data.get('assignment_id'))
+    except (TypeError, ValueError):
+        return jsonify({'error': '잘못된 요청입니다.'}), 400
+
+    assignment = AbstractReviewAssignment.query.filter_by(
+        id=assignment_id,
+        event_id=event_id,
+        reviewer_participant_id=reviewer_id,
+    ).first()
+    if not assignment:
+        return jsonify({'error': '배정된 심사를 찾을 수 없습니다.'}), 404
+
+    scores = {}
+    for key, label in ABSTRACT_REVIEW_CRITERIA:
+        score = _clamp_review_score(data.get(key))
+        if score is None:
+            return jsonify({'error': f'{label} 점수를 1~10 사이로 입력해주세요.'}), 400
+        scores[key] = score
+
+    assignment.originality = scores['originality']
+    assignment.methodology = scores['methodology']
+    assignment.conclusions = scores['conclusions']
+    assignment.academic_contribution = scores['academic_contribution']
+    assignment.total_score = sum(scores.values())
+    assignment.submitted_at = datetime.utcnow()
+    assignment.updated_at = datetime.utcnow()
+    _recompute_reviewer_ranks(event_id, reviewer_id)
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f'Error saving abstract review score: {e}')
+        return jsonify({'error': '점수 저장 중 오류가 발생했습니다.'}), 500
+
+    return jsonify({
+        'success': True,
+        'total_score': assignment.total_score,
+        'rank': assignment.rank,
     })
 
 
@@ -7765,6 +8831,7 @@ def _participant_pool_item(p: Participant) -> dict:
       'workplace_type': p.workplace_type or '',
       'registration': p.registration or '',
       'accept_or_decline': p.accept_or_decline or '',
+      'decline_reason': p.decline_reason or '',
       'cv': p.cv or '',
       'photo': p.photo or '',
       'ppt': p.ppt or '',

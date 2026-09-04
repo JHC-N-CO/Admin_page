@@ -65,8 +65,7 @@ function formatDateTimeSimple(dtStr) {
 function formatDateTimeWithBreak(dtStr) {
     if (!dtStr || dtStr === 'None' || dtStr === null || dtStr === undefined) return '-';
     if (typeof dtStr === 'string' && dtStr.length >= 16) {
-        // YYYY-MM-DD HH:MM → YYYY-MM-DD<br>HH:MM
-        return dtStr.slice(0, 10) + '<br>' + dtStr.slice(11, 16);
+        return dtStr.slice(0, 16);
     }
     return dtStr;
 }
@@ -111,7 +110,7 @@ function updateAcceptDeclineCell(cell, participant) {
     
     // 현재 셀의 내용과 비교하여 변경이 있을 때만 업데이트
     const currentText = cell.textContent.trim();
-    const expectedText = currentStatus === 'Decline' ? '거절' : (currentStatus === 'Accept' ? '승인' : currentStatus);
+    const expectedText = currentStatus === 'Decline' ? '거절' : (currentStatus === 'Accept' ? '수락' : currentStatus);
     if (currentText === expectedText) return;
     
     // 셀 내용 업데이트
@@ -130,14 +129,14 @@ function updateAcceptDeclineCell(cell, participant) {
             </span>
         `;
     } else if (currentStatus === 'Accept') {
-        cell.innerHTML = `<span class="accept-status">승인</span>`;
+        cell.innerHTML = `<span class="accept-status">수락</span>`;
     } else {
         cell.textContent = currentStatus || '';
     }
 }
 
 function openPopup(url) {
-    window.open(url, '_blank', 'width=500,height=800,scrollbars=yes,resizable=yes');
+    window.open(url, '_blank', 'width=680,height=860,scrollbars=yes,resizable=yes');
 }
 
 function openPopupAttn(url) {
@@ -499,6 +498,17 @@ function initTooltips() {
         const reason = cell.getAttribute('data-reason');
         if (reason) {
             cell.title = reason;
+        }
+    });
+
+    document.querySelectorAll(
+        'td[data-column="affiliation_eng"], td[data-column="affiliation_kor"], td[data-column="country"], td[data-column="country_code"]'
+    ).forEach((cell) => {
+        const text = (cell.textContent || '').trim();
+        if (text) {
+            cell.title = text;
+        } else {
+            cell.removeAttribute('title');
         }
     });
 }
