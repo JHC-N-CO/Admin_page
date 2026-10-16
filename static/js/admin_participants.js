@@ -947,6 +947,7 @@ function addSelectedMembers() {
 // 회원 검색 기능
 document.addEventListener('DOMContentLoaded', function() {
     const memberSearchInput = document.getElementById('member-search');
+    const memberSelectorModal = document.getElementById('memberSelectorModal');
     if (memberSearchInput) {
         let searchTimeout;
         memberSearchInput.addEventListener('input', function() {
@@ -954,6 +955,22 @@ document.addEventListener('DOMContentLoaded', function() {
             searchTimeout = setTimeout(() => {
                 loadMembers();
             }, 300);
+        });
+    }
+
+    if (memberSelectorModal) {
+        memberSelectorModal.addEventListener('click', function(event) {
+            if (event.target === memberSelectorModal) {
+                closeMemberSelector();
+            }
+        });
+        document.addEventListener('keydown', function(event) {
+            if (
+                event.key === 'Escape'
+                && window.getComputedStyle(memberSelectorModal).display !== 'none'
+            ) {
+                closeMemberSelector();
+            }
         });
     }
 });

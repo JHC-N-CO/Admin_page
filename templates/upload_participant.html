@@ -4,16 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>참가자 업로드</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/upload_participant.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/edit_participant.css') }}?v=20260908a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/upload_participant.css') }}?v=20260908a">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="upload-page">
-        <header class="upload-header">
-            <p class="upload-brand">대한뇌전증학회</p>
-            <h1 class="upload-title">참가자 업로드</h1>
-            <p class="upload-event-name">{{ event.name }}</p>
-            <p class="upload-event-meta">{{ event.event_id }}</p>
+        <header class="page-header upload-header">
+            <h1>참가자 업로드</h1>
+            <p class="page-subtitle">{{ event.name }}{% if event.event_id %} · {{ event.event_id }}{% endif %}</p>
         </header>
 
         <div class="upload-card">
@@ -123,6 +122,6 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/upload_participant.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/upload_participant.js') }}?v=20260908a"></script>
 </body>
 </html>

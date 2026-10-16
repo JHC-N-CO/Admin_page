@@ -462,6 +462,16 @@ body {
     color: #222;
 }
 
+.preview-code {
+    flex: 0 0 auto;
+    color: #222;
+}
+
+.preview-topics.is-right {
+    margin-left: auto;
+    text-align: right;
+}
+
 .preview-abs-title {
     text-align: center;
     font-size: 1.25rem;

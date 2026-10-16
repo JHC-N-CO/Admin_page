@@ -58,6 +58,7 @@
                             <th>Lecture Title</th>
                             <th>Submission</th>
                             <th>E-poster</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,11 +72,14 @@
                                     <a href="{{ url_for('abstract_submission_view', event_id=event.id, submission_id=item.id) }}">{{ item.status }}</a>
                                 </td>
                                 <td>{{ item.eposter or '-' }}</td>
+                                <td>
+                                    <a href="{{ url_for('abstract_submission_edit', event_id=event.id, submission_id=item.id) }}">수정</a>
+                                </td>
                             </tr>
                             {% endfor %}
                         {% else %}
                             <tr>
-                                <td colspan="5" class="abstract-empty">제출된 초록이 없습니다.</td>
+                                <td colspan="6" class="abstract-empty">제출된 초록이 없습니다.</td>
                             </tr>
                         {% endif %}
                     </tbody>

@@ -3,8 +3,8 @@
 <head>
     <title>참가자 관리</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_common.css') }}?v=20250903r">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_participants.css') }}?v=20250903r">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_common.css') }}?v=20260908a">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_participants.css') }}?v=20260908a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
@@ -215,7 +215,7 @@
                                 <tr>
                                     <th><input type="checkbox" id="select-all"></th>
                                     <th class="sortable hidden-column" data-column="event_id" data-sort="event_id">이벤트 ID</th>
-                                    <th class="sortable" data-column="code" data-sort="code">코드</th>
+                                    <th class="sortable" data-column="code" data-sort="code">번호</th>
                                     <th class="sortable" data-column="role" data-sort="role">역할</th>
                                     <th class="sortable" data-column="country" data-sort="country">국가</th>
                                     <th class="sortable" data-column="country_code" data-sort="country_code">국가약어</th>
@@ -325,11 +325,11 @@
         </div>
         
         <!-- 회원 선택 모달 -->
-        <div id="memberSelectorModal" class="modal" style="display: none;">
+        <div id="memberSelectorModal" class="modal participant-member-modal" style="display: none;">
             <div class="modal-content">
                 <div class="modal-header">
                     <h3>회원 선택</h3>
-                    <span class="close" onclick="closeMemberSelector()">&times;</span>
+                    <button type="button" class="modal-close" onclick="closeMemberSelector()" aria-label="닫기">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="search-box">
@@ -339,7 +339,7 @@
                         <!-- 회원 목록이 여기에 동적으로 로드됩니다 -->
                     </div>
                 </div>
-                <div class="modal-actions">
+                <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeMemberSelector()">취소</button>
                     <button type="button" class="btn btn-primary" onclick="addSelectedMembers()">선택한 회원 추가</button>
                 </div>
@@ -474,7 +474,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
-    <script src="{{ url_for('static', filename='js/admin_participants.js') }}?v=20250828h"></script>
+    <script src="{{ url_for('static', filename='js/admin_participants.js') }}?v=20260908a"></script>
     <script src="{{ url_for('static', filename='js/email_compose.js') }}"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>

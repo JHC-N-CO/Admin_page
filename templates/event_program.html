@@ -3,7 +3,7 @@
 <head>
     <title>행사 프로그램 관리</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/event_program.css') }}?v=20250903e">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/event_program.css') }}?v=20260908c">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
     
@@ -242,11 +242,11 @@
     </div>
 
     <!-- 세션 추가/편집 모달 -->
-    <div id="sessionModal" class="modal">
+    <div id="sessionModal" class="modal program-consistent-modal">
         <div class="modal-content session-edit-modal">
             <div class="modal-header">
                 <h3 id="modalTitle">세션 추가</h3>
-                <span class="close" onclick="closeSessionModal()">&times;</span>
+                <button type="button" class="modal-close" onclick="closeSessionModal()" aria-label="닫기">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="sessionForm">
@@ -519,11 +519,11 @@
     </div>
 
     <!-- 엑셀 업로드 모달 -->
-    <div id="excelUploadModal" class="modal">
+    <div id="excelUploadModal" class="modal program-consistent-modal">
         <div class="modal-content" style="max-width: 700px;">
             <div class="modal-header">
                 <h3>프로그램 엑셀 업로드</h3>
-                <span class="close" onclick="closeExcelUploadModal()">&times;</span>
+                <button type="button" class="modal-close" onclick="closeExcelUploadModal()" aria-label="닫기">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="upload-section">
@@ -629,11 +629,11 @@
     </div>
 
     <!-- 표시 설정 모달 -->
-    <div id="displaySettingsModal" class="modal">
+    <div id="displaySettingsModal" class="modal program-consistent-modal">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
                 <h2>세션 블록 표시 설정</h2>
-                <button class="close-btn" onclick="closeDisplaySettingsModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeDisplaySettingsModal()" aria-label="닫기">&times;</button>
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 15px; color: #666;">세션 블록에 표시할 항목을 선택하세요:</p>
@@ -704,11 +704,11 @@
     </div>
 
     <!-- 엑셀 내보내기 설정 모달 -->
-    <div id="exportSettingsModal" class="modal">
+    <div id="exportSettingsModal" class="modal program-consistent-modal">
         <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">
                 <h2>📊 엑셀 내보내기 설정</h2>
-                <button class="close-btn" onclick="closeExportSettingsModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeExportSettingsModal()" aria-label="닫기">&times;</button>
             </div>
             <div class="modal-body">
                 <!-- 내보내기 형식 선택 -->
@@ -897,11 +897,11 @@
     </div>
 
     <!-- 이메일 발송 모달 -->
-    <div id="emailComposeModal" class="modal">
+    <div id="emailComposeModal" class="modal program-consistent-modal">
         <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h2>이메일 발송</h2>
-                <button class="close-btn" onclick="closeEmailComposeModal()">&times;</button>
+                <button type="button" class="modal-close" onclick="closeEmailComposeModal()" aria-label="닫기">&times;</button>
             </div>
             <div class="modal-body">
                 <div style="margin-bottom: 20px;">
@@ -1286,11 +1286,11 @@
         </div>
     </div>
 
-    <div id="abstractSubmittersModal" class="modal">
+    <div id="abstractSubmittersModal" class="modal program-consistent-modal">
         <div class="modal-content abstract-submitters-modal">
             <div class="modal-header">
                 <h3>초록 제출자</h3>
-                <span class="close" onclick="closeAbstractSubmittersModal()">&times;</span>
+                <button type="button" class="modal-close" onclick="closeAbstractSubmittersModal()" aria-label="닫기">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="abstract-submitters-toolbar">
@@ -1298,6 +1298,9 @@
                         <option value="">세션 선택</option>
                     </select>
                     <button type="button" id="abstractAssignBtn" class="btn btn-primary">연자 배정</button>
+                    <button type="button" id="abstractExportPdfBtn" class="btn btn-secondary">
+                        <i class="fas fa-file-pdf"></i> 초록 내보내기
+                    </button>
                 </div>
                 <div class="abstract-submitters-table-wrap">
                     <table>
@@ -1348,7 +1351,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/event_program.js') }}?v=20250903e"></script>
-    <script src="{{ url_for('static', filename='js/abstract_submitters.js') }}?v=7"></script>
+    <script src="{{ url_for('static', filename='js/event_program.js') }}?v=20260908a"></script>
+    <script src="{{ url_for('static', filename='js/abstract_submitters.js') }}?v=9"></script>
 </body>
 </html>

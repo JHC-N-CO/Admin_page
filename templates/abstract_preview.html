@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Abstract Submission Preview - {{ event.name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract.css') }}?v=20260908a">
 </head>
 <body>
+    {% if not admin_popup %}
     {% include 'includes/member_topbar.html' %}
+    {% endif %}
     <div class="abstract-page abstract-page-wide">
         <header class="abstract-header">
             <p class="abstract-brand">대한뇌전증학회</p>
@@ -16,8 +18,11 @@
         </header>
 
         <div class="preview-box">
-            <div class="preview-meta">
-                <span class="preview-topics">
+            <div class="preview-meta{% if draft.export_code %} is-assigned{% endif %}">
+                {% if draft.export_code %}
+                <span class="preview-code">{{ draft.export_code }}</span>
+                {% endif %}
+                <span class="preview-topics{% if draft.export_code %} is-right{% endif %}">
                     {{ draft.topic_first }}
                     {% if draft.topic_second %} / {{ draft.topic_second }}{% endif %}
                 </span>
@@ -56,13 +61,20 @@
         </div>
 
         <div class="abstract-nav abstract-nav-actions">
+            {% if admin_popup %}
+            <button type="button" class="btn btn-secondary" onclick="window.close()">닫기</button>
+            {% else %}
             {% if view_only %}
             <a class="btn btn-secondary" href="{{ url_for('abstract_hub', event_id=event.id) }}">이전 페이지</a>
+            {% if allow_edit and submission_id %}
+            <a class="btn btn-modify" href="{{ url_for('abstract_submission_edit', event_id=event.id, submission_id=submission_id) }}">Modify</a>
+            {% endif %}
             {% else %}
             <a class="btn btn-modify" href="{{ url_for('abstract_new', event_id=event.id, edit=1) }}">Modify</a>
             <form method="post" action="{{ url_for('abstract_confirm', event_id=event.id) }}">
                 <button type="submit" class="btn btn-primary">Confirm</button>
             </form>
+            {% endif %}
             {% endif %}
         </div>
     </div>

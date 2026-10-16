@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Abstract Submission - {{ event.name }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract.css') }}">
+    <title>{% if editing_submission %}Edit Abstract{% else %}Abstract Submission{% endif %} - {{ event.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/abstract.css') }}?v=20260908b">
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
 </head>
 <body>
@@ -12,7 +12,7 @@
     <div class="abstract-page abstract-page-wide">
         <header class="abstract-header">
             <p class="abstract-brand">대한뇌전증학회</p>
-            <h1 class="abstract-title">Abstract Submission</h1>
+            <h1 class="abstract-title">{% if editing_submission %}Edit Abstract{% else %}Abstract Submission{% endif %}</h1>
             <p class="abstract-event-name">{{ event.name }}</p>
         </header>
 
@@ -145,7 +145,7 @@
 
             <div class="abstract-nav abstract-nav-actions">
                 <a class="btn btn-cancel" href="{{ url_for('abstract_hub', event_id=event.id) }}">Cancel</a>
-                <button type="submit" class="btn btn-primary">Next And Preview</button>
+                <button type="submit" class="btn btn-primary">{% if editing_submission %}Preview Changes{% else %}Next And Preview{% endif %}</button>
             </div>
         </form>
     </div>
@@ -154,6 +154,6 @@
     <script>
         window.ABSTRACT_DRAFT = {{ draft|tojson if draft else 'null' }};
     </script>
-    <script src="{{ url_for('static', filename='js/abstract_submit.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/abstract_submit.js') }}?v=20260908b"></script>
 </body>
 </html>

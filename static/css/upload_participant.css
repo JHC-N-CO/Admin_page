@@ -474,3 +474,270 @@ body {
         font-size: 0.85rem;
     }
 }
+
+/* 참가자 추가 팝업과 동일한 clean admin tone */
+body {
+    font-family: Arial, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    background: #f5f5f5;
+    color: #1f2937;
+    line-height: 1.5;
+}
+
+.upload-page {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+}
+
+.upload-header.page-header {
+    margin-bottom: 16px;
+    padding: 0;
+    text-align: left;
+}
+
+.upload-header.page-header h1 {
+    margin: 0;
+    color: #202124;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+.upload-header .page-subtitle {
+    margin: 6px 0 0;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 400;
+}
+
+.upload-card {
+    padding: 8px 20px 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.upload-section,
+.preview-section {
+    margin: 0;
+    padding: 18px 0;
+    border: 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.upload-section + .upload-section {
+    margin: 0;
+    padding-top: 18px;
+    border-top: 0;
+}
+
+.preview-section {
+    border-top: 0;
+}
+
+.section-title {
+    margin: 0 0 10px;
+    padding: 0;
+    border: 0;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+.section-hint {
+    margin: 0 0 12px;
+    color: #9ca3af;
+    font-size: 11px;
+}
+
+.columns-table-wrap,
+.preview-table-wrap {
+    border-color: #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+.columns-table,
+.preview-table {
+    font-size: 12px;
+}
+
+.columns-table th,
+.columns-table td,
+.preview-table th,
+.preview-table td {
+    padding: 7px 10px;
+    border-bottom-color: #f0f0f0;
+}
+
+.columns-table th,
+.preview-table th {
+    background: #f8f9fa;
+    color: #374151;
+    font-weight: 600;
+}
+
+.columns-table td:nth-child(2) {
+    color: #1f2937;
+    font-weight: 600;
+}
+
+.columns-table td:nth-child(3) {
+    color: #6b7280;
+}
+
+.columns-table tbody tr:hover,
+.preview-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.file-drop {
+    margin-bottom: 12px;
+    padding: 28px 20px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    background: #fafafa;
+}
+
+.file-drop:hover,
+.file-drop.dragover {
+    border-color: #1a73e8;
+    background: #f8fbff;
+}
+
+.file-drop-text {
+    margin-bottom: 4px;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.file-drop-hint {
+    color: #9ca3af;
+    font-size: 11px;
+}
+
+.file-selected {
+    margin-bottom: 12px;
+    padding: 9px 11px;
+    border: 1px solid #dbe3ef;
+    border-radius: 6px;
+    background: #f8f9fa;
+    color: #374151;
+    font-size: 13px;
+}
+
+.file-remove {
+    color: #9aa0a6;
+    font-size: 20px;
+}
+
+.reg-choice {
+    margin: 14px 0 16px;
+    padding: 12px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.reg-choice-title {
+    margin-bottom: 3px;
+    color: #4b5563;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.reg-choice-hint,
+.reg-choice-option small {
+    color: #9ca3af;
+    font-size: 11px;
+}
+
+.reg-choice-option {
+    padding: 7px 0;
+    font-size: 13px;
+}
+
+.reg-choice-option span {
+    color: #374151;
+    font-weight: 600;
+}
+
+.reg-choice-option input {
+    accent-color: #1a73e8;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.btn-primary {
+    border-color: #1a73e8;
+    background: #1a73e8;
+    color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+    border-color: #1557b0;
+    background: #1557b0;
+}
+
+.btn-secondary {
+    border-color: #dadce0;
+    background: #fff;
+    color: #5f6368;
+}
+
+.btn-secondary:hover {
+    background: #f8f9fa;
+}
+
+.preview-filter {
+    padding: 5px 10px;
+    border-color: #dadce0;
+    border-radius: 6px;
+    color: #5f6368;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.preview-filter.active {
+    border-color: #1a73e8;
+    background: #1a73e8;
+}
+
+.match-badge {
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.match-badge.member {
+    background: #eff6ff;
+    color: #1a73e8;
+}
+
+.result-box {
+    margin-top: 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+@media (max-width: 600px) {
+    .upload-page {
+        padding: 20px 14px 36px;
+    }
+
+    .upload-card {
+        padding: 6px 14px 16px;
+    }
+}

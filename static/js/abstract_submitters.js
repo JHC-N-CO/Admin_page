@@ -61,6 +61,22 @@ function selectedAbstractIds() {
         .map((el) => el.value);
 }
 
+function selectedAbstractSubmissionIds() {
+    return Array.from(document.querySelectorAll('#abstractSubmittersModal input[name="submitter"]:checked'))
+        .map((el) => el.dataset.submissionId)
+        .filter(Boolean);
+}
+
+function openAbstractPreview(submissionId) {
+    const eventId = document.body.getAttribute('data-event-id');
+    if (!eventId || !submissionId) return;
+    window.open(
+        `/event/${eventId}/abstract_preview/${submissionId}`,
+        '_blank',
+        'width=920,height=860,scrollbars=yes,resizable=yes'
+    );
+}
+
 async function loadAbstractAssignSessions() {
     const eventId = document.body.getAttribute('data-event-id');
     const sessionSelect = document.getElementById('abstractSessionSelect');
@@ -116,8 +132,12 @@ async function loadAbstractSubmitters() {
         const assigned = abstractAssignedPill(person);
         return `
             <tr>
-                <td><input type="checkbox" name="submitter" value="${person.id}"></td>
-                <td>${escapeAbstractHtml(person.name)}</td>
+                <td><input type="checkbox" name="submitter" value="${person.id}" data-submission-id="${person.submission_id}"></td>
+                <td>
+                    <button type="button" class="abstract-preview-link" data-submission-id="${person.submission_id}">
+                        ${escapeAbstractHtml(person.name)}
+                    </button>
+                </td>
                 <td>${escapeAbstractHtml(person.email)}</td>
                 <td>${escapeAbstractHtml(person.affiliation)}</td>
                 <td>${escapeAbstractHtml(person.department)}</td>
@@ -125,6 +145,11 @@ async function loadAbstractSubmitters() {
             </tr>
         `;
     }).join('');
+    peopleBody.querySelectorAll('.abstract-preview-link').forEach((button) => {
+        button.addEventListener('click', () => {
+            openAbstractPreview(button.dataset.submissionId);
+        });
+    });
     if (selectAll) selectAll.checked = false;
 }
 
@@ -145,10 +170,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('abstractSubmittersModal');
     const selectAll = document.getElementById('abstractSelectAll');
     const assignBtn = document.getElementById('abstractAssignBtn');
+    const exportBtn = document.getElementById('abstractExportPdfBtn');
     if (!modal) return;
 
     modal.addEventListener('click', (event) => {
         if (event.target === modal) closeAbstractSubmittersModal();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (
+            event.key === 'Escape'
+            && window.getComputedStyle(modal).display !== 'none'
+        ) {
+            closeAbstractSubmittersModal();
+        }
     });
 
     if (selectAll) {
@@ -204,6 +239,53 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert(error.message || '배정에 실패했습니다.');
             } finally {
                 assignBtn.disabled = false;
+            }
+        });
+    }
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            const eventId = document.body.getAttribute('data-event-id');
+            const submissionIds = selectedAbstractSubmissionIds();
+            if (!submissionIds.length) {
+                alert('내보낼 초록을 선택해주세요.');
+                return;
+            }
+
+            exportBtn.disabled = true;
+            const originalHtml = exportBtn.innerHTML;
+            exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> PDF 생성 중';
+            try {
+                const response = await fetch(`/api/event/${eventId}/abstract_export_pdf`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ submission_ids: submissionIds }),
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    throw new Error(data.error || '초록 PDF 생성에 실패했습니다.');
+                }
+
+                const blob = await response.blob();
+                const disposition = response.headers.get('Content-Disposition') || '';
+                const encodedName = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+                const plainName = disposition.match(/filename="?([^";]+)"?/i);
+                const filename = encodedName
+                    ? decodeURIComponent(encodedName[1])
+                    : (plainName ? plainName[1] : 'selected_abstracts.pdf');
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                URL.revokeObjectURL(url);
+            } catch (error) {
+                alert(error.message || '초록 PDF 생성에 실패했습니다.');
+            } finally {
+                exportBtn.disabled = false;
+                exportBtn.innerHTML = originalHtml;
             }
         });
     }

@@ -4806,6 +4806,11 @@ def _participant_abstract_submissions(event_id, participant_id):
     } for row in rows]
 
 
+def _clear_abstract_edit_session():
+    session.pop('abstract_edit_submission_id', None)
+    session.pop('abstract_edit_draft', None)
+
+
 @app.route('/abstract/<int:event_id>/hub')
 def abstract_hub(event_id):
     """초록 제출 안내 및 제출 목록"""
@@ -4845,6 +4850,9 @@ def abstract_new(event_id):
     participant, path_type = _get_abstract_context(event_id)
     if not participant:
         return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    if request.args.get('edit') != '1' and not request.args.get('submission_id'):
+        _clear_abstract_edit_session()
 
     draft = None
     if request.args.get('edit') == '1':
@@ -4913,6 +4921,21 @@ def _parse_abstract_form(event_id):
 
 
 def _upsert_abstract_draft(event_id, participant_id, draft):
+    edit_submission_id = session.get('abstract_edit_submission_id')
+    if edit_submission_id:
+        target = AbstractSubmission.query.filter_by(
+            id=edit_submission_id,
+            event_id=event_id,
+            participant_id=participant_id,
+        ).first()
+        if not target or target.status not in (None, 'submitted'):
+            _clear_abstract_edit_session()
+            raise ValueError('수정할 제출 초록을 찾을 수 없습니다.')
+        session['abstract_edit_draft'] = draft
+        session.pop('abstract_draft_id', None)
+        session.pop('abstract_draft', None)
+        return target
+
     row = AbstractSubmission.query.filter_by(
         event_id=event_id,
         participant_id=participant_id,
@@ -4951,6 +4974,20 @@ def _get_abstract_draft_row(event_id, participant_id):
 
 
 def _load_abstract_draft_payload(event_id, participant_id):
+    edit_submission_id = session.get('abstract_edit_submission_id')
+    if edit_submission_id:
+        target = AbstractSubmission.query.filter_by(
+            id=edit_submission_id,
+            event_id=event_id,
+            participant_id=participant_id,
+        ).first()
+        if target and target.status in (None, 'submitted'):
+            stored = session.get('abstract_edit_draft')
+            if isinstance(stored, dict) and _same_event_id(stored.get('event_id'), event_id):
+                return stored
+            return _abstract_submission_draft(target)
+        _clear_abstract_edit_session()
+
     row = _get_abstract_draft_row(event_id, participant_id)
     if not row or not row.payload_json:
         stored = session.get('abstract_draft') or {}
@@ -4995,6 +5032,29 @@ def abstract_confirm(event_id):
     participant, _path_type = _get_abstract_context(event_id)
     if not participant:
         return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    edit_submission_id = session.get('abstract_edit_submission_id')
+    if edit_submission_id:
+        target = AbstractSubmission.query.filter_by(
+            id=edit_submission_id,
+            event_id=event_id,
+            participant_id=participant.id,
+        ).first_or_404()
+        if target.status not in (None, 'submitted'):
+            return redirect(url_for('abstract_hub', event_id=event_id))
+        draft = _load_abstract_draft_payload(event_id, participant.id) or {}
+        old_title = target.title or ''
+        target.title = draft.get('title') or ''
+        target.topic_first = draft.get('topic_first') or ''
+        target.topic_second = draft.get('topic_second') or ''
+        target.payload_json = json.dumps(draft, ensure_ascii=False)
+        target.status = 'submitted'
+        _sync_abstract_program_speaker(target, old_title)
+        db.session.commit()
+        _clear_abstract_edit_session()
+        session.pop('abstract_draft', None)
+        session.pop('abstract_draft_id', None)
+        return redirect(url_for('abstract_hub', event_id=event.id, updated=1))
 
     row = _get_abstract_draft_row(event_id, participant.id)
     draft = _load_abstract_draft_payload(event_id, participant.id) or {}
@@ -5047,6 +5107,41 @@ def abstract_submission_view(event_id, submission_id):
         path_type=path_type,
         draft=draft,
         view_only=True,
+        allow_edit=True,
+        submission_id=submission.id,
+    )
+
+
+@app.route('/abstract/<int:event_id>/submission/<int:submission_id>/edit')
+def abstract_submission_edit(event_id, submission_id):
+    """제출자가 본인의 제출 완료 초록을 수정 폼에서 다시 연다."""
+    event = Event.query.get_or_404(event_id)
+    participant, path_type = _get_abstract_context(event_id)
+    if not participant:
+        return redirect(url_for('abstract_gateway', event_id=event_id))
+
+    submission = AbstractSubmission.query.filter_by(
+        id=submission_id,
+        event_id=event_id,
+        participant_id=participant.id,
+    ).first_or_404()
+    if submission.status not in (None, 'submitted'):
+        return redirect(url_for('abstract_hub', event_id=event_id))
+
+    draft = _abstract_submission_draft(submission)
+    draft['event_id'] = event_id
+    session['abstract_edit_submission_id'] = submission.id
+    session['abstract_edit_draft'] = draft
+    session.pop('abstract_draft_id', None)
+    session.pop('abstract_draft', None)
+    return render_template(
+        'abstract_submit.html',
+        event=event,
+        participant=participant,
+        path_type=path_type,
+        topics=ABSTRACT_TOPICS,
+        draft=draft,
+        editing_submission=submission,
     )
 
 
@@ -5086,9 +5181,93 @@ def _abstract_run(paragraph, text, size=11, bold=False, color=None, underline=Fa
     return run
 
 
+def _abstract_export_numbering(event_id, submission):
+    """프로그램에 배정된 초록의 세션 내 번호와 행사 전체 제출 번호."""
+    submitted = (
+        AbstractSubmission.query
+        .filter(
+            AbstractSubmission.event_id == event_id,
+            db.or_(
+                AbstractSubmission.status == 'submitted',
+                AbstractSubmission.status.is_(None),
+            ),
+        )
+        .order_by(AbstractSubmission.created_at.asc(), AbstractSubmission.id.asc())
+        .all()
+    )
+    overall_number = next(
+        (index for index, row in enumerate(submitted, start=1) if row.id == submission.id),
+        None,
+    )
+    if overall_number is None:
+        return None
+
+    sessions = _load_event_program_sessions(event_id) or []
+    fallback = None
+    for session_order, session in enumerate(sessions):
+        if not isinstance(session, dict) or _is_calendar_placeholder_poster(session):
+            continue
+        abstract_speakers = [
+            speaker for speaker in (session.get('speakers') or [])
+            if isinstance(speaker, dict)
+            and (speaker.get('from_abstract') or speaker.get('abstract_abbrev'))
+        ]
+        for local_number, speaker in enumerate(abstract_speakers, start=1):
+            try:
+                speaker_submission_id = int(speaker.get('abstract_submission_id') or 0)
+            except (TypeError, ValueError):
+                speaker_submission_id = 0
+            try:
+                speaker_participant_id = int(
+                    speaker.get('participantId') or speaker.get('id') or 0
+                )
+            except (TypeError, ValueError):
+                speaker_participant_id = 0
+
+            direct_match = speaker_submission_id == submission.id
+            participant_match = speaker_participant_id == submission.participant_id
+            title_match = (
+                (speaker.get('topic') or '').strip()
+                == (submission.title or '').strip()
+            )
+            if not direct_match and not (participant_match and title_match):
+                if participant_match and fallback is None:
+                    fallback = (session_order, session, speaker, local_number)
+                continue
+
+            fallback = (session_order, session, speaker, local_number)
+            break
+        else:
+            continue
+        break
+
+    if not fallback:
+        return None
+
+    session_order, session, speaker, local_number = fallback
+    abbreviation = (
+        (speaker.get('abstract_abbrev') or '').strip()
+        or (session.get('displayAbbreviation') or '').strip()
+        or (session.get('sessionAbbreviation') or '').strip()
+        or _session_abstract_role(session)
+    )
+    if not abbreviation:
+        return None
+
+    # 문서 표기 예: "DB 2" → "DB2-2/0025"
+    compact_abbreviation = re.sub(r'\s+', '', abbreviation)
+    return {
+        'code': f'{compact_abbreviation}-{local_number}/{overall_number:04d}',
+        'session_abbreviation': compact_abbreviation,
+        'session_number': local_number,
+        'overall_number': overall_number,
+        'session_order': session_order,
+    }
+
+
 def _build_abstract_docx_bytes(draft):
     from docx import Document
-    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_TAB_ALIGNMENT
     from docx.shared import Mm, Inches, Pt
     from docx.oxml.ns import qn
     from io import BytesIO
@@ -5117,8 +5296,17 @@ def _build_abstract_docx_bytes(draft):
     navy = (61, 71, 153)
     presenting_blue = (61, 71, 153)
 
-    topics = ' / '.join(part for part in [draft.get('topic_first'), draft.get('topic_second')] if part)
-    if topics:
+    topics = ' / '.join(
+        part for part in [draft.get('topic_first'), draft.get('topic_second')] if part
+    )
+    export_code = (draft.get('export_code') or '').strip()
+    if export_code:
+        para = doc.add_paragraph()
+        para.paragraph_format.tab_stops.add_tab_stop(Inches(6.25), WD_TAB_ALIGNMENT.RIGHT)
+        _abstract_run(para, export_code, size=11)
+        if topics:
+            _abstract_run(para, f'\t{topics}', size=11)
+    elif topics:
         para = doc.add_paragraph()
         _abstract_run(para, topics, size=11)
 
@@ -5318,11 +5506,11 @@ def _pdf_mixed_font_markup(text, korean_font, latin_font=None):
 def _build_abstract_pdf_bytes(draft):
     from io import BytesIO
     from reportlab.lib import colors
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import Paragraph, SimpleDocTemplate
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
 
     draft = draft or {}
     latin_font, korean_font = _register_abstract_pdf_fonts()
@@ -5353,6 +5541,11 @@ def _build_abstract_pdf_bytes(draft):
         fontSize=11,
         leading=13,
         spaceAfter=8,
+    )
+    topic_right_style = ParagraphStyle(
+        'AbstractTopicRight',
+        parent=topic_style,
+        alignment=TA_RIGHT,
     )
     title_style = ParagraphStyle(
         'AbstractTitle',
@@ -5390,7 +5583,27 @@ def _build_abstract_pdf_bytes(draft):
 
     story = []
     topics = ' / '.join(part for part in [draft.get('topic_first'), draft.get('topic_second')] if part)
-    if topics:
+    export_code = (draft.get('export_code') or '').strip()
+    if export_code:
+        header_table = Table(
+            [[
+                Paragraph(escape(export_code), topic_style),
+                Paragraph(
+                    _pdf_mixed_font_markup(topics, korean_font, latin_font),
+                    topic_right_style,
+                ),
+            ]],
+            colWidths=[pdf.width * 0.34, pdf.width * 0.66],
+        )
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        story.append(header_table)
+    elif topics:
         story.append(Paragraph(_pdf_mixed_font_markup(topics, korean_font, latin_font), topic_style))
 
     title = draft.get('title') or ''
@@ -5477,6 +5690,121 @@ def api_participant_abstracts(event_id, participant_id):
     })
 
 
+def _abstract_submission_draft(submission):
+    try:
+        draft = json.loads(submission.payload_json or '{}')
+    except (TypeError, ValueError):
+        draft = {}
+    if not isinstance(draft, dict):
+        draft = {}
+    draft['title'] = draft.get('title') or submission.title or ''
+    draft['topic_first'] = draft.get('topic_first') or submission.topic_first or ''
+    draft['topic_second'] = draft.get('topic_second') or submission.topic_second or ''
+    draft.setdefault('authors', [])
+    draft.setdefault('institutions', [])
+    return draft
+
+
+@app.route('/event/<int:event_id>/abstract_preview/<int:submission_id>')
+def admin_abstract_preview(event_id, submission_id):
+    """관리자용 초록 미리보기 팝업."""
+    event = Event.query.get_or_404(event_id)
+    submission = AbstractSubmission.query.filter_by(
+        id=submission_id,
+        event_id=event_id,
+    ).first_or_404()
+    if submission.status not in (None, 'submitted'):
+        return '제출된 초록이 아닙니다.', 400
+    draft = _abstract_submission_draft(submission)
+    numbering = _abstract_export_numbering(event_id, submission)
+    if numbering:
+        draft['export_code'] = numbering['code']
+    return render_template(
+        'abstract_preview.html',
+        event=event,
+        participant=submission.participant,
+        path_type='admin',
+        draft=draft,
+        view_only=True,
+        admin_popup=True,
+    )
+
+
+@app.route('/api/event/<int:event_id>/abstract_export_pdf', methods=['POST'])
+def export_selected_abstracts_pdf(event_id):
+    """선택 초록을 프로그램 세션/연자 순서로 병합하여 PDF로 다운로드."""
+    event = Event.query.get_or_404(event_id)
+    payload = request.get_json(silent=True) or {}
+    selected_ids = []
+    for raw in payload.get('submission_ids') or []:
+        try:
+            submission_id = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if submission_id > 0 and submission_id not in selected_ids:
+            selected_ids.append(submission_id)
+    if not selected_ids:
+        return jsonify({'error': '내보낼 초록을 선택해주세요.'}), 400
+
+    rows = AbstractSubmission.query.filter(
+        AbstractSubmission.event_id == event_id,
+        AbstractSubmission.id.in_(selected_ids),
+        db.or_(
+            AbstractSubmission.status == 'submitted',
+            AbstractSubmission.status.is_(None),
+        ),
+    ).all()
+    if not rows:
+        return jsonify({'error': '선택한 제출 초록을 찾을 수 없습니다.'}), 404
+
+    numbered_rows = []
+    for submission in rows:
+        numbering = _abstract_export_numbering(event_id, submission)
+        numbered_rows.append((submission, numbering))
+
+    def natural_abbreviation(value):
+        return re.sub(
+            r'\d+',
+            lambda match: f'{int(match.group(0)):08d}',
+            (value or '').upper(),
+        )
+
+    numbered_rows.sort(key=lambda item: (
+        0 if item[1] else 1,
+        natural_abbreviation(item[1].get('session_abbreviation')) if item[1] else '',
+        item[1].get('session_number', 10**9) if item[1] else 10**9,
+        item[1].get('overall_number', 10**9) if item[1] else item[0].id,
+    ))
+
+    try:
+        from PyPDF2 import PdfReader, PdfWriter
+
+        writer = PdfWriter()
+        for submission, numbering in numbered_rows:
+            draft = _abstract_submission_draft(submission)
+            if numbering:
+                draft['export_code'] = numbering['code']
+            pdf_bytes = _build_abstract_pdf_bytes(draft)
+            reader = PdfReader(BytesIO(pdf_bytes))
+            for page in reader.pages:
+                writer.add_page(page)
+
+        output = BytesIO()
+        writer.write(output)
+        output.seek(0)
+    except Exception as e:
+        logging.exception(f'Error exporting selected abstracts for event {event_id}: {e}')
+        return jsonify({'error': '선택 초록 PDF 생성에 실패했습니다.'}), 500
+
+    safe_event_name = re.sub(r'[\\/:*?"<>|]+', '_', event.name or f'event_{event_id}')
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name=f'{safe_event_name}_selected_abstracts.pdf',
+        mimetype='application/pdf',
+    )
+
+
 @app.route('/abstract/<int:event_id>/download/<int:submission_id>/<fmt>')
 def abstract_download(event_id, submission_id, fmt):
     """제출된 초록 Word/PDF 다운로드"""
@@ -5487,16 +5815,10 @@ def abstract_download(event_id, submission_id, fmt):
     if submission.status and submission.status != 'submitted':
         return jsonify({'error': '제출된 초록이 아닙니다.'}), 400
 
-    try:
-        draft = json.loads(submission.payload_json or '{}')
-    except (TypeError, ValueError):
-        draft = {
-            'title': submission.title or '',
-            'topic_first': submission.topic_first or '',
-            'topic_second': submission.topic_second or '',
-            'authors': [],
-            'institutions': [],
-        }
+    draft = _abstract_submission_draft(submission)
+    numbering = _abstract_export_numbering(event_id, submission)
+    if numbering:
+        draft['export_code'] = numbering['code']
 
     docx_bytes = _build_abstract_docx_bytes(draft)
     safe_title = re.sub(r'[\\/:*?"<>|]+', '_', (submission.title or 'abstract').strip()) or 'abstract'
@@ -7094,7 +7416,40 @@ def _build_abstract_program_speaker(participant, abstract, abbrev, start_time, e
         'endTime': end_time,
         'from_abstract': True,
         'abstract_abbrev': abbrev,
+        'abstract_submission_id': abstract.id if abstract else None,
     }
+
+
+def _sync_abstract_program_speaker(submission, old_title):
+    """수정된 초록 제목을 이미 배정된 프로그램 발표 슬롯에도 반영."""
+    sessions = _load_event_program_sessions(submission.event_id)
+    changed = False
+    for program_session in sessions:
+        if not isinstance(program_session, dict):
+            continue
+        for speaker in program_session.get('speakers') or []:
+            if not isinstance(speaker, dict):
+                continue
+            try:
+                speaker_submission_id = int(speaker.get('abstract_submission_id') or 0)
+                speaker_participant_id = int(
+                    speaker.get('participantId') or speaker.get('id') or 0
+                )
+            except (TypeError, ValueError):
+                continue
+            direct_match = speaker_submission_id == submission.id
+            legacy_match = (
+                not speaker_submission_id
+                and speaker_participant_id == submission.participant_id
+                and (speaker.get('from_abstract') or speaker.get('abstract_abbrev'))
+                and (speaker.get('topic') or '').strip() == (old_title or '').strip()
+            )
+            if direct_match or legacy_match:
+                speaker['topic'] = submission.title or ''
+                speaker['abstract_submission_id'] = submission.id
+                changed = True
+    if changed:
+        _write_event_program_sessions(submission.event_id, sessions)
 
 
 @app.route('/event/<int:event_id>/abstract_submitters')
@@ -7154,6 +7509,7 @@ def api_abstract_submitters(event_id):
             info = assigned.get(pid) or {}
             people.append({
                 'id': participant.id,
+                'submission_id': abstract.id,
                 'name': _participant_display_name(participant),
                 'email': participant.email or '',
                 'affiliation': participant.affiliation_kor or participant.affiliation_eng or '',
