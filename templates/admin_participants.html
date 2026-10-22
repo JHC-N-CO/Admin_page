@@ -454,6 +454,18 @@
                         </div>
                     </div>
                 </div>
+                <div class="email-schedule-box" style="margin-bottom: 8px; padding: 12px 14px; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px;">
+                    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin: 0;">
+                            <input type="checkbox" id="scheduleEmailToggle" onchange="toggleEmailScheduleFields()" style="width: 16px; height: 16px;">
+                            <span style="font-size: 13px; font-weight: 600; color: #374151;">예약 발송</span>
+                        </label>
+                        <input type="datetime-local" id="emailScheduledAt" style="display: none; padding: 6px 10px; border: 1px solid #dadce0; border-radius: 6px; font-size: 13px;">
+                        <button type="button" class="btn btn-secondary" style="padding: 6px 10px; font-size: 12px;" onclick="toggleScheduledEmailsPanel()">예약 목록</button>
+                    </div>
+                    <p id="emailScheduleHint" style="display: none; margin: 8px 0 0; font-size: 11px; color: #9ca3af;">예약 시각(한국 시간)을 선택한 뒤 발송을 누르면 예약됩니다. 체크를 끄면 지금 바로 발송합니다.</p>
+                    <div id="scheduledEmailsList" style="display: none; margin-top: 10px;"></div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeEmailComposeModal()">취소</button>
@@ -475,7 +487,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="{{ url_for('static', filename='js/admin_participants.js') }}?v=20260908a"></script>
-    <script src="{{ url_for('static', filename='js/email_compose.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/email_compose.js') }}?v=20261016c"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ko.js"></script>
 </body>

@@ -70,6 +70,22 @@ async function uploadAndInsertImage(file) {
     }
 }
 
+function toggleComposeSchedule() {
+    const toggle = document.getElementById('scheduleEmailToggle');
+    const input = document.getElementById('emailScheduledAt');
+    const btn = document.getElementById('composeSendBtn');
+    const enabled = !!(toggle && toggle.checked);
+    if (input) {
+        input.style.display = enabled ? 'block' : 'none';
+        if (enabled && !input.value) {
+            const soon = new Date(Date.now() + 60 * 60 * 1000);
+            soon.setMinutes(soon.getMinutes() - soon.getTimezoneOffset());
+            input.value = soon.toISOString().slice(0, 16);
+        }
+    }
+    if (btn) btn.textContent = enabled ? '예약하기' : '이메일 발송';
+}
+
 async function sendEmail(event) {
     event.preventDefault();
     const form = event.target;
@@ -78,12 +94,31 @@ async function sendEmail(event) {
     const loadingIcon = document.getElementById('loading-icon');
     const loadingText = document.getElementById('loading-text');
     const submitButton = form.querySelector('button[type="submit"]');
+    const scheduleToggle = document.getElementById('scheduleEmailToggle');
+    const scheduleInput = document.getElementById('emailScheduledAt');
+    const scheduledHidden = document.getElementById('scheduled_at');
+    const isScheduled = !!(scheduleToggle && scheduleToggle.checked);
 
     bodyInput.value = quill.root.innerHTML;
+    if (scheduledHidden) {
+        scheduledHidden.value = '';
+        if (isScheduled) {
+            const scheduledAt = scheduleInput ? scheduleInput.value.trim() : '';
+            if (!scheduledAt) {
+                alert('예약 시각을 선택해주세요.');
+                return;
+            }
+            if (new Date(scheduledAt).getTime() <= Date.now()) {
+                alert('예약 시각은 현재보다 이후여야 합니다.');
+                return;
+            }
+            scheduledHidden.value = scheduledAt;
+        }
+    }
 
     loadingDiv.style.display = 'block';
     loadingIcon.className = 'spinner';
-    loadingText.textContent = '이메일 발송 중...';
+    loadingText.textContent = isScheduled ? '예약 등록 중...' : '이메일 발송 중...';
     submitButton.disabled = true;
 
     const formData = new FormData(form);
@@ -95,10 +130,12 @@ async function sendEmail(event) {
         const result = await response.json();
         if (result.status === "success") {
             loadingIcon.className = 'success-icon';
-            loadingText.textContent = '이메일 발송 완료!';
+            loadingText.textContent = result.scheduled ? '예약 등록 완료!' : '이메일 발송 완료!';
             loadingDiv.classList.add('success');
             setTimeout(() => {
-                alert("이메일이 성공적으로 발송되었습니다!");
+                alert(result.scheduled
+                    ? (result.message || '예약 발송이 등록되었습니다!')
+                    : '이메일이 성공적으로 발송되었습니다!');
                 window.close();
             }, 500);
         } else {

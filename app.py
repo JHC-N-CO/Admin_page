@@ -25,10 +25,11 @@ from zipfile import ZipFile
 import tempfile
 import shutil
 import zipfile
+import threading
 
 # SQLAlchemy 및 모델 import
 from flask_sqlalchemy import SQLAlchemy
-from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings, AbstractSubmission, AbstractReviewAssignment
+from models import db, Event, Participant, ParticipantFile, User, UserSession, Member, MemberDisplaySettings, AbstractSubmission, AbstractReviewAssignment, ScheduledEmail
 from config import config
 from gmail_sender import send_outbound_email
 from chairs_speakers_history import (
@@ -490,6 +491,19 @@ def migrate_existing_events():
             print("Ensured abstract_review_assignments table")
         except Exception as e:
             print(f"Error ensuring abstract_review_assignments: {e}")
+
+        try:
+            with db.engine.connect() as connection:
+                connection.execute(db.text(
+                    "ALTER TABLE scheduled_emails ADD COLUMN base_url VARCHAR(500);"
+                ))
+                connection.commit()
+            print("Added base_url column to scheduled_emails table")
+        except Exception as e:
+            if "already exists" in str(e) or "duplicate column" in str(e).lower():
+                print("scheduled_emails.base_url already exists")
+            else:
+                print(f"Error adding scheduled_emails.base_url: {e}")
         
         # 기존 이벤트에 event_id가 없는 경우 자동 생성
         events = Event.query.filter(Event.event_id.is_(None)).all()
@@ -3306,20 +3320,97 @@ def _build_accept_decline_email_buttons(accept_url, decline_url):
     )
 
 
-@app.route('/send_email', methods=['POST'])
-def send_email():
-    participant_ids = request.form.get('participant_ids', '').split(',')
-    participant_ids = [int(pid) for pid in participant_ids if pid.strip().isdigit()]
-    subject = request.form.get('subject', '')
-    body = request.form.get('body', '')
-    cc = request.form.get('cc', '')
-    include_buttons = request.form.get('include_buttons') == 'yes'
-    
-    # 세션 데이터 파싱 (행사 프로그램에서 이메일 발송 시)
-    session_data_json = request.form.get('session_data', '[]')
-    session_data_map = {}  # participant_id -> sessions 배열
+
+def _now_kst_naive():
     try:
-        import json
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo('Asia/Seoul')).replace(tzinfo=None)
+    except Exception:
+        return datetime.now() + timedelta(hours=9)
+
+
+def _parse_scheduled_at_value(raw):
+    """Parse datetime-local / ISO string as KST naive datetime."""
+    if not raw:
+        return None
+    raw = str(raw).strip()
+    if not raw:
+        return None
+    for fmt in ('%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
+        try:
+            return datetime.strptime(raw, fmt)
+        except ValueError:
+            continue
+    try:
+        parsed = parser.parse(raw)
+        if parsed.tzinfo is not None:
+            try:
+                from zoneinfo import ZoneInfo
+                parsed = parsed.astimezone(ZoneInfo('Asia/Seoul')).replace(tzinfo=None)
+            except Exception:
+                parsed = parsed.replace(tzinfo=None)
+        return parsed
+    except Exception:
+        return None
+
+
+def _email_payload_from_form(form):
+    participant_ids = form.get('participant_ids', '').split(',')
+    participant_ids = [int(pid) for pid in participant_ids if pid.strip().isdigit()]
+    subject = (form.get('subject') or '').strip()
+    body = form.get('body', '')
+    cc = form.get('cc', '')
+    include_buttons = form.get('include_buttons') == 'yes'
+    session_data_json = form.get('session_data', '[]') or '[]'
+    extra_emails_raw = form.get('extra_emails', '')
+    extra_emails = [e.strip() for e in extra_emails_raw.split(',') if e.strip()]
+    word_files_json = form.get('word_files', '[]') or '[]'
+    event_id_raw = (form.get('event_id') or '').strip()
+    event_id = int(event_id_raw) if event_id_raw.isdigit() else None
+    scheduled_at = _parse_scheduled_at_value(form.get('scheduled_at', ''))
+    base_url = (form.get('base_url') or '').strip() or None
+
+    if (not participant_ids and not extra_emails) or not subject or not body:
+        return None, (jsonify({'status': 'error', 'message': 'Missing required fields'}), 400)
+
+    if participant_ids:
+        participants = Participant.query.filter(Participant.id.in_(participant_ids)).all()
+        if not any(p.email for p in participants) and not extra_emails:
+            return None, (jsonify({'status': 'error', 'message': 'No valid recipient emails found.'}), 400)
+    elif not extra_emails:
+        return None, (jsonify({'status': 'error', 'message': 'No valid recipient emails found.'}), 400)
+
+    recipient_count = len(participant_ids) + len(extra_emails)
+    payload = {
+        'participant_ids': participant_ids,
+        'subject': subject,
+        'body': body,
+        'cc': cc,
+        'include_buttons': include_buttons,
+        'session_data_json': session_data_json,
+        'extra_emails': extra_emails,
+        'word_files_json': word_files_json,
+        'event_id': event_id,
+        'scheduled_at': scheduled_at,
+        'recipient_count': recipient_count,
+        'base_url': base_url,
+    }
+    return payload, None
+
+
+def _deliver_email_payload(payload):
+    """Immediately send email for the given payload. Returns number of recipients attempted."""
+    participant_ids = payload.get('participant_ids') or []
+    subject = payload.get('subject') or ''
+    body = payload.get('body') or ''
+    cc = payload.get('cc') or ''
+    include_buttons = bool(payload.get('include_buttons'))
+    session_data_json = payload.get('session_data_json') or '[]'
+    extra_emails = payload.get('extra_emails') or []
+    word_files_json = payload.get('word_files_json') or '[]'
+
+    session_data_map = {}
+    try:
         if session_data_json and session_data_json != '[]':
             session_data_list = json.loads(session_data_json)
             for item in session_data_list:
@@ -3327,22 +3418,12 @@ def send_email():
                 sessions = item.get('sessions', [])
                 if participant_id and sessions:
                     session_data_map[participant_id] = sessions
-                    logging.info(f"세션 데이터 수신: 참가자 {participant_id}, {len(sessions)}개 세션")
     except Exception as e:
         logging.error(f"세션 데이터 JSON 파싱 오류: {e}")
-    
-    # 명단에 없는 직접 입력 이메일 (쉼표로 구분)
-    extra_emails_raw = request.form.get('extra_emails', '')
-    extra_emails = [e.strip() for e in extra_emails_raw.split(',') if e.strip()]
 
-    if (not participant_ids and not extra_emails) or not subject or not body:
-        return jsonify({'status': 'error', 'message': 'Missing required fields'}), 400
-    
     participants = Participant.query.filter(Participant.id.in_(participant_ids)).all() if participant_ids else []
     recipient_emails = [p.email for p in participants if p.email]
-    if not recipient_emails and not extra_emails:
-        return jsonify({'status': 'error', 'message': 'No valid recipient emails found.'}), 400
-    
+
     def replace_img_src(match):
         img_tag = match.group(0)
         src_match = re.search(r'src="([^"]+)"', img_tag)
@@ -3351,210 +3432,369 @@ def send_email():
             if img_path.startswith('/uploads/images/'):
                 full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
                 if os.path.exists(full_path):
-                    with open(full_path, 'rb') as img_file:
-                        img_data = img_file.read()
                     return f'<img src="cid:image_{hash(img_path)}" style="max-width: 100%; height: auto;">'
         return img_tag
-    
+
     body = re.sub(r'<img[^>]+>', replace_img_src, body)
-    
-    # Word 파일들을 루프 밖에서 한 번만 파싱 (모든 참가자에게 동일한 파일 첨부)
-    word_files_json = request.form.get('word_files', '[]')
-    logging.info(f"🔍 워드 파일 요청 데이터 확인: word_files_json='{word_files_json}' (타입: {type(word_files_json)})")
-    logging.info(f"🔍 request.form 전체 키: {list(request.form.keys())}")
+
     word_files = []
     try:
-        import json
         if word_files_json and word_files_json != '[]':
             word_files = json.loads(word_files_json)
-            logging.info(f"✅ 워드 파일 정보 수신 성공: {len(word_files)}개 파일")
-            for idx, wf in enumerate(word_files):
-                logging.info(f"  파일 {idx+1}: name='{wf.get('name')}', server_filename='{wf.get('server_filename')}'")
-        else:
-            logging.warning(f"⚠️ 워드 파일 정보 없음: word_files_json='{word_files_json}'")
     except Exception as e:
-        logging.error(f"❌ 워드 파일 JSON 파싱 오류: {e}, 원본 데이터: {word_files_json}")
-        import traceback
-        traceback.print_exc()
-    
-    try:
-        for participant in participants:
-            if participant.email:
-                # 각 참가자별로 실제 동작하는 URL 생성
-                accept_url = url_for('accept_response', participant_id=participant.id, response='accept', _external=True)
-                decline_url = url_for('accept_response', participant_id=participant.id, response='decline', _external=True)
-                
-                # 세션 정보 가져오기 (첫 번째 세션 사용)
-                session_info = None
-                if participant.id in session_data_map and session_data_map[participant.id]:
-                    session_info = session_data_map[participant.id][0]  # 첫 번째 세션 사용
-                    logging.info(f"세션 정보 로드: 참가자 {participant.id}, 세션 정보: {session_info}")
-                else:
-                    logging.warning(f"세션 정보 없음: 참가자 {participant.id}")
-                
-                # Mail merge 처리: *|컬럼명|* 형식의 플레이스홀더를 실제 데이터로 치환
-                email_body = apply_mail_merge(body, participant, session_info)
-                
-                if include_buttons:
-                    email_body += _build_accept_decline_email_buttons(accept_url, decline_url)
-                
-                # 제목도 Mail merge 처리
-                email_subject = apply_mail_merge(subject, participant, session_info)
-                
-                # 발신자 설정 - config에서 가져오거나 명시적으로 설정
-                sender_email = app.config.get('MAIL_DEFAULT_SENDER') or 'koreaepilepsy@kes.or.kr'
-                reply_to = app.config.get('MAIL_REPLY_TO') or sender_email
-                
-                # 수신자 이메일 (참가자 또는 직접 추가한 이메일)
-                recipient_email = participant.email if participant else None
-                if not recipient_email:
-                    # 직접 추가한 이메일인 경우
-                    continue  # 이미 recipient_emails에 포함되어 있으므로 다음 루프에서 처리
-                
-                msg = Message(
-                    subject=email_subject,
-                    recipients=[recipient_email],
-                    html=email_body,
-                    sender=sender_email,
-                    reply_to=reply_to
-                )
-                if cc:
-                    msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
-                img_pattern = r'<img[^>]+src="([^"]+)"[^>]*>'
-                for img_match in re.finditer(img_pattern, email_body):
-                    img_path = img_match.group(1)
-                    if img_path.startswith('/uploads/images/'):
-                        full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
-                        if os.path.exists(full_path):
-                            with open(full_path, 'rb') as img_file:
-                                msg.attach(
-                                    f'image_{hash(img_path)}.png',
-                                    'image/png',
-                                    img_file.read(),
-                                    'inline',
-                                    headers=[('Content-ID', f'<image_{hash(img_path)}>')]
-                                )
-                # Word 파일들을 Mail merge 처리하여 Word 문서로 첨부 (원본 포맷팅 보존)
-                # word_files는 루프 밖에서 이미 파싱됨
-                
-                # Word 파일 첨부 시도 (실패해도 이메일은 발송)
-                attachment_errors = []
-                if not word_files:
-                    logging.warning(f"⚠️ 참가자 {participant.id} ({participant.email}): 첨부할 워드 파일 없음 (word_files 길이: {len(word_files)})")
-                else:
-                    logging.info(f"📎 참가자 {participant.id} ({participant.email}): {len(word_files)}개 워드 파일 첨부 시도")
-                for idx, word_file_info in enumerate(word_files):
-                    logging.info(f"📎 워드 파일 {idx+1}/{len(word_files)} 처리 시작")
-                    server_filename = word_file_info.get('server_filename')
-                    original_filename = word_file_info.get('name', 'document')
-                    logging.info(f"워드 파일 처리 시작: server_filename={server_filename}, original_filename={original_filename}, word_file_info={word_file_info}")
-                    if server_filename:
-                        try:
-                            docx_data = generate_mail_merged_docx(server_filename, participant, session_info)
-                            if docx_data:
-                                # Word 문서를 그대로 첨부 (원본 포맷팅 완벽 보존)
-                                # PDF 변환은 포맷팅 손실이 심하므로 Word 문서로 전송
-                                participant_name = secure_filename(participant.name_kor or participant.name_eng or participant.first_name or 'participant')
-                                file_ext = '.docx' if original_filename.lower().endswith('.docx') else '.doc'
-                                docx_filename = f"{participant_name}_{original_filename.replace('.docx', '').replace('.doc', '')}{file_ext}"
-                                
-                                # MIME 타입 설정
-                                mime_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' if file_ext == '.docx' else 'application/msword'
-                                
-                                # docx_data가 bytes인지 확인
-                                if not isinstance(docx_data, bytes):
-                                    logging.error(f"docx_data가 bytes가 아닙니다: {type(docx_data)}")
-                                    docx_data = bytes(docx_data) if docx_data else None
-                                
-                                if docx_data:
-                                    logging.info(f"📎 Word 문서 첨부 시도: {docx_filename}, 크기: {len(docx_data)} bytes, MIME: {mime_type}")
-                                    msg.attach(
-                                        docx_filename,
-                                        mime_type,
-                                        docx_data
-                                    )
-                                    # 첨부 확인
-                                    attachment_count = len(msg.attachments) if hasattr(msg, 'attachments') else 'unknown'
-                                    logging.info(f"✅ Word 문서 첨부 완료: {docx_filename} ({len(docx_data)} bytes), 총 첨부 파일 수: {attachment_count}")
-                                else:
-                                    logging.error(f"❌ docx_data가 None이거나 변환 실패")
-                            else:
-                                error_msg = f"Word 문서 생성 실패: {server_filename}"
-                                logging.warning(error_msg)
-                                attachment_errors.append(error_msg)
-                        except Exception as e:
-                            error_msg = f"워드 파일 처리 오류 ({server_filename}): {str(e)}"
-                            logging.error(error_msg)
-                            attachment_errors.append(error_msg)
-                            import traceback
-                            traceback.print_exc()
-                    else:
-                        error_msg = f"서버 파일명이 없습니다: {word_file_info}"
-                        logging.warning(error_msg)
-                        attachment_errors.append(error_msg)
-                
-                # 이메일 발송 전 첨부 파일 확인
-                attachment_count = len(msg.attachments) if hasattr(msg, 'attachments') else 0
-                logging.info(f"📧 이메일 발송 전 확인 - 수신자: {participant.email}, 첨부 파일 수: {attachment_count}")
-                if attachment_count > 0:
-                    for att in msg.attachments:
-                        logging.info(f"  첨부 파일: {att}")
-                
-                # 이메일 발송 (PDF 첨부 실패해도 발송)
-                try:
-                    send_outbound_email(mail, msg)
-                    if attachment_errors:
-                        logging.warning(f"⚠️ 이메일 발송 성공 (첨부 파일 오류 있음): {participant.email}, 오류: {attachment_errors}")
-                    else:
-                        logging.info(f"✅ 이메일 발송 성공: {participant.email}, 첨부 파일 수: {attachment_count}")
-                except Exception as email_error:
-                    logging.error(f"❌ 이메일 발송 실패: {email_error}")
-                    import traceback
-                    traceback.print_exc()
-                    raise
+        logging.error(f"워드 파일 JSON 파싱 오류: {e}")
 
-        # 명단에 없는 직접 입력 이메일로 발송 (Mail merge / 승인·거절 버튼 / 워드 첨부 없이 기본 발송)
+    base_url = (payload.get('base_url') or '').rstrip('/')
+    for participant in participants:
+        if not participant.email:
+            continue
+        if base_url:
+            accept_url = f"{base_url}/accept_response?participant_id={participant.id}&response=accept"
+            decline_url = f"{base_url}/accept_response?participant_id={participant.id}&response=decline"
+        else:
+            accept_url = url_for('accept_response', participant_id=participant.id, response='accept', _external=True)
+            decline_url = url_for('accept_response', participant_id=participant.id, response='decline', _external=True)
+
+        session_info = None
+        if participant.id in session_data_map and session_data_map[participant.id]:
+            session_info = session_data_map[participant.id][0]
+
+        email_body = apply_mail_merge(body, participant, session_info)
+        if include_buttons:
+            email_body += _build_accept_decline_email_buttons(accept_url, decline_url)
+        email_subject = apply_mail_merge(subject, participant, session_info)
+
         sender_email = app.config.get('MAIL_DEFAULT_SENDER') or 'koreaepilepsy@kes.or.kr'
         reply_to = app.config.get('MAIL_REPLY_TO') or sender_email
-        for extra_email in extra_emails:
-            msg = Message(
-                subject=subject,
-                recipients=[extra_email],
-                html=body,
-                sender=sender_email,
-                reply_to=reply_to
-            )
-            if cc:
-                msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
-            for img_match in re.finditer(r'<img[^>]+src="([^"]+)"[^>]*>', body):
-                img_path = img_match.group(1)
-                if img_path.startswith('/uploads/images/'):
-                    full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
-                    if os.path.exists(full_path):
-                        with open(full_path, 'rb') as img_file:
-                            msg.attach(
-                                f'image_{hash(img_path)}.png',
-                                'image/png',
-                                img_file.read(),
-                                'inline',
-                                headers=[('Content-ID', f'<image_{hash(img_path)}>')]
-                            )
-            try:
-                send_outbound_email(mail, msg)
-                logging.info(f"✅ 직접 입력 이메일 발송 성공: {extra_email}")
-            except Exception as email_error:
-                logging.error(f"❌ 직접 입력 이메일 발송 실패: {extra_email}, {email_error}")
-                import traceback
-                traceback.print_exc()
-                raise
+        msg = Message(
+            subject=email_subject,
+            recipients=[participant.email],
+            html=email_body,
+            sender=sender_email,
+            reply_to=reply_to
+        )
+        if cc:
+            msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
 
-        total_sent = len(recipient_emails) + len(extra_emails)
-        return jsonify({'status': 'success', 'message': f'Email sent to {total_sent} recipients'})
+        for img_match in re.finditer(r'<img[^>]+src="([^"]+)"[^>]*>', email_body):
+            img_path = img_match.group(1)
+            if img_path.startswith('/uploads/images/'):
+                full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
+                if os.path.exists(full_path):
+                    with open(full_path, 'rb') as img_file:
+                        msg.attach(
+                            f'image_{hash(img_path)}.png',
+                            'image/png',
+                            img_file.read(),
+                            'inline',
+                            headers=[('Content-ID', f'<image_{hash(img_path)}>')]
+                        )
+
+        for word_file_info in word_files:
+            server_filename = word_file_info.get('server_filename')
+            original_filename = word_file_info.get('name', 'document')
+            if not server_filename:
+                continue
+            try:
+                docx_data = generate_mail_merged_docx(server_filename, participant, session_info)
+                if not docx_data:
+                    continue
+                if not isinstance(docx_data, bytes):
+                    docx_data = bytes(docx_data)
+                participant_name = secure_filename(
+                    participant.name_kor or participant.name_eng or participant.first_name or 'participant'
+                )
+                file_ext = '.docx' if original_filename.lower().endswith('.docx') else '.doc'
+                docx_filename = f"{participant_name}_{original_filename.replace('.docx', '').replace('.doc', '')}{file_ext}"
+                mime_type = (
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    if file_ext == '.docx' else 'application/msword'
+                )
+                msg.attach(docx_filename, mime_type, docx_data)
+            except Exception as e:
+                logging.error(f"워드 파일 처리 오류 ({server_filename}): {e}")
+
+        send_outbound_email(mail, msg)
+        logging.info(f"✅ 이메일 발송 성공: {participant.email}")
+
+    sender_email = app.config.get('MAIL_DEFAULT_SENDER') or 'koreaepilepsy@kes.or.kr'
+    reply_to = app.config.get('MAIL_REPLY_TO') or sender_email
+    for extra_email in extra_emails:
+        msg = Message(
+            subject=subject,
+            recipients=[extra_email],
+            html=body,
+            sender=sender_email,
+            reply_to=reply_to
+        )
+        if cc:
+            msg.cc = [email.strip() for email in cc.split(',') if email.strip()]
+        for img_match in re.finditer(r'<img[^>]+src="([^"]+)"[^>]*>', body):
+            img_path = img_match.group(1)
+            if img_path.startswith('/uploads/images/'):
+                full_path = os.path.join(BASE_DIR, img_path.lstrip('/'))
+                if os.path.exists(full_path):
+                    with open(full_path, 'rb') as img_file:
+                        msg.attach(
+                            f'image_{hash(img_path)}.png',
+                            'image/png',
+                            img_file.read(),
+                            'inline',
+                            headers=[('Content-ID', f'<image_{hash(img_path)}>')]
+                        )
+        send_outbound_email(mail, msg)
+        logging.info(f"✅ 직접 입력 이메일 발송 성공: {extra_email}")
+
+    return len(recipient_emails) + len(extra_emails)
+
+
+def _schedule_email_job(payload):
+    job = ScheduledEmail(
+        event_id=payload.get('event_id'),
+        subject=payload['subject'],
+        body=payload['body'],
+        cc=payload.get('cc') or '',
+        include_buttons=bool(payload.get('include_buttons')),
+        participant_ids_json=json.dumps(payload.get('participant_ids') or []),
+        extra_emails_json=json.dumps(payload.get('extra_emails') or []),
+        session_data_json=payload.get('session_data_json') or '[]',
+        word_files_json=payload.get('word_files_json') or '[]',
+        base_url=payload.get('base_url') or None,
+        recipient_count=int(payload.get('recipient_count') or 0),
+        scheduled_at=payload['scheduled_at'],
+        status='pending',
+    )
+    db.session.add(job)
+    db.session.commit()
+    return job
+
+
+def _payload_from_scheduled_job(job):
+    try:
+        participant_ids = json.loads(job.participant_ids_json or '[]')
+    except Exception:
+        participant_ids = []
+    try:
+        extra_emails = json.loads(job.extra_emails_json or '[]')
+    except Exception:
+        extra_emails = []
+    return {
+        'participant_ids': [int(x) for x in participant_ids if str(x).isdigit() or isinstance(x, int)],
+        'subject': job.subject,
+        'body': job.body,
+        'cc': job.cc or '',
+        'include_buttons': bool(job.include_buttons),
+        'session_data_json': job.session_data_json or '[]',
+        'extra_emails': extra_emails,
+        'word_files_json': job.word_files_json or '[]',
+        'event_id': job.event_id,
+        'recipient_count': job.recipient_count or 0,
+        'base_url': job.base_url or None,
+    }
+
+
+def _process_due_scheduled_emails():
+    """Claim and send due scheduled emails. Safe across multiple gunicorn workers."""
+    now = _now_kst_naive()
+    due_ids = [
+        row.id for row in (
+            ScheduledEmail.query
+            .with_entities(ScheduledEmail.id)
+            .filter(
+                ScheduledEmail.status == 'pending',
+                ScheduledEmail.scheduled_at <= now,
+            )
+            .order_by(ScheduledEmail.scheduled_at.asc())
+            .limit(10)
+            .all()
+        )
+    ]
+    for job_id in due_ids:
+        claimed = (
+            ScheduledEmail.query
+            .filter_by(id=job_id, status='pending')
+            .update({'status': 'sending', 'updated_at': datetime.utcnow()}, synchronize_session=False)
+        )
+        db.session.commit()
+        if claimed != 1:
+            continue
+        job = ScheduledEmail.query.get(job_id)
+        if not job:
+            continue
+        try:
+            with app.test_request_context('/'):
+                total = _deliver_email_payload(_payload_from_scheduled_job(job))
+            job.status = 'sent'
+            job.sent_at = _now_kst_naive()
+            job.error_message = None
+            job.recipient_count = total
+            db.session.commit()
+            logging.info(f'✅ 예약 이메일 발송 완료: job={job.id}, recipients={total}')
+        except Exception as e:
+            logging.error(f'❌ 예약 이메일 발송 실패: job={job_id}, {e}')
+            job = ScheduledEmail.query.get(job_id)
+            if job:
+                job.status = 'failed'
+                job.error_message = str(e)[:2000]
+                db.session.commit()
+
+
+_email_scheduler_started = False
+
+
+def _email_scheduler_loop():
+    while True:
+        try:
+            with app.app_context():
+                _process_due_scheduled_emails()
+        except Exception as e:
+            logging.error(f'예약 이메일 스케줄러 오류: {e}')
+        threading.Event().wait(30)
+
+
+def start_email_scheduler():
+    global _email_scheduler_started
+    if _email_scheduler_started:
+        return
+    # Flask debug reloader: parent process should not start a second loop
+    if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        return
+    _email_scheduler_started = True
+    thread = threading.Thread(target=_email_scheduler_loop, name='email-scheduler', daemon=True)
+    thread.start()
+    logging.info('예약 이메일 스케줄러 시작')
+
+
+@app.route('/send_email', methods=['POST'])
+def send_email():
+    payload, err = _email_payload_from_form(request.form)
+    if err:
+        return err
+    if not payload.get('base_url'):
+        payload['base_url'] = (request.url_root or '').rstrip('/')
+
+    scheduled_at = payload.get('scheduled_at')
+    if scheduled_at:
+        if scheduled_at <= _now_kst_naive():
+            return jsonify({'status': 'error', 'message': '예약 시각은 현재보다 이후여야 합니다.'}), 400
+        try:
+            job = _schedule_email_job(payload)
+            when = job.scheduled_at.strftime('%Y-%m-%d %H:%M')
+            return jsonify({
+                'status': 'success',
+                'scheduled': True,
+                'job_id': job.id,
+                'scheduled_at': job.scheduled_at.isoformat(sep=' ', timespec='minutes'),
+                'message': f'{job.recipient_count}명에게 {when} 예약 발송이 등록되었습니다.',
+            })
+        except Exception as e:
+            logging.error(f'예약 이메일 등록 실패: {e}')
+            db.session.rollback()
+            return jsonify({'status': 'error', 'message': f'예약 등록 실패: {str(e)}'}), 500
+
+    try:
+        total_sent = _deliver_email_payload(payload)
+        return jsonify({'status': 'success', 'scheduled': False, 'message': f'Email sent to {total_sent} recipients'})
     except Exception as e:
         logging.error(f"Email sending failed: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'status': 'error', 'message': f'Failed to send email: {str(e)}'}), 500
+
+
+def _scheduled_email_recipient_details(job):
+    """예약 메일의 수신자 이름/이메일 목록을 반환."""
+    try:
+        participant_ids = json.loads(job.participant_ids_json or '[]')
+    except Exception:
+        participant_ids = []
+    try:
+        extra_emails = json.loads(job.extra_emails_json or '[]')
+    except Exception:
+        extra_emails = []
+
+    ids = []
+    for raw in participant_ids:
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+
+    participants = Participant.query.filter(Participant.id.in_(ids)).all() if ids else []
+    by_id = {p.id: p for p in participants}
+    recipients = []
+    for pid in ids:
+        p = by_id.get(pid)
+        if not p:
+            recipients.append({'id': pid, 'name': f'참가자 #{pid}', 'email': ''})
+            continue
+        name = (p.name_kor or p.name_eng or p.first_name or '').strip() or f'참가자 #{pid}'
+        recipients.append({
+            'id': p.id,
+            'name': name,
+            'email': (p.email or '').strip(),
+        })
+
+    for email in extra_emails:
+        email = (email or '').strip()
+        if not email:
+            continue
+        recipients.append({'id': None, 'name': email, 'email': email})
+
+    labels = []
+    for r in recipients:
+        if r.get('email') and r.get('name') and r['name'] != r['email']:
+            labels.append(f"{r['name']} <{r['email']}>")
+        else:
+            labels.append(r.get('name') or r.get('email') or '')
+
+    if not labels:
+        summary = f"{job.recipient_count or 0}명"
+    elif len(labels) <= 3:
+        summary = ', '.join(labels)
+    else:
+        summary = ', '.join(labels[:3]) + f' 외 {len(labels) - 3}명'
+
+    return recipients, summary
+
+
+@app.route('/api/scheduled_emails', methods=['GET'])
+def list_scheduled_emails():
+    status = (request.args.get('status') or 'pending').strip()
+    query = ScheduledEmail.query
+    if status and status != 'all':
+        query = query.filter(ScheduledEmail.status == status)
+    jobs = query.order_by(ScheduledEmail.scheduled_at.asc()).limit(50).all()
+    job_items = []
+    for job in jobs:
+        recipients, recipients_summary = _scheduled_email_recipient_details(job)
+        job_items.append({
+            'id': job.id,
+            'subject': job.subject,
+            'scheduled_at': job.scheduled_at.isoformat(sep=' ', timespec='minutes') if job.scheduled_at else None,
+            'status': job.status,
+            'recipient_count': job.recipient_count or len(recipients) or 0,
+            'recipients': recipients,
+            'recipients_summary': recipients_summary,
+            'include_buttons': bool(job.include_buttons),
+            'error_message': job.error_message,
+            'created_at': job.created_at.isoformat(sep=' ', timespec='minutes') if job.created_at else None,
+        })
+    return jsonify({
+        'status': 'success',
+        'jobs': job_items,
+    })
+
+
+@app.route('/api/scheduled_emails/<int:job_id>/cancel', methods=['POST'])
+def cancel_scheduled_email(job_id):
+    job = ScheduledEmail.query.get_or_404(job_id)
+    if job.status != 'pending':
+        return jsonify({'status': 'error', 'message': '대기 중인 예약만 취소할 수 있습니다.'}), 400
+    job.status = 'cancelled'
+    db.session.commit()
+    return jsonify({'status': 'success', 'message': '예약이 취소되었습니다.'})
+
 
 @app.route('/upload_word_document', methods=['POST'])
 def upload_word_document():
@@ -9668,6 +9908,9 @@ def update_event_date(event_id):
         logging.error(f"Error updating event date: {str(e)}")
         logging.error(f"Full traceback: {error_details}")
         return jsonify({'error': f'{str(e)}'}), 500
+
+# gunicorn / flask run 모두 모듈 로드 후 스케줄러 시작
+start_email_scheduler()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5002) 

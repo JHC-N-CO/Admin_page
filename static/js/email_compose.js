@@ -91,8 +91,11 @@ function closeEmailComposeModal() {
     if (subjectInput) subjectInput.value = '';
     if (emailQuill) emailQuill.setText('');
     if (ccInput) ccInput.value = '';
+    const includeAcceptButtons = document.getElementById('includeAcceptButtons');
+    if (includeAcceptButtons) includeAcceptButtons.checked = false;
     directRecipientEmails = [];
     renderDirectEmailChips();
+    resetEmailScheduleFields();
     const ccFieldWrapper = document.getElementById('ccFieldWrapper');
     if (ccFieldWrapper) ccFieldWrapper.style.display = 'none';
     const ccToggleLink = document.getElementById('ccToggleLink');
@@ -1152,6 +1155,137 @@ function addRecipientToList(name, email, participantId, type, isChecked = false)
 }
 
 
+function toggleEmailScheduleFields() {
+    const toggle = document.getElementById('scheduleEmailToggle');
+    const input = document.getElementById('emailScheduledAt');
+    const hint = document.getElementById('emailScheduleHint');
+    const sendButton = document.getElementById('sendEmailButton');
+    const enabled = !!(toggle && toggle.checked);
+    if (input) {
+        input.style.display = enabled ? 'inline-block' : 'none';
+        if (enabled && !input.value) {
+            const soon = new Date(Date.now() + 60 * 60 * 1000);
+            soon.setMinutes(soon.getMinutes() - soon.getTimezoneOffset());
+            input.value = soon.toISOString().slice(0, 16);
+        }
+    }
+    if (hint) hint.style.display = enabled ? 'block' : 'none';
+    if (sendButton) {
+        sendButton.innerHTML = enabled
+            ? '<i class="fas fa-clock"></i> 예약하기'
+            : '<i class="fas fa-paper-plane"></i> 발송';
+    }
+}
+
+function resetEmailScheduleFields() {
+    const toggle = document.getElementById('scheduleEmailToggle');
+    const input = document.getElementById('emailScheduledAt');
+    const hint = document.getElementById('emailScheduleHint');
+    const list = document.getElementById('scheduledEmailsList');
+    if (toggle) toggle.checked = false;
+    if (input) {
+        input.value = '';
+        input.style.display = 'none';
+    }
+    if (hint) hint.style.display = 'none';
+    if (list) {
+        list.style.display = 'none';
+        list.innerHTML = '';
+    }
+    const sendButton = document.getElementById('sendEmailButton');
+    if (sendButton) {
+        sendButton.innerHTML = '<i class="fas fa-paper-plane"></i> 발송';
+    }
+}
+
+async function toggleScheduledEmailsPanel() {
+    const list = document.getElementById('scheduledEmailsList');
+    if (!list) return;
+    if (list.style.display === 'none' || !list.style.display) {
+        list.style.display = 'block';
+        await loadScheduledEmailsList();
+    } else {
+        list.style.display = 'none';
+    }
+}
+
+async function loadScheduledEmailsList() {
+    const list = document.getElementById('scheduledEmailsList');
+    if (!list) return;
+    list.innerHTML = '<div style="font-size: 12px; color: #6b7280;">불러오는 중...</div>';
+    try {
+        const response = await fetch('/api/scheduled_emails?status=pending');
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') {
+            list.innerHTML = `<div style="font-size: 12px; color: #b91c1c;">${result.message || '목록을 불러오지 못했습니다.'}</div>`;
+            return;
+        }
+        const jobs = result.jobs || [];
+        if (jobs.length === 0) {
+            list.innerHTML = '<div style="font-size: 12px; color: #6b7280;">대기 중인 예약이 없습니다.</div>';
+            return;
+        }
+        list.innerHTML = jobs.map((job) => {
+            const recipientsSummary = job.recipients_summary
+                || (job.recipients || []).map((r) => r.name || r.email).filter(Boolean).join(', ')
+                || `${job.recipient_count || 0}명`;
+            const recipientLines = (job.recipients || []).map((r) => {
+                if (r.email && r.name && r.name !== r.email) {
+                    return `${escapeHtml(r.name)} &lt;${escapeHtml(r.email)}&gt;`;
+                }
+                return escapeHtml(r.name || r.email || '');
+            }).filter(Boolean);
+            const maxShown = 8;
+            const shownLines = recipientLines.slice(0, maxShown);
+            const moreCount = Math.max(0, recipientLines.length - shownLines.length);
+            const recipientsDetail = shownLines.length
+                ? `<div style="color:#4b5563; margin-top:4px; line-height:1.45;">수신자: ${shownLines.join('<br>')}${moreCount ? `<br>외 ${moreCount}명` : ''}</div>`
+                : `<div style="color:#6b7280; margin-top:4px;">수신자: ${escapeHtml(recipientsSummary)}</div>`;
+            const buttonsLabel = job.include_buttons
+                ? '<span style="color:#059669;">수락/거절 버튼 포함</span>'
+                : '<span style="color:#9ca3af;">수락/거절 버튼 없음</span>';
+            return `
+            <div style="display:flex; gap:10px; align-items:flex-start; justify-content:space-between; padding:8px 0; border-bottom:1px solid #e5e7eb; font-size:12px;">
+                <div style="min-width:0;">
+                    <div style="font-weight:600; color:#202124; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(job.subject || '(제목 없음)')}</div>
+                    <div style="color:#6b7280; margin-top:2px;">${escapeHtml(job.scheduled_at || '')} · ${job.recipient_count || recipientLines.length || 0}명 · ${buttonsLabel}</div>
+                    ${recipientsDetail}
+                </div>
+                <button type="button" class="btn btn-secondary" style="padding:4px 8px; font-size:11px; flex:0 0 auto;" onclick="cancelScheduledEmail(${job.id})">취소</button>
+            </div>
+        `;
+        }).join('');
+    } catch (error) {
+        console.error(error);
+        list.innerHTML = '<div style="font-size: 12px; color: #b91c1c;">목록을 불러오는 중 오류가 발생했습니다.</div>';
+    }
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+async function cancelScheduledEmail(jobId) {
+    if (!confirm('이 예약을 취소할까요?')) return;
+    try {
+        const response = await fetch(`/api/scheduled_emails/${jobId}/cancel`, { method: 'POST' });
+        const result = await response.json();
+        if (!response.ok || result.status !== 'success') {
+            alert(result.message || '예약 취소에 실패했습니다.');
+            return;
+        }
+        await loadScheduledEmailsList();
+    } catch (error) {
+        console.error(error);
+        alert('예약 취소 중 오류가 발생했습니다.');
+    }
+}
+
 async function sendEmailToRecipients() {
     const selectedCheckboxes = document.querySelectorAll('.recipient-checkbox:checked');
 
@@ -1191,13 +1325,31 @@ async function sendEmailToRecipients() {
         alert('이메일 내용을 입력해주세요.');
         return;
     }
+
+    const scheduleToggle = document.getElementById('scheduleEmailToggle');
+    const scheduleInput = document.getElementById('emailScheduledAt');
+    const isScheduled = !!(scheduleToggle && scheduleToggle.checked);
+    let scheduledAt = '';
+    if (isScheduled) {
+        scheduledAt = scheduleInput ? scheduleInput.value.trim() : '';
+        if (!scheduledAt) {
+            alert('예약 시각을 선택해주세요.');
+            return;
+        }
+        if (new Date(scheduledAt).getTime() <= Date.now()) {
+            alert('예약 시각은 현재보다 이후여야 합니다.');
+            return;
+        }
+    }
     
     const ccInput = document.getElementById('emailCC');
     const cc = ccInput ? ccInput.value.trim() : '';
     
-    // 수락/거절 버튼 포함 여부 확인
-    const includeButtonsInput = document.getElementById('includeAcceptButtons');
-    const includeButtons = includeButtonsInput ? includeButtonsInput.checked : false;
+    // 수락/거절 버튼 포함 여부 확인 (모달 안 체크박스 기준)
+    const includeButtonsInput = document.querySelector('#emailComposeModal #includeAcceptButtons')
+        || document.getElementById('includeAcceptButtons');
+    const includeButtons = !!(includeButtonsInput && includeButtonsInput.checked);
+    console.log('수락/거절 버튼 포함:', includeButtons);
     
     // 발송 버튼 찾기 및 상태 변경
     const sendButton = document.getElementById('sendEmailButton') || document.querySelector('button[onclick="sendEmailToRecipients()"]');
@@ -1206,7 +1358,9 @@ async function sendEmailToRecipients() {
     
     if (sendButton) {
         sendButton.disabled = true;
-        sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 발송 중...';
+        sendButton.innerHTML = isScheduled
+            ? '<i class="fas fa-spinner fa-spin"></i> 예약 중...'
+            : '<i class="fas fa-spinner fa-spin"></i> 발송 중...';
         sendButton.style.cursor = 'not-allowed';
         sendButton.style.opacity = '0.7';
     }
@@ -1265,8 +1419,9 @@ async function sendEmailToRecipients() {
     formData.append('subject', subject);
     formData.append('body', body);
     formData.append('cc', cc);
-    if (includeButtons) {
-        formData.append('include_buttons', 'yes');
+    formData.append('include_buttons', includeButtons ? 'yes' : 'no');
+    if (isScheduled && scheduledAt) {
+        formData.append('scheduled_at', scheduledAt);
     }
     
     // 워드 파일 정보 추가
@@ -1295,8 +1450,12 @@ async function sendEmailToRecipients() {
         }
         
         if (result.status === 'success') {
-            const totalCount = selectedCheckboxes.length + directEmails.length;
-            alert(`이메일이 ${totalCount}명에게 성공적으로 발송되었습니다.`);
+            if (result.scheduled) {
+                alert(result.message || '예약 발송이 등록되었습니다.');
+            } else {
+                const totalCount = selectedCheckboxes.length + directEmails.length;
+                alert(`이메일이 ${totalCount}명에게 성공적으로 발송되었습니다.`);
+            }
             closeEmailComposeModal();
         } else {
             alert(result.message || '이메일 발송 실패');

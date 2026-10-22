@@ -267,4 +267,32 @@ class UserSession(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f'<UserSession {self.session_id}>' 
+        return f'<UserSession {self.session_id}>'
+
+
+class ScheduledEmail(db.Model):
+    """예약 이메일 발송 작업."""
+    __tablename__ = 'scheduled_emails'
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id', ondelete='SET NULL'), nullable=True, index=True)
+    subject = db.Column(db.String(500), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    cc = db.Column(db.Text)
+    include_buttons = db.Column(db.Boolean, default=False, nullable=False)
+    participant_ids_json = db.Column(db.Text, default='[]')
+    extra_emails_json = db.Column(db.Text, default='[]')
+    session_data_json = db.Column(db.Text, default='[]')
+    word_files_json = db.Column(db.Text, default='[]')
+    base_url = db.Column(db.String(500))  # 예약 시 외부 링크(수락/거절) 생성용
+    recipient_count = db.Column(db.Integer, default=0)
+    scheduled_at = db.Column(db.DateTime, nullable=False, index=True)
+    status = db.Column(db.String(20), default='pending', nullable=False, index=True)
+    # pending | sending | sent | failed | cancelled
+    error_message = db.Column(db.Text)
+    sent_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<ScheduledEmail {self.id} {self.status} {self.scheduled_at}>'

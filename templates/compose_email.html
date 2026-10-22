@@ -11,10 +11,18 @@
         <form action="/send_email" method="post" onsubmit="sendEmail(event)">
             <input type="hidden" name="participant_ids" value="{{ participant_ids }}">
             <input type="hidden" name="body" id="body">
+            <input type="hidden" name="scheduled_at" id="scheduled_at" value="">
             <input type="text" name="cc" class="cc-input" placeholder="참조 (CC) - 쉼표로 구분된 이메일 주소">
             <input type="text" name="subject" placeholder="제목을 입력하세요" required>
             <div id="editor"></div>
-            <button type="submit">이메일 발송</button>
+            <div style="margin: 12px 0; padding: 10px 12px; background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 13px;">
+                    <input type="checkbox" id="scheduleEmailToggle" onchange="toggleComposeSchedule()">
+                    <span>예약 발송</span>
+                </label>
+                <input type="datetime-local" id="emailScheduledAt" style="display:none; margin-top:8px; padding:6px 10px; border:1px solid #dadce0; border-radius:6px;">
+            </div>
+            <button type="submit" id="composeSendBtn">이메일 발송</button>
             <div id="loading" class="loading-container">
                 <span id="loading-icon" class="spinner"></span>
                 <span id="loading-text">이메일 발송 중...</span>
